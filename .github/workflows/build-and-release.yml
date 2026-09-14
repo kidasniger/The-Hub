@@ -1,0 +1,136 @@
+name: Build, Tag and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Nom du tag (ex: v1.0.0). Laisser vide pour génération automatique.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build APK, Tag & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: |
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+          fi
+
+      - name: Prepare Secrets & Keystore
+        run: |
+          # Create placeholder .env if missing for secrets gradle plugin
+          touch .env
+
+          # Check for custom signing keystore from GitHub Secrets or fallback to debug keystore
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Using custom signing keystore from secrets.KEYSTORE_BASE64"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          elif [ -f debug.keystore.base64 ]; then
+            echo "Using local repository debug keystore for signing fallback"
+            base64 -d debug.keystore.base64 > debug.keystore
+            cp debug.keystore my-upload-key.jks
+            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          fi
+
+      - name: Determine Tag & Version
+        id: version_step
+        run: |
+          if [ -n "${{ inputs.tag_name }}" ]; then
+            TAG="${{ inputs.tag_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VERSION_NAME=$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2 || echo "1.0")
+            TAG="v${VERSION_NAME}.${{ github.run_number }}"
+          fi
+          echo "Computed Release Tag: $TAG"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
+      - name: Compile and Build APKs
+        run: |
+          ./gradlew assembleDebug --no-daemon
+
+          # Attempt release build if keystore is present
+          if [ -f "$KEYSTORE_PATH" ]; then
+            echo "Building assembleRelease..."
+            ./gradlew assembleRelease --no-daemon || echo "Release build failed or skipped, will package debug APK"
+          fi
+
+      - name: Package Artifacts for Release
+        run: |
+          mkdir -p release-artifacts
+
+          # Debug APK
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk "release-artifacts/TheHub-${TAG}-debug.apk"
+            # If no release apk exists, make this the main apk
+            cp app/build/outputs/apk/debug/app-debug.apk "release-artifacts/TheHub-${TAG}.apk"
+          fi
+
+          # Release APK (if generated)
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "release-artifacts/TheHub-${TAG}.apk"
+          fi
+
+          # Bundle AAB (if generated)
+          if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
+            cp app/build/outputs/bundle/release/app-release.aab "release-artifacts/TheHub-${TAG}.aab"
+          fi
+
+          echo "Files prepared for release:"
+          ls -la release-artifacts/
+
+      - name: Create Git Tag (if not already tagged)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Creating tag $TAG..."
+            git tag -a "$TAG" -m "Automated Release $TAG"
+            git push origin "$TAG"
+          else
+            echo "Tag $TAG already exists on remote."
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: "The Hub - Release ${{ env.TAG }}"
+          files: release-artifacts/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

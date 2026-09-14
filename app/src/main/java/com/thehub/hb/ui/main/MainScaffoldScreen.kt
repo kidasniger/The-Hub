@@ -1,0 +1,403 @@
+package com.thehub.hb.ui.main
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.model.User
+import com.thehub.hb.data.repository.AuthRepository
+import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.createpost.CreatePostScreen
+import com.thehub.hb.ui.createpost.CreatePostViewModel
+import com.thehub.hb.ui.feed.FeedScreen
+import com.thehub.hb.ui.feed.FeedViewModel
+import com.thehub.hb.ui.feed.components.SharePostBottomSheet
+import com.thehub.hb.ui.notifications.NotificationsScreen
+import com.thehub.hb.ui.notifications.NotificationsViewModel
+import com.thehub.hb.ui.search.SearchScreen
+import com.thehub.hb.ui.search.SearchViewModel
+import com.thehub.hb.ui.theme.HubBlack
+import com.thehub.hb.ui.theme.HubBorder
+import com.thehub.hb.ui.theme.HubCard
+import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.theme.HubMuted
+import com.thehub.hb.ui.theme.HubSecondary
+import com.thehub.hb.ui.theme.HubSurfaceDark
+import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubWhite
+
+enum class MainTab(
+    val title: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
+    val testTag: String
+) {
+    FEED("Feed", Icons.Filled.Home, Icons.Outlined.Home, "tab_feed"),
+    SEARCH("Recherche", Icons.Filled.Search, Icons.Outlined.Search, "tab_search"),
+    CREATE("Publier", Icons.Filled.AddCircle, Icons.Outlined.AddCircleOutline, "tab_create"),
+    NOTIFICATIONS("Notifs", Icons.Filled.Notifications, Icons.Outlined.Notifications, "tab_notifications"),
+    PROFILE("Profil", Icons.Filled.Person, Icons.Outlined.Person, "tab_profile")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScaffoldScreen(
+    feedViewModel: FeedViewModel,
+    createPostViewModel: CreatePostViewModel,
+    searchViewModel: SearchViewModel,
+    notificationsViewModel: NotificationsViewModel,
+    authRepository: AuthRepository,
+    onPostClick: (String) -> Unit,
+    onImageClick: (String) -> Unit,
+    onOpenComments: (String) -> Unit,
+    onOpenLikes: (String) -> Unit,
+    onOpenMessenger: () -> Unit,
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedTab by remember { mutableIntStateOf(MainTab.FEED.ordinal) }
+    var postToShare by remember { mutableStateOf<Post?>(null) }
+    val unreadNotificationsCount by notificationsViewModel.unreadCount.collectAsState()
+
+    Scaffold(
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("main_scaffold"),
+        containerColor = HubBlack,
+        bottomBar = {
+            HubBottomNavigationBar(
+                selectedTab = MainTab.entries[selectedTab],
+                unreadNotificationsCount = unreadNotificationsCount,
+                onTabSelected = { tab ->
+                    selectedTab = tab.ordinal
+                }
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = innerPadding.calculateBottomPadding())
+        ) {
+            when (MainTab.entries[selectedTab]) {
+                MainTab.FEED -> {
+                    FeedScreen(
+                        viewModel = feedViewModel,
+                        onPostClick = onPostClick,
+                        onImageClick = onImageClick,
+                        onOpenComments = onOpenComments,
+                        onOpenLikes = onOpenLikes,
+                        onCreatePost = {
+                            selectedTab = MainTab.CREATE.ordinal
+                        },
+                        onOpenMessenger = onOpenMessenger
+                    )
+                }
+
+                MainTab.SEARCH -> {
+                    SearchScreen(
+                        viewModel = searchViewModel,
+                        onPostClick = onPostClick,
+                        onImageClick = onImageClick,
+                        onOpenComments = onOpenComments,
+                        onOpenLikes = onOpenLikes,
+                        onOpenShare = { post ->
+                            postToShare = post
+                        },
+                        onUserClick = { _ ->
+                            // View user profile
+                        }
+                    )
+                }
+
+                MainTab.CREATE -> {
+                    CreatePostScreen(
+                        viewModel = createPostViewModel,
+                        onNavigateBack = {
+                            selectedTab = MainTab.FEED.ordinal
+                        },
+                        onPostCreated = {
+                            selectedTab = MainTab.FEED.ordinal
+                            feedViewModel.refresh()
+                        }
+                    )
+                }
+
+                MainTab.NOTIFICATIONS -> {
+                    NotificationsScreen(
+                        viewModel = notificationsViewModel,
+                        onPostClick = onPostClick,
+                        onUserClick = { _, _ ->
+                            // View user profile
+                        },
+                        onOpenMessenger = onOpenMessenger
+                    )
+                }
+
+                MainTab.PROFILE -> {
+                    ProfileStubScreen(
+                        authRepository = authRepository,
+                        onSignOut = onSignOut
+                    )
+                }
+            }
+
+            postToShare?.let { post ->
+                SharePostBottomSheet(
+                    post = post,
+                    onDismiss = { postToShare = null },
+                    onRepost = { p ->
+                        feedViewModel.repost(p)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HubBottomNavigationBar(
+    selectedTab: MainTab,
+    unreadNotificationsCount: Int = 0,
+    onTabSelected: (MainTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(HubSurfaceDark)
+            .border(width = 1.dp, color = HubBorder)
+            .navigationBarsPadding()
+            .testTag("hub_bottom_nav_bar")
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MainTab.entries.forEach { tab ->
+                val isSelected = tab == selectedTab
+                val isCreateTab = tab == MainTab.CREATE
+                val isNotifTab = tab == MainTab.NOTIFICATIONS
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onTabSelected(tab) }
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .testTag(tab.testTag)
+                ) {
+                    if (isCreateTab) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) HubWhite else HubSurfaceElevated)
+                                .border(1.dp, if (isSelected) HubWhite else HubBorder, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = tab.title,
+                                tint = if (isSelected) HubBlack else HubWhite,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else if (isNotifTab && unreadNotificationsCount > 0) {
+                        BadgedBox(
+                            badge = {
+                                Badge(
+                                    containerColor = HubWhite,
+                                    contentColor = HubBlack,
+                                    modifier = Modifier.testTag("notifications_unread_badge")
+                                ) {
+                                    Text(
+                                        text = if (unreadNotificationsCount > 99) "99+" else "$unreadNotificationsCount",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = tab.title,
+                                tint = if (isSelected) HubWhite else HubMuted,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                            contentDescription = tab.title,
+                            tint = if (isSelected) HubWhite else HubMuted,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = tab.title,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) HubWhite else HubMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileStubScreen(
+    authRepository: AuthRepository,
+    onSignOut: () -> Unit
+) {
+    var userProfile by remember { mutableStateOf<User?>(null) }
+    val currentFirebaseUser = authRepository.currentFirebaseUser
+
+    LaunchedEffect(currentFirebaseUser?.uid) {
+        currentFirebaseUser?.uid?.let { uid ->
+            val profile = authRepository.getUserProfile(uid).getOrNull()
+            userProfile = profile
+        }
+    }
+
+    val username = userProfile?.username ?: currentFirebaseUser?.email?.substringBefore("@") ?: "utilisateur"
+    val displayName = userProfile?.displayName
+    val photoUrl = userProfile?.photoUrl ?: currentFirebaseUser?.photoUrl?.toString()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HubBlack)
+            .statusBarsPadding()
+            .padding(24.dp)
+            .testTag("profile_stub_screen"),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            UserAvatar(
+                name = displayName ?: username,
+                photoUrl = photoUrl,
+                size = 80.dp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (!displayName.isNullOrBlank()) {
+                Text(
+                    text = displayName,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            Text(
+                text = "@$username",
+                fontSize = 15.sp,
+                color = HubSecondary
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(HubCard)
+                    .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "Profil complet à venir",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HubSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "L'édition complète du profil, vos publications et vos abonnés seront disponibles dans la prochaine étape.",
+                fontSize = 14.sp,
+                color = HubSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            HubButton(
+                text = "Se déconnecter",
+                onClick = {
+                    authRepository.signOut()
+                    onSignOut()
+                },
+                variant = HubButtonVariant.Secondary,
+                modifier = Modifier.width(200.dp),
+                testTag = "profile_sign_out_button"
+            )
+        }
+    }
+}
