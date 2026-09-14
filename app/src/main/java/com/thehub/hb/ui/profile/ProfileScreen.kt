@@ -26,7 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flag
@@ -61,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -78,6 +81,8 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.feed.components.PostCard
+import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -103,6 +108,9 @@ fun ProfileScreen(
     onNavigateToFollowing: (String) -> Unit,
     onNavigateToChat: (String) -> Unit,
     onPostClick: (String) -> Unit,
+    onOpenComments: (String) -> Unit = {},
+    onOpenLikes: (String) -> Unit = {},
+    onImageClick: (String) -> Unit = {},
     isBottomTab: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -113,6 +121,11 @@ fun ProfileScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showReportSheet by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
+    var postToShare by remember { mutableStateOf<Post?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadProfile()
+    }
 
     LaunchedEffect(uiState.userMessage) {
         uiState.userMessage?.let {
@@ -288,27 +301,59 @@ fun ProfileScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.GridOn,
-                                            contentDescription = null,
-                                            tint = HubWhite,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Publications",
-                                            fontSize = 14.sp,
+                                            text = "Publications (${uiState.posts.size})",
+                                            fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = HubWhite
                                         )
+
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(HubSurfaceElevated)
+                                                .padding(2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            IconButton(
+                                                onClick = { viewModel.setViewMode(ProfileViewMode.GRID) },
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (uiState.viewMode == ProfileViewMode.GRID) HubBorder else Color.Transparent)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.GridOn,
+                                                    contentDescription = "Vue grille",
+                                                    tint = if (uiState.viewMode == ProfileViewMode.GRID) HubWhite else HubMuted,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            IconButton(
+                                                onClick = { viewModel.setViewMode(ProfileViewMode.LIST) },
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (uiState.viewMode == ProfileViewMode.LIST) HubBorder else Color.Transparent)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.List,
+                                                    contentDescription = "Vue liste",
+                                                    tint = if (uiState.viewMode == ProfileViewMode.LIST) HubWhite else HubMuted,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
 
-                            // Empty state or Post Grid Items
+                            // Empty state or Post Items
                             if (uiState.posts.isEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     Box(
@@ -328,7 +373,7 @@ fun ProfileScreen(
                                         }
                                     }
                                 }
-                            } else {
+                            } else if (uiState.viewMode == ProfileViewMode.GRID) {
                                 items(
                                     items = uiState.posts,
                                     key = { it.id }
@@ -336,6 +381,25 @@ fun ProfileScreen(
                                     PostGridThumbnail(
                                         post = post,
                                         onClick = { onPostClick(post.id) }
+                                    )
+                                }
+                            } else {
+                                items(
+                                    items = uiState.posts,
+                                    key = { it.id },
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) { post ->
+                                    PostCard(
+                                        post = post,
+                                        onPostClick = onPostClick,
+                                        onImageClick = onImageClick,
+                                        onToggleLike = { viewModel.toggleLike(it) },
+                                        onOpenComments = onOpenComments,
+                                        onOpenLikes = onOpenLikes,
+                                        onOpenShare = { postToShare = it },
+                                        onToggleBookmark = { viewModel.toggleBookmark(it) },
+                                        onAuthorClick = null,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                                     )
                                 }
                             }
@@ -373,6 +437,15 @@ fun ProfileScreen(
             },
             onDismiss = { showBlockDialog = false },
             isLoading = uiState.isActionLoading
+        )
+    }
+
+    // Share Post Bottom Sheet
+    postToShare?.let { post ->
+        SharePostBottomSheet(
+            post = post,
+            onDismiss = { postToShare = null },
+            onRepost = { }
         )
     }
 }
@@ -726,6 +799,26 @@ private fun PostGridThumbnail(
                 Icon(
                     imageVector = Icons.Default.Repeat,
                     contentDescription = "Repost",
+                    tint = HubWhite,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
+
+        // Bookmark indicator badge
+        if (post.isBookmarkedByCurrentUser) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(HubBlack.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Bookmark,
+                    contentDescription = "Enregistré",
                     tint = HubWhite,
                     modifier = Modifier.size(12.dp)
                 )

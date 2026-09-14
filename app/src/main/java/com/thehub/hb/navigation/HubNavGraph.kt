@@ -14,6 +14,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.thehub.hb.di.AppContainer
+import com.thehub.hb.ui.bookmarks.BookmarksScreen
+import com.thehub.hb.ui.bookmarks.BookmarksViewModel
 import com.thehub.hb.ui.comments.CommentsScreen
 import com.thehub.hb.ui.comments.CommentsViewModel
 import com.thehub.hb.ui.completeprofile.CompleteProfileScreen
@@ -359,7 +361,8 @@ fun HubNavGraph(
                         return ProfileViewModel(
                             targetUserId = null,
                             userRepository = appContainer.userRepository,
-                            messageRepository = appContainer.messageRepository
+                            messageRepository = appContainer.messageRepository,
+                            postRepository = appContainer.postRepository
                         ) as T
                     }
                 }
@@ -404,6 +407,9 @@ fun HubNavGraph(
                 },
                 onNavigateToChat = {
                     navController.navigate(Screen.Messenger.route)
+                },
+                onNavigateToBookmarks = {
+                    navController.navigate(Screen.Bookmarks.route)
                 },
                 onSignOut = {
                     navController.navigate(Screen.Welcome.route) {
@@ -640,7 +646,8 @@ fun HubNavGraph(
                         return ProfileViewModel(
                             targetUserId = userId,
                             userRepository = appContainer.userRepository,
-                            messageRepository = appContainer.messageRepository
+                            messageRepository = appContainer.messageRepository,
+                            postRepository = appContainer.postRepository
                         ) as T
                     }
                 }
@@ -664,8 +671,20 @@ fun HubNavGraph(
                 onNavigateToChat = { uid ->
                     navController.navigate(Screen.Messenger.route)
                 },
+                onNavigateToBookmarks = {
+                    navController.navigate(Screen.Bookmarks.route)
+                },
                 onPostClick = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
+                },
+                onOpenComments = { postId ->
+                    navController.navigate(Screen.Comments.createRoute(postId))
+                },
+                onOpenLikes = { postId ->
+                    navController.navigate(Screen.LikesList.createRoute(postId))
+                },
+                onImageClick = { imageUrl ->
+                    navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
                 },
                 isBottomTab = false
             )
@@ -805,6 +824,40 @@ fun HubNavGraph(
             BlockedUsersScreen(
                 viewModel = blockedUsersViewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Bookmarks
+        composable(Screen.Bookmarks.route) {
+            val bookmarksViewModel: BookmarksViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return BookmarksViewModel(
+                            postRepository = appContainer.postRepository
+                        ) as T
+                    }
+                }
+            )
+
+            BookmarksScreen(
+                viewModel = bookmarksViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onPostClick = { postId ->
+                    navController.navigate(Screen.PostDetail.createRoute(postId))
+                },
+                onImageClick = { imageUrl ->
+                    navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
+                },
+                onOpenComments = { postId ->
+                    navController.navigate(Screen.Comments.createRoute(postId))
+                },
+                onOpenLikes = { postId ->
+                    navController.navigate(Screen.LikesList.createRoute(postId))
+                },
+                onAuthorClick = { userId ->
+                    navController.navigate(Screen.Profile.createRoute(userId))
+                }
             )
         }
     }

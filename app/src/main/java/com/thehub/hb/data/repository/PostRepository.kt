@@ -7,6 +7,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.model.LikerUser
 import com.thehub.hb.data.model.NotificationItem
@@ -26,7 +27,8 @@ class PostRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val imgbbService: ImgbbService = ImgbbService(),
-    private val notificationRepository: NotificationRepository = NotificationRepository(firestore, auth)
+    private val notificationRepository: NotificationRepository = NotificationRepository(firestore, auth),
+    private val dataStoreManager: DataStoreManager? = null
 ) {
     val currentUserId: String?
         get() = auth.currentUser?.uid
@@ -458,18 +460,37 @@ class PostRepository(
     suspend fun toggleBookmark(postId: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+
+            // Synchronize local cache first for instant feedback and offline persistence
+            val localToggled = dataStoreManager?.toggleLocalBookmark(postId)
+
             val bookmarkRef = firestore.collection("users").document(uid)
                 .collection("bookmarks").document(postId)
 
-            val doc = bookmarkRef.get().await()
-            if (doc.exists()) {
-                bookmarkRef.delete().await()
-                Result.success(false)
-            } else {
-                bookmarkRef.set(mapOf("savedAt" to Timestamp.now())).await()
-                Result.success(true)
+            var isNowBookmarked = localToggled
+            try {
+                val doc = bookmarkRef.get().await()
+                if (doc.exists()) {
+                    bookmarkRef.delete().await()
+                    isNowBookmarked = false
+                } else {
+                    bookmarkRef.set(mapOf("savedAt" to Timestamp.now())).await()
+                    isNowBookmarked = true
+                }
+            } catch (e: Exception) {
+                Log.w("PostRepository", "Firestore toggleBookmark note: ${e.message}")
             }
+
+            // Sync final state to local storage
+            if (isNowBookmarked != null) {
+                val currentLocal = dataStoreManager?.getLocalBookmarkedIds()?.toMutableSet() ?: mutableSetOf()
+                if (isNowBookmarked) currentLocal.add(postId) else currentLocal.remove(postId)
+                dataStoreManager?.setLocalBookmarkedIds(currentLocal)
+            }
+
+            Result.success(isNowBookmarked ?: true)
         } catch (e: Exception) {
+            Log.e("PostRepository", "toggleBookmark error: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -479,6 +500,9 @@ class PostRepository(
      */
     suspend fun isBookmarked(postId: String): Boolean = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext false
+        if (dataStoreManager?.getLocalBookmarkedIds()?.contains(postId) == true) {
+            return@withContext true
+        }
         try {
             firestore.collection("users").document(uid)
                 .collection("bookmarks").document(postId)
@@ -494,23 +518,35 @@ class PostRepository(
     suspend fun getBookmarks(): Result<List<Post>> = withContext(Dispatchers.IO) {
         try {
             val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-            val bookmarksSnapshot = try {
-                firestore.collection("users").document(uid)
-                    .collection("bookmarks")
-                    .orderBy("savedAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+            val localIds = dataStoreManager?.getLocalBookmarkedIds() ?: emptySet()
+
+            val remoteIds = try {
+                val bookmarksSnapshot = try {
+                    firestore.collection("users").document(uid)
+                        .collection("bookmarks")
+                        .orderBy("savedAt", Query.Direction.DESCENDING)
+                        .get()
+                        .await()
+                } catch (e: Exception) {
+                    Log.w("PostRepository", "Bookmarks orderBy failed (${e.message}), falling back to direct fetch")
+                    firestore.collection("users").document(uid)
+                        .collection("bookmarks")
+                        .get()
+                        .await()
+                }
+                bookmarksSnapshot.documents.map { it.id }
             } catch (e: Exception) {
-                Log.w("PostRepository", "Bookmarks orderBy failed (${e.message}), falling back to direct fetch")
-                firestore.collection("users").document(uid)
-                    .collection("bookmarks")
-                    .get()
-                    .await()
+                Log.w("PostRepository", "Remote bookmarks fetch failed: ${e.message}")
+                emptyList()
+            }
+
+            val targetPostIds = (remoteIds + localIds).distinct()
+            if (targetPostIds.isNotEmpty()) {
+                dataStoreManager?.setLocalBookmarkedIds(targetPostIds.toSet())
             }
 
             val posts = mutableListOf<Post>()
-            for (bookmarkDoc in bookmarksSnapshot.documents) {
-                val postId = bookmarkDoc.id
+            for (postId in targetPostIds) {
                 try {
                     val postDoc = firestore.collection("posts").document(postId).get().await()
                     if (postDoc.exists()) {

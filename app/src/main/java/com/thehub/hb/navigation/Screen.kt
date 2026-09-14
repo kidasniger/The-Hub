@@ -51,4 +51,5 @@ sealed class Screen(val route: String) {
     }
     data object Settings : Screen("settings")
     data object BlockedUsers : Screen("blocked_users")
+    data object Bookmarks : Screen("bookmarks")
 }

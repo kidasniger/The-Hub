@@ -17,7 +17,10 @@ import com.thehub.hb.data.model.Report
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.remote.ImgbbService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
@@ -534,6 +537,9 @@ class UserRepository(
      * we query by authorId and sort in-memory.
      */
     suspend fun getUserPosts(userId: String): Result<List<Post>> = withContext(Dispatchers.IO) {
+        if (userId.isBlank()) {
+            return@withContext Result.success(emptyList())
+        }
         try {
             val currentUid = currentUserId
 
@@ -544,8 +550,9 @@ class UserRepository(
                 .get()
                 .await()
 
-            // Fetch bookmarks to hydrate bookmark status
-            val bookmarkedIds = if (currentUid != null) {
+            // Fetch bookmarks to hydrate bookmark status (remote + local cache)
+            val localBookmarks = dataStoreManager.getLocalBookmarkedIds()
+            val remoteBookmarks = if (currentUid != null) {
                 try {
                     firestore.collection("users").document(currentUid)
                         .collection("bookmarks").get().await()
@@ -554,26 +561,32 @@ class UserRepository(
                     emptySet()
                 }
             } else emptySet()
+            val bookmarkedIds = remoteBookmarks + localBookmarks
 
-            val posts = snapshot.documents.mapNotNull { doc ->
-                try {
-                    val post = Post.fromSnapshot(doc, currentUid)
-                    var isLiked = post.isLikedByCurrentUser
-                    if (currentUid != null && !isLiked) {
+            val posts = coroutineScope {
+                snapshot.documents.map { doc ->
+                    async {
                         try {
-                            val likeDoc = firestore.collection("posts").document(post.id)
-                                .collection("likes").document(currentUid)
-                                .get().await()
-                            isLiked = likeDoc.exists()
-                        } catch (_: Exception) {}
+                            val post = Post.fromSnapshot(doc, currentUid)
+                            var isLiked = post.isLikedByCurrentUser
+                            if (currentUid != null && !isLiked) {
+                                try {
+                                    val likeDoc = firestore.collection("posts").document(post.id)
+                                        .collection("likes").document(currentUid)
+                                        .get().await()
+                                    isLiked = likeDoc.exists()
+                                } catch (_: Exception) {}
+                            }
+                            post.copy(
+                                isLikedByCurrentUser = isLiked,
+                                isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
+                            )
+                        } catch (e: Exception) {
+                            Log.e("UserRepository", "Error parsing post in getUserPosts: ${e.message}")
+                            null
+                        }
                     }
-                    post.copy(
-                        isLikedByCurrentUser = isLiked,
-                        isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
-                    )
-                } catch (_: Exception) {
-                    null
-                }
+                }.awaitAll().filterNotNull()
             }.sortedByDescending { it.createdAt.toDate().time }
 
             Result.success(posts)

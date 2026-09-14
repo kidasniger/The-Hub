@@ -66,7 +66,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             firestore = firestoreInstance,
             auth = authInstance,
             imgbbService = imgbbServiceInstance,
-            notificationRepository = notificationRepository
+            notificationRepository = notificationRepository,
+            dataStoreManager = dataStoreManager
         )
     }
 

@@ -6,8 +6,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "hub_settings")
@@ -21,6 +23,7 @@ class DataStoreManager(private val context: Context) {
         val KEY_LAST_USERNAME = stringPreferencesKey("last_username")
         val KEY_LAST_PHOTO_URL = stringPreferencesKey("last_photo_url")
         val KEY_SEARCH_HISTORY = stringPreferencesKey("recent_search_history")
+        val KEY_BOOKMARKED_POSTS = stringSetPreferencesKey("bookmarked_post_ids")
         val KEY_NOTIF_LIKES = booleanPreferencesKey("notif_likes")
         val KEY_NOTIF_COMMENTS = booleanPreferencesKey("notif_comments")
         val KEY_NOTIF_FOLLOWS = booleanPreferencesKey("notif_follows")
@@ -175,5 +178,39 @@ class DataStoreManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences.remove(KEY_SEARCH_HISTORY)
         }
+    }
+
+    val bookmarkedPostIds: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[KEY_BOOKMARKED_POSTS] ?: emptySet()
+    }
+
+    suspend fun getLocalBookmarkedIds(): Set<String> {
+        return try {
+            bookmarkedPostIds.first()
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    suspend fun setLocalBookmarkedIds(ids: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_BOOKMARKED_POSTS] = ids
+        }
+    }
+
+    suspend fun toggleLocalBookmark(postId: String): Boolean {
+        var isBookmarked = false
+        context.dataStore.edit { preferences ->
+            val current = preferences[KEY_BOOKMARKED_POSTS]?.toMutableSet() ?: mutableSetOf()
+            if (current.contains(postId)) {
+                current.remove(postId)
+                isBookmarked = false
+            } else {
+                current.add(postId)
+                isBookmarked = true
+            }
+            preferences[KEY_BOOKMARKED_POSTS] = current
+        }
+        return isBookmarked
     }
 }

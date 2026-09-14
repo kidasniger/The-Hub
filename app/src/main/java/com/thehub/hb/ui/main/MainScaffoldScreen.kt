@@ -1,5 +1,8 @@
 package com.thehub.hb.ui.main
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -112,12 +117,30 @@ fun MainScaffoldScreen(
     onNavigateToFollowers: (String) -> Unit,
     onNavigateToFollowing: (String) -> Unit,
     onNavigateToChat: (String) -> Unit,
+    onNavigateToBookmarks: () -> Unit = {},
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(MainTab.FEED.ordinal) }
     var postToShare by remember { mutableStateOf<Post?>(null) }
+    var lastBackPressedTime by remember { mutableLongStateOf(0L) }
     val unreadNotificationsCount by notificationsViewModel.unreadCount.collectAsState()
+
+    // Double back press to exit handling
+    BackHandler(enabled = true) {
+        if (selectedTab != MainTab.FEED.ordinal) {
+            selectedTab = MainTab.FEED.ordinal
+        } else {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressedTime < 2000L) {
+                (context as? Activity)?.finish()
+            } else {
+                lastBackPressedTime = currentTime
+                Toast.makeText(context, "Appuyez encore une fois pour quitter", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier
@@ -201,10 +224,14 @@ fun MainScaffoldScreen(
                         onNavigateBack = null,
                         onNavigateToEditProfile = onNavigateToEditProfile,
                         onNavigateToSettings = onNavigateToSettings,
+                        onNavigateToBookmarks = onNavigateToBookmarks,
                         onNavigateToFollowers = onNavigateToFollowers,
                         onNavigateToFollowing = onNavigateToFollowing,
                         onNavigateToChat = onNavigateToChat,
                         onPostClick = onPostClick,
+                        onOpenComments = onOpenComments,
+                        onOpenLikes = onOpenLikes,
+                        onImageClick = onImageClick,
                         isBottomTab = true
                     )
                 }

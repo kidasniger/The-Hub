@@ -7,12 +7,18 @@ import androidx.lifecycle.viewModelScope
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.MessageRepository
+import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+enum class ProfileViewMode {
+    GRID,
+    LIST
+}
 
 data class ProfileUiState(
     val isLoading: Boolean = true,
@@ -25,28 +31,33 @@ data class ProfileUiState(
     val isBlockedByMe: Boolean = false,
     val isActionLoading: Boolean = false,
     val errorMessage: String? = null,
-    val userMessage: String? = null
+    val userMessage: String? = null,
+    val viewMode: ProfileViewMode = ProfileViewMode.GRID
 )
 
 class ProfileViewModel(
     private val targetUserId: String?,
     private val userRepository: UserRepository,
-    private val messageRepository: MessageRepository
+    private val messageRepository: MessageRepository,
+    private val postRepository: PostRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     val resolvedUserId: String
-        get() = if (targetUserId.isNullOrBlank()) {
-            userRepository.currentUserId ?: ""
-        } else {
-            targetUserId
+        get() {
+            if (!targetUserId.isNullOrBlank()) return targetUserId
+            return userRepository.currentUserId
+                ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                ?: ""
         }
 
     val isOwnProfile: Boolean
         get() {
-            val current = userRepository.currentUserId ?: return false
+            val current = userRepository.currentUserId
+                ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                ?: return false
             return targetUserId.isNullOrBlank() || targetUserId == current
         }
 
@@ -55,10 +66,15 @@ class ProfileViewModel(
         observeFollowStatus()
     }
 
+    fun setViewMode(mode: ProfileViewMode) {
+        _uiState.update { it.copy(viewMode = mode) }
+    }
+
     private fun observeFollowStatus() {
-        if (!isOwnProfile && resolvedUserId.isNotBlank()) {
+        val uid = resolvedUserId
+        if (!isOwnProfile && uid.isNotBlank()) {
             viewModelScope.launch {
-                userRepository.isFollowing(resolvedUserId).collect { following ->
+                userRepository.isFollowing(uid).collect { following ->
                     _uiState.update { it.copy(isFollowing = following) }
                 }
             }
@@ -68,7 +84,7 @@ class ProfileViewModel(
     fun loadProfile() {
         val uid = resolvedUserId
         if (uid.isBlank()) {
-            _uiState.update { it.copy(isLoading = false, errorMessage = "Utilisateur introuvable") }
+            _uiState.update { it.copy(isLoading = false) }
             return
         }
 
@@ -280,6 +296,42 @@ class ProfileViewModel(
         }
     }
 
+    fun toggleBookmark(postId: String) {
+        val currentPosts = _uiState.value.posts
+        val updatedPosts = currentPosts.map { post ->
+            if (post.id == postId) {
+                post.copy(isBookmarkedByCurrentUser = !post.isBookmarkedByCurrentUser)
+            } else post
+        }
+        _uiState.update { it.copy(posts = updatedPosts) }
+
+        viewModelScope.launch {
+            val result = postRepository.toggleBookmark(postId)
+            result.onFailure {
+                _uiState.update { it.copy(posts = currentPosts) }
+            }
+        }
+    }
+
+    fun toggleLike(postId: String) {
+        val currentPosts = _uiState.value.posts
+        val updatedPosts = currentPosts.map { post ->
+            if (post.id == postId) {
+                val newLiked = !post.isLikedByCurrentUser
+                val newLikesCount = if (newLiked) post.likesCount + 1 else (post.likesCount - 1).coerceAtLeast(0)
+                post.copy(isLikedByCurrentUser = newLiked, likesCount = newLikesCount)
+            } else post
+        }
+        _uiState.update { it.copy(posts = updatedPosts) }
+
+        viewModelScope.launch {
+            val result = postRepository.toggleLike(postId)
+            result.onFailure {
+                _uiState.update { it.copy(posts = currentPosts) }
+            }
+        }
+    }
+
     fun clearUserMessage() {
         _uiState.update { it.copy(userMessage = null) }
     }
@@ -291,11 +343,12 @@ class ProfileViewModel(
     class Factory(
         private val targetUserId: String?,
         private val userRepository: UserRepository,
-        private val messageRepository: MessageRepository
+        private val messageRepository: MessageRepository,
+        private val postRepository: PostRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ProfileViewModel(targetUserId, userRepository, messageRepository) as T
+            return ProfileViewModel(targetUserId, userRepository, messageRepository, postRepository) as T
         }
     }
 }
