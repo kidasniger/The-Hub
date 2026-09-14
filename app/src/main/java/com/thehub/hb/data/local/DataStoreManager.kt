@@ -21,6 +21,48 @@ class DataStoreManager(private val context: Context) {
         val KEY_LAST_USERNAME = stringPreferencesKey("last_username")
         val KEY_LAST_PHOTO_URL = stringPreferencesKey("last_photo_url")
         val KEY_SEARCH_HISTORY = stringPreferencesKey("recent_search_history")
+        val KEY_NOTIF_LIKES = booleanPreferencesKey("notif_likes")
+        val KEY_NOTIF_COMMENTS = booleanPreferencesKey("notif_comments")
+        val KEY_NOTIF_FOLLOWS = booleanPreferencesKey("notif_follows")
+        val KEY_NOTIF_MESSAGES = booleanPreferencesKey("notif_messages")
+    }
+
+    val notifLikesEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIF_LIKES] ?: true
+    }
+
+    val notifCommentsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIF_COMMENTS] ?: true
+    }
+
+    val notifFollowsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIF_FOLLOWS] ?: true
+    }
+
+    val notifMessagesEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIF_MESSAGES] ?: true
+    }
+
+    suspend fun setNotifLikes(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIF_LIKES] = enabled }
+    }
+
+    suspend fun setNotifComments(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIF_COMMENTS] = enabled }
+    }
+
+    suspend fun setNotifFollows(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIF_FOLLOWS] = enabled }
+    }
+
+    suspend fun setNotifMessages(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIF_MESSAGES] = enabled }
+    }
+
+    suspend fun clearAll() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
     }
 
     val searchHistory: Flow<List<String>> = context.dataStore.data.map { preferences ->

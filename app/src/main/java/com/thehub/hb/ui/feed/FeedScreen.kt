@@ -78,6 +78,7 @@ fun FeedScreen(
     onOpenLikes: (String) -> Unit,
     onCreatePost: () -> Unit,
     onOpenMessenger: () -> Unit,
+    onAuthorClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -233,7 +234,8 @@ fun FeedScreen(
                                     onToggleLike = { viewModel.toggleLike(it) },
                                     onOpenComments = onOpenComments,
                                     onOpenLikes = onOpenLikes,
-                                    onOpenShare = { postToShare = it }
+                                    onOpenShare = { postToShare = it },
+                                    onAuthorClick = onAuthorClick
                                 )
                             }
 

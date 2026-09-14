@@ -2,6 +2,7 @@ package com.thehub.hb.ui.comments
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +63,7 @@ import com.thehub.hb.utils.RelativeTime
 fun CommentsScreen(
     viewModel: CommentsViewModel,
     onNavigateBack: () -> Unit,
+    onUserClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -200,7 +202,10 @@ fun CommentsScreen(
                                 items = uiState.comments,
                                 key = { it.id }
                             ) { comment ->
-                                CommentItemRow(comment = comment)
+                                CommentItemRow(
+                                    comment = comment,
+                                    onUserClick = onUserClick
+                                )
                             }
                         }
                     }
@@ -289,7 +294,10 @@ fun CommentsScreen(
 }
 
 @Composable
-private fun CommentItemRow(comment: Comment) {
+private fun CommentItemRow(
+    comment: Comment,
+    onUserClick: ((String) -> Unit)? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -299,11 +307,17 @@ private fun CommentItemRow(comment: Comment) {
             .padding(14.dp),
         verticalAlignment = Alignment.Top
     ) {
-        UserAvatar(
-            name = comment.authorUsername,
-            photoUrl = comment.authorPhotoUrl,
-            size = 38.dp
-        )
+        Box(
+            modifier = Modifier.then(
+                if (onUserClick != null) Modifier.clickable { onUserClick(comment.authorId) } else Modifier
+            )
+        ) {
+            UserAvatar(
+                name = comment.authorUsername,
+                photoUrl = comment.authorPhotoUrl,
+                size = 38.dp
+            )
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -315,7 +329,10 @@ private fun CommentItemRow(comment: Comment) {
                     text = "@${comment.authorUsername}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = HubWhite
+                    color = HubWhite,
+                    modifier = Modifier.then(
+                        if (onUserClick != null) Modifier.clickable { onUserClick(comment.authorId) } else Modifier
+                    )
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(

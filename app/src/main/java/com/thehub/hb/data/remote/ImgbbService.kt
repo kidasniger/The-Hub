@@ -1,6 +1,7 @@
 package com.thehub.hb.data.remote
 
 import android.util.Base64
+import com.thehub.hb.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
@@ -17,7 +18,8 @@ class ImgbbService(
         .build()
 ) {
     companion object {
-        private const val API_KEY = "f5cf2a4a5280b1e58ae04cea77b5607d"
+        private val API_KEY: String
+            get() = if (BuildConfig.IMGBB_API_KEY.isNotEmpty()) BuildConfig.IMGBB_API_KEY else "f5cf2a4a5280b1e58ae04cea77b5607d"
         private const val UPLOAD_URL = "https://api.imgbb.com/1/upload"
     }
 

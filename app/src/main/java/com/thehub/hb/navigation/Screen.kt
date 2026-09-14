@@ -39,4 +39,16 @@ sealed class Screen(val route: String) {
         fun createRoute(conversationId: String): String = "chat_info/$conversationId"
     }
     data object Terms : Screen("terms")
+    data object Profile : Screen("profile/{userId}") {
+        fun createRoute(userId: String): String = "profile/$userId"
+    }
+    data object EditProfile : Screen("edit_profile")
+    data object FollowersList : Screen("followers_list/{userId}") {
+        fun createRoute(userId: String): String = "followers_list/$userId"
+    }
+    data object FollowingList : Screen("following_list/{userId}") {
+        fun createRoute(userId: String): String = "following_list/$userId"
+    }
+    data object Settings : Screen("settings")
+    data object BlockedUsers : Screen("blocked_users")
 }

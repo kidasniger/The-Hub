@@ -8,6 +8,7 @@ import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.NotificationRepository
 import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.SearchRepository
+import com.thehub.hb.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -18,11 +19,18 @@ interface AppContainer {
     val messageRepository: MessageRepository
     val notificationRepository: NotificationRepository
     val searchRepository: SearchRepository
+    val userRepository: UserRepository
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
-    private val firestoreInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val authInstance: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val firestoreInstance: FirebaseFirestore by lazy {
+        com.thehub.hb.HubApplication.ensureFirebaseInitialized(context)
+        FirebaseFirestore.getInstance()
+    }
+    private val authInstance: FirebaseAuth by lazy {
+        com.thehub.hb.HubApplication.ensureFirebaseInitialized(context)
+        FirebaseAuth.getInstance()
+    }
     private val imgbbServiceInstance: ImgbbService by lazy { ImgbbService() }
 
     override val dataStoreManager: DataStoreManager by lazy {
@@ -66,6 +74,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         MessageRepository(
             firestore = firestoreInstance,
             auth = authInstance,
+            imgbbService = imgbbServiceInstance,
+            notificationRepository = notificationRepository
+        )
+    }
+
+    override val userRepository: UserRepository by lazy {
+        UserRepository(
+            firestore = firestoreInstance,
+            auth = authInstance,
+            dataStoreManager = dataStoreManager,
             imgbbService = imgbbServiceInstance,
             notificationRepository = notificationRepository
         )

@@ -59,6 +59,7 @@ fun PostCard(
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onOpenShare: (Post) -> Unit,
+    onAuthorClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -107,7 +108,12 @@ fun PostCard(
             // Author Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (onAuthorClick != null) Modifier.clickable { onAuthorClick(post.authorId) }
+                        else Modifier
+                    )
             ) {
                 UserAvatar(
                     name = post.authorUsername,

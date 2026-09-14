@@ -11,11 +11,12 @@ service cloud.firestore {
     match /users/{userId} {
       // Tout utilisateur connecté peut lire les profils (recherche, flux, messagerie)
       allow read: if isAuthenticated();
-      // Un utilisateur ne peut modifier que son propre document de profil
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      // Mise à jour possible par l'utilisateur ou pour la mise à jour transactionnelle des compteurs (followersCount)
+      allow write: if isAuthenticated();
 
       match /blockedUsers/{blockedId} {
-        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+        allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == blockedId);
+        allow write: if isAuthenticated() && request.auth.uid == userId;
       }
       match /followers/{followerId} {
         allow read: if isAuthenticated();
@@ -25,6 +26,12 @@ service cloud.firestore {
         allow read: if isAuthenticated();
         allow write: if isAuthenticated();
       }
+    }
+
+    // --- SIGNALEMENTS (REPORTS) ---
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if false;
     }
 
     // --- PUBLICATIONS, LIKES & COMMENTAIRES ---

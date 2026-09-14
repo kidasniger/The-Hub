@@ -53,6 +53,7 @@ import com.thehub.hb.ui.theme.HubWhite
 fun LikesListScreen(
     viewModel: LikesListViewModel,
     onNavigateBack: () -> Unit,
+    onUserClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -183,11 +184,7 @@ fun LikesListScreen(
                                 LikerItemRow(
                                     liker = liker,
                                     onClick = {
-                                        Toast.makeText(
-                                            context,
-                                            "Profil de @${liker.username} à venir",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        onUserClick(liker.uid)
                                     }
                                 )
                             }

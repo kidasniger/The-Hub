@@ -9,7 +9,10 @@ data class User(
     val photoUrl: String? = null,
     val bio: String? = null,
     val birthdate: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val postsCount: Int = 0,
+    val followersCount: Int = 0,
+    val followingCount: Int = 0
 ) {
     fun toMap(): Map<String, Any?> {
         val lower = if (usernameLower.isNotBlank()) usernameLower else username.lowercase()
@@ -22,7 +25,10 @@ data class User(
             "photoUrl" to photoUrl,
             "bio" to bio,
             "birthdate" to birthdate,
-            "createdAt" to createdAt
+            "createdAt" to createdAt,
+            "postsCount" to postsCount,
+            "followersCount" to followersCount,
+            "followingCount" to followingCount
         )
     }
 
@@ -39,7 +45,10 @@ data class User(
                 photoUrl = map["photoUrl"] as? String,
                 bio = map["bio"] as? String,
                 birthdate = map["birthdate"] as? String,
-                createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                postsCount = (map["postsCount"] as? Number)?.toInt() ?: 0,
+                followersCount = (map["followersCount"] as? Number)?.toInt() ?: 0,
+                followingCount = (map["followingCount"] as? Number)?.toInt() ?: 0
             )
         }
     }

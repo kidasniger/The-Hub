@@ -65,6 +65,8 @@ import com.thehub.hb.ui.feed.FeedViewModel
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.notifications.NotificationsScreen
 import com.thehub.hb.ui.notifications.NotificationsViewModel
+import com.thehub.hb.ui.profile.ProfileScreen
+import com.thehub.hb.ui.profile.ProfileViewModel
 import com.thehub.hb.ui.search.SearchScreen
 import com.thehub.hb.ui.search.SearchViewModel
 import com.thehub.hb.ui.theme.HubBlack
@@ -97,12 +99,19 @@ fun MainScaffoldScreen(
     createPostViewModel: CreatePostViewModel,
     searchViewModel: SearchViewModel,
     notificationsViewModel: NotificationsViewModel,
+    profileViewModel: ProfileViewModel,
     authRepository: AuthRepository,
     onPostClick: (String) -> Unit,
     onImageClick: (String) -> Unit,
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onOpenMessenger: () -> Unit,
+    onNavigateToProfile: (String) -> Unit,
+    onNavigateToEditProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToFollowers: (String) -> Unit,
+    onNavigateToFollowing: (String) -> Unit,
+    onNavigateToChat: (String) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -141,7 +150,8 @@ fun MainScaffoldScreen(
                         onCreatePost = {
                             selectedTab = MainTab.CREATE.ordinal
                         },
-                        onOpenMessenger = onOpenMessenger
+                        onOpenMessenger = onOpenMessenger,
+                        onAuthorClick = onNavigateToProfile
                     )
                 }
 
@@ -155,8 +165,8 @@ fun MainScaffoldScreen(
                         onOpenShare = { post ->
                             postToShare = post
                         },
-                        onUserClick = { _ ->
-                            // View user profile
+                        onUserClick = { user ->
+                            onNavigateToProfile(user.uid)
                         }
                     )
                 }
@@ -178,17 +188,24 @@ fun MainScaffoldScreen(
                     NotificationsScreen(
                         viewModel = notificationsViewModel,
                         onPostClick = onPostClick,
-                        onUserClick = { _, _ ->
-                            // View user profile
+                        onUserClick = { actorId, _ ->
+                            onNavigateToProfile(actorId)
                         },
                         onOpenMessenger = onOpenMessenger
                     )
                 }
 
                 MainTab.PROFILE -> {
-                    ProfileStubScreen(
-                        authRepository = authRepository,
-                        onSignOut = onSignOut
+                    ProfileScreen(
+                        viewModel = profileViewModel,
+                        onNavigateBack = null,
+                        onNavigateToEditProfile = onNavigateToEditProfile,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onNavigateToFollowers = onNavigateToFollowers,
+                        onNavigateToFollowing = onNavigateToFollowing,
+                        onNavigateToChat = onNavigateToChat,
+                        onPostClick = onPostClick,
+                        isBottomTab = true
                     )
                 }
             }
@@ -303,101 +320,3 @@ fun HubBottomNavigationBar(
     }
 }
 
-@Composable
-private fun ProfileStubScreen(
-    authRepository: AuthRepository,
-    onSignOut: () -> Unit
-) {
-    var userProfile by remember { mutableStateOf<User?>(null) }
-    val currentFirebaseUser = authRepository.currentFirebaseUser
-
-    LaunchedEffect(currentFirebaseUser?.uid) {
-        currentFirebaseUser?.uid?.let { uid ->
-            val profile = authRepository.getUserProfile(uid).getOrNull()
-            userProfile = profile
-        }
-    }
-
-    val username = userProfile?.username ?: currentFirebaseUser?.email?.substringBefore("@") ?: "utilisateur"
-    val displayName = userProfile?.displayName
-    val photoUrl = userProfile?.photoUrl ?: currentFirebaseUser?.photoUrl?.toString()
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HubBlack)
-            .statusBarsPadding()
-            .padding(24.dp)
-            .testTag("profile_stub_screen"),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            UserAvatar(
-                name = displayName ?: username,
-                photoUrl = photoUrl,
-                size = 80.dp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (!displayName.isNullOrBlank()) {
-                Text(
-                    text = displayName,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            Text(
-                text = "@$username",
-                fontSize = 15.sp,
-                color = HubSecondary
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(HubCard)
-                    .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = "Profil complet à venir",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = HubSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "L'édition complète du profil, vos publications et vos abonnés seront disponibles dans la prochaine étape.",
-                fontSize = 14.sp,
-                color = HubSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            HubButton(
-                text = "Se déconnecter",
-                onClick = {
-                    authRepository.signOut()
-                    onSignOut()
-                },
-                variant = HubButtonVariant.Secondary,
-                modifier = Modifier.width(200.dp),
-                testTag = "profile_sign_out_button"
-            )
-        }
-    }
-}

@@ -73,6 +73,7 @@ fun PostDetailScreen(
     onImageClick: (String) -> Unit,
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
+    onAuthorClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -185,7 +186,15 @@ fun PostDetailScreen(
                         // Author Profile Header
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (onAuthorClick != null) {
+                                        Modifier.clickable { onAuthorClick(post.authorId) }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                         ) {
                             UserAvatar(
                                 name = post.authorUsername,

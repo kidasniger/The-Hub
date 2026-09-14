@@ -41,9 +41,20 @@ import com.thehub.hb.ui.notifications.NotificationsViewModel
 import com.thehub.hb.ui.onboarding.OnboardingScreen
 import com.thehub.hb.ui.postdetail.PostDetailScreen
 import com.thehub.hb.ui.postdetail.PostDetailViewModel
+import com.thehub.hb.ui.profile.EditProfileScreen
+import com.thehub.hb.ui.profile.EditProfileViewModel
+import com.thehub.hb.ui.profile.FollowListScreen
+import com.thehub.hb.ui.profile.FollowListType
+import com.thehub.hb.ui.profile.FollowListViewModel
+import com.thehub.hb.ui.profile.ProfileScreen
+import com.thehub.hb.ui.profile.ProfileViewModel
 import com.thehub.hb.ui.resetpassword.ResetPasswordScreen
 import com.thehub.hb.ui.resetpassword.ResetPasswordViewModel
 import com.thehub.hb.ui.search.SearchViewModel
+import com.thehub.hb.ui.settings.BlockedUsersScreen
+import com.thehub.hb.ui.settings.BlockedUsersViewModel
+import com.thehub.hb.ui.settings.SettingsScreen
+import com.thehub.hb.ui.settings.SettingsViewModel
 import com.thehub.hb.ui.signup.SignUpScreen
 import com.thehub.hb.ui.signup.SignUpViewModel
 import com.thehub.hb.ui.splash.SplashScreen
@@ -341,11 +352,25 @@ fun HubNavGraph(
                 }
             )
 
+            val profileViewModel: ProfileViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return ProfileViewModel(
+                            targetUserId = null,
+                            userRepository = appContainer.userRepository,
+                            messageRepository = appContainer.messageRepository
+                        ) as T
+                    }
+                }
+            )
+
             MainScaffoldScreen(
                 feedViewModel = feedViewModel,
                 createPostViewModel = createPostViewModel,
                 searchViewModel = searchViewModel,
                 notificationsViewModel = notificationsViewModel,
+                profileViewModel = profileViewModel,
                 authRepository = authRepository,
                 onPostClick = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
@@ -360,6 +385,24 @@ fun HubNavGraph(
                     navController.navigate(Screen.LikesList.createRoute(postId))
                 },
                 onOpenMessenger = {
+                    navController.navigate(Screen.Messenger.route)
+                },
+                onNavigateToProfile = { userId ->
+                    navController.navigate(Screen.Profile.createRoute(userId))
+                },
+                onNavigateToEditProfile = {
+                    navController.navigate(Screen.EditProfile.route)
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                },
+                onNavigateToFollowers = { userId ->
+                    navController.navigate(Screen.FollowersList.createRoute(userId))
+                },
+                onNavigateToFollowing = { userId ->
+                    navController.navigate(Screen.FollowingList.createRoute(userId))
+                },
+                onNavigateToChat = {
                     navController.navigate(Screen.Messenger.route)
                 },
                 onSignOut = {
@@ -417,6 +460,9 @@ fun HubNavGraph(
                 },
                 onOpenLikes = { pid ->
                     navController.navigate(Screen.LikesList.createRoute(pid))
+                },
+                onAuthorClick = { authorId ->
+                    navController.navigate(Screen.Profile.createRoute(authorId))
                 }
             )
         }
@@ -439,7 +485,10 @@ fun HubNavGraph(
 
             CommentsScreen(
                 viewModel = commentsViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { authorId ->
+                    navController.navigate(Screen.Profile.createRoute(authorId))
+                }
             )
         }
 
@@ -461,7 +510,10 @@ fun HubNavGraph(
 
             LikesListScreen(
                 viewModel = likesListViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { uid ->
+                    navController.navigate(Screen.Profile.createRoute(uid))
+                }
             )
         }
 
@@ -565,6 +617,194 @@ fun HubNavGraph(
                 onConversationDeleted = {
                     navController.popBackStack(Screen.Messenger.route, inclusive = false)
                 }
+            )
+        }
+
+        // Profile (user profile or own profile viewed from another screen)
+        composable(
+            route = Screen.Profile.route,
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            val profileViewModel: ProfileViewModel = viewModel(
+                key = "profile_${userId ?: "current"}",
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return ProfileViewModel(
+                            targetUserId = userId,
+                            userRepository = appContainer.userRepository,
+                            messageRepository = appContainer.messageRepository
+                        ) as T
+                    }
+                }
+            )
+
+            ProfileScreen(
+                viewModel = profileViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditProfile = {
+                    navController.navigate(Screen.EditProfile.route)
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                },
+                onNavigateToFollowers = { uid ->
+                    navController.navigate(Screen.FollowersList.createRoute(uid))
+                },
+                onNavigateToFollowing = { uid ->
+                    navController.navigate(Screen.FollowingList.createRoute(uid))
+                },
+                onNavigateToChat = { uid ->
+                    navController.navigate(Screen.Messenger.route)
+                },
+                onPostClick = { postId ->
+                    navController.navigate(Screen.PostDetail.createRoute(postId))
+                },
+                isBottomTab = false
+            )
+        }
+
+        // Edit Profile
+        composable(Screen.EditProfile.route) {
+            val editProfileViewModel: EditProfileViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return EditProfileViewModel(
+                            userRepository = appContainer.userRepository
+                        ) as T
+                    }
+                }
+            )
+
+            EditProfileScreen(
+                viewModel = editProfileViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onProfileUpdated = { navController.popBackStack() }
+            )
+        }
+
+        // Followers List
+        composable(
+            route = Screen.FollowersList.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val targetUserId = backStackEntry.arguments?.getString("userId") ?: ""
+            val followListViewModel: FollowListViewModel = viewModel(
+                key = "followers_$targetUserId",
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return FollowListViewModel(
+                            targetUserId = targetUserId,
+                            type = FollowListType.FOLLOWERS,
+                            userRepository = appContainer.userRepository
+                        ) as T
+                    }
+                }
+            )
+
+            FollowListScreen(
+                viewModel = followListViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { uid ->
+                    navController.navigate(Screen.Profile.createRoute(uid))
+                }
+            )
+        }
+
+        // Following List
+        composable(
+            route = Screen.FollowingList.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val targetUserId = backStackEntry.arguments?.getString("userId") ?: ""
+            val followListViewModel: FollowListViewModel = viewModel(
+                key = "following_$targetUserId",
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return FollowListViewModel(
+                            targetUserId = targetUserId,
+                            type = FollowListType.FOLLOWING,
+                            userRepository = appContainer.userRepository
+                        ) as T
+                    }
+                }
+            )
+
+            FollowListScreen(
+                viewModel = followListViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { uid ->
+                    navController.navigate(Screen.Profile.createRoute(uid))
+                }
+            )
+        }
+
+        // Settings
+        composable(Screen.Settings.route) {
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return SettingsViewModel(
+                            authRepository = appContainer.authRepository,
+                            userRepository = appContainer.userRepository,
+                            dataStoreManager = appContainer.dataStoreManager
+                        ) as T
+                    }
+                }
+            )
+
+            SettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToResetPassword = {
+                    navController.navigate(Screen.ResetPassword.route)
+                },
+                onNavigateToBlockedUsers = {
+                    navController.navigate(Screen.BlockedUsers.route)
+                },
+                onNavigateToTerms = {
+                    navController.navigate(Screen.Terms.route)
+                },
+                onSignedOut = {
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onAccountDeleted = {
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Blocked Users
+        composable(Screen.BlockedUsers.route) {
+            val blockedUsersViewModel: BlockedUsersViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        return BlockedUsersViewModel(
+                            userRepository = appContainer.userRepository
+                        ) as T
+                    }
+                }
+            )
+
+            BlockedUsersScreen(
+                viewModel = blockedUsersViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

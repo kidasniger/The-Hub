@@ -187,6 +187,11 @@ class PostRepository(
             )
 
             docRef.set(post.toMap()).await()
+            try {
+                firestore.collection("users").document(uid)
+                    .update("postsCount", FieldValue.increment(1))
+                    .await()
+            } catch (_: Exception) {}
             Result.success(post)
         } catch (e: Exception) {
             Result.failure(e)
@@ -390,6 +395,11 @@ class PostRepository(
             )
 
             docRef.set(repost.toMap()).await()
+            try {
+                firestore.collection("users").document(uid)
+                    .update("postsCount", FieldValue.increment(1))
+                    .await()
+            } catch (_: Exception) {}
             Result.success(repost)
         } catch (e: Exception) {
             Result.failure(e)
