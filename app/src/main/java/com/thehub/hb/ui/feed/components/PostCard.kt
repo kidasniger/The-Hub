@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Share
@@ -59,6 +61,7 @@ fun PostCard(
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onOpenShare: (Post) -> Unit,
+    onToggleBookmark: ((String) -> Unit)? = null,
     onAuthorClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -261,6 +264,21 @@ fun PostCard(
                         contentDescription = "Partager",
                         tint = HubMuted,
                         modifier = Modifier.size(19.dp)
+                    )
+                }
+
+                // Bookmark Button
+                IconButton(
+                    onClick = { onToggleBookmark?.invoke(post.id) },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("action_bookmark_${post.id}")
+                ) {
+                    Icon(
+                        imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (post.isBookmarkedByCurrentUser) "Retirer des signets" else "Enregistrer",
+                        tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubMuted,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

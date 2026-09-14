@@ -235,6 +235,7 @@ fun FeedScreen(
                                     onOpenComments = onOpenComments,
                                     onOpenLikes = onOpenLikes,
                                     onOpenShare = { postToShare = it },
+                                    onToggleBookmark = { viewModel.toggleBookmark(it) },
                                     onAuthorClick = onAuthorClick
                                 )
                             }

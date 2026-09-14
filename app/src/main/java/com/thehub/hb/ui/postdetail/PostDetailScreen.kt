@@ -21,8 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Share
@@ -361,13 +363,30 @@ fun PostDetailScreen(
                             // Share
                             IconButton(
                                 onClick = { postToShare = post },
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .testTag("action_share_${post.id}")
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Share,
                                     contentDescription = "Partager",
                                     tint = HubMuted,
                                     modifier = Modifier.size(21.dp)
+                                )
+                            }
+
+                            // Bookmark
+                            IconButton(
+                                onClick = { viewModel.toggleBookmark() },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .testTag("action_bookmark_${post.id}")
+                            ) {
+                                Icon(
+                                    imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                    contentDescription = if (post.isBookmarkedByCurrentUser) "Retirer des signets" else "Enregistrer",
+                                    tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubMuted,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }

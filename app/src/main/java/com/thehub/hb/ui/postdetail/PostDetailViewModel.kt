@@ -77,6 +77,23 @@ class PostDetailViewModel(
         }
     }
 
+    fun toggleBookmark() {
+        val currentState = _uiState.value as? PostDetailUiState.Success ?: return
+        val currentPost = currentState.post
+
+        val newBookmarkedState = !currentPost.isBookmarkedByCurrentUser
+        val updatedPost = currentPost.copy(isBookmarkedByCurrentUser = newBookmarkedState)
+        _uiState.value = currentState.copy(post = updatedPost)
+
+        viewModelScope.launch {
+            val result = postRepository.toggleBookmark(postId)
+            if (result.isFailure) {
+                // Revert
+                _uiState.value = currentState.copy(post = currentPost)
+            }
+        }
+    }
+
     fun repost(onSuccess: () -> Unit = {}) {
         val currentState = _uiState.value as? PostDetailUiState.Success ?: return
         viewModelScope.launch {

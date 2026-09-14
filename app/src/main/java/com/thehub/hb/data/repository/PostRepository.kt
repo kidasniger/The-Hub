@@ -1,5 +1,6 @@
 package com.thehub.hb.data.repository
 
+import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
@@ -10,6 +11,7 @@ import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.model.LikerUser
 import com.thehub.hb.data.model.NotificationItem
 import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.model.TrendingHashtag
 import com.thehub.hb.data.remote.ImgbbService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class PostRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -67,6 +70,18 @@ class PostRepository(
     }
 
     /**
+     * Helper to extract words starting with #
+     */
+    fun extractHashtags(text: String): List<String> {
+        val regex = Regex("""#[a-zA-Z0-9_\u00C0-\u017F]+""")
+        return regex.findAll(text)
+            .map { it.value.removePrefix("#").lowercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+    }
+
+    /**
      * Fetch feed posts ordered by createdAt descending with pagination.
      */
     suspend fun getFeed(
@@ -90,6 +105,16 @@ class PostRepository(
                 post
             }
 
+            val bookmarkedIds = if (currentUid != null) {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("bookmarks").get().await()
+                        .documents.map { it.id }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
             // Hydrate like state for current user and originalPost for reposts
             val hydratedPosts = posts.map { post ->
                 var isLiked = false
@@ -112,7 +137,11 @@ class PostRepository(
                     } catch (_: Exception) {}
                 }
 
-                post.copy(isLikedByCurrentUser = isLiked, originalPost = original)
+                post.copy(
+                    isLikedByCurrentUser = isLiked,
+                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
+                    originalPost = original
+                )
             }
 
             val newLastVisible = snapshot.documents.lastOrNull()
@@ -135,11 +164,17 @@ class PostRepository(
             val post = Post.fromSnapshot(doc, currentUid)
 
             var isLiked = false
+            var isBookmarked = false
             if (currentUid != null) {
                 try {
                     val likeDoc = firestore.collection("posts").document(postId)
                         .collection("likes").document(currentUid).get().await()
                     isLiked = likeDoc.exists()
+                } catch (_: Exception) {}
+
+                try {
+                    isBookmarked = firestore.collection("users").document(currentUid)
+                        .collection("bookmarks").document(postId).get().await().exists()
                 } catch (_: Exception) {}
             }
 
@@ -153,7 +188,13 @@ class PostRepository(
                 } catch (_: Exception) {}
             }
 
-            Result.success(post.copy(isLikedByCurrentUser = isLiked, originalPost = original))
+            Result.success(
+                post.copy(
+                    isLikedByCurrentUser = isLiked,
+                    isBookmarkedByCurrentUser = isBookmarked,
+                    originalPost = original
+                )
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -171,6 +212,7 @@ class PostRepository(
 
             val docRef = firestore.collection("posts").document()
             val now = Timestamp.now()
+            val hashtags = extractHashtags(text)
             val post = Post(
                 id = docRef.id,
                 authorId = uid,
@@ -183,7 +225,9 @@ class PostRepository(
                 commentsCount = 0,
                 isRepost = false,
                 originalPostId = null,
-                isLikedByCurrentUser = false
+                isLikedByCurrentUser = false,
+                isBookmarkedByCurrentUser = false,
+                hashtags = hashtags
             )
 
             docRef.set(post.toMap()).await()
@@ -401,6 +445,251 @@ class PostRepository(
                     .await()
             } catch (_: Exception) {}
             Result.success(repost)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Toggle bookmark on a post for current user.
+     * Document path: users/{uid}/bookmarks/{postId} with field savedAt: Timestamp.
+     * Returns true if post is now saved/bookmarked, false if removed.
+     */
+    suspend fun toggleBookmark(postId: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+            val bookmarkRef = firestore.collection("users").document(uid)
+                .collection("bookmarks").document(postId)
+
+            val doc = bookmarkRef.get().await()
+            if (doc.exists()) {
+                bookmarkRef.delete().await()
+                Result.success(false)
+            } else {
+                bookmarkRef.set(mapOf("savedAt" to Timestamp.now())).await()
+                Result.success(true)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Check if a post is bookmarked by the current user.
+     */
+    suspend fun isBookmarked(postId: String): Boolean = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext false
+        try {
+            firestore.collection("users").document(uid)
+                .collection("bookmarks").document(postId)
+                .get().await().exists()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Get all bookmarked posts for the current user, ordered by savedAt descending.
+     */
+    suspend fun getBookmarks(): Result<List<Post>> = withContext(Dispatchers.IO) {
+        try {
+            val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+            val bookmarksSnapshot = try {
+                firestore.collection("users").document(uid)
+                    .collection("bookmarks")
+                    .orderBy("savedAt", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+            } catch (e: Exception) {
+                Log.w("PostRepository", "Bookmarks orderBy failed (${e.message}), falling back to direct fetch")
+                firestore.collection("users").document(uid)
+                    .collection("bookmarks")
+                    .get()
+                    .await()
+            }
+
+            val posts = mutableListOf<Post>()
+            for (bookmarkDoc in bookmarksSnapshot.documents) {
+                val postId = bookmarkDoc.id
+                try {
+                    val postDoc = firestore.collection("posts").document(postId).get().await()
+                    if (postDoc.exists()) {
+                        val post = Post.fromSnapshot(postDoc, uid)
+
+                        var isLiked = false
+                        try {
+                            val likeDoc = firestore.collection("posts").document(postId)
+                                .collection("likes").document(uid).get().await()
+                            isLiked = likeDoc.exists()
+                        } catch (_: Exception) {}
+
+                        var original: Post? = null
+                        if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                            try {
+                                val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                                if (origDoc.exists()) {
+                                    original = Post.fromSnapshot(origDoc, uid)
+                                }
+                            } catch (_: Exception) {}
+                        }
+
+                        posts.add(
+                            post.copy(
+                                isLikedByCurrentUser = isLiked,
+                                isBookmarkedByCurrentUser = true,
+                                originalPost = original
+                            )
+                        )
+                    }
+                } catch (_: Exception) {}
+            }
+            Result.success(posts)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetch trending posts and popular hashtags calculated over the last 7 days.
+     * Calculated from likesCount descending on posts created within last 7 days.
+     */
+    suspend fun getTrendingData(days: Int = 7): Result<Pair<List<TrendingHashtag>, List<Post>>> = withContext(Dispatchers.IO) {
+        try {
+            val currentUid = currentUserId
+            val sevenDaysAgoMillis = System.currentTimeMillis() - (days.toLong() * 24 * 60 * 60 * 1000)
+
+            // Fetch recent posts (up to 100)
+            val snapshot = firestore.collection("posts")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(100)
+                .get()
+                .await()
+
+            val allRecentPosts = snapshot.documents.map { Post.fromSnapshot(it, currentUid) }
+            // Filter within 7 days, fallback to all recent if none in window
+            val inWindowPosts = allRecentPosts.filter {
+                it.createdAt.toDate().time >= sevenDaysAgoMillis
+            }.ifEmpty { allRecentPosts }
+
+            // Trending posts sorted by likesCount descending
+            val topPosts = inWindowPosts
+                .sortedByDescending { it.likesCount }
+                .take(20)
+
+            // Hydrate likes and bookmarks for top posts
+            val bookmarkedIds = if (currentUid != null) {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("bookmarks").get().await()
+                        .documents.map { it.id }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            val hydratedTopPosts = topPosts.map { post ->
+                var isLiked = false
+                if (currentUid != null) {
+                    try {
+                        val likeDoc = firestore.collection("posts").document(post.id)
+                            .collection("likes").document(currentUid).get().await()
+                        isLiked = likeDoc.exists()
+                    } catch (_: Exception) {}
+                }
+
+                var original: Post? = null
+                if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                    try {
+                        val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                        if (origDoc.exists()) {
+                            original = Post.fromSnapshot(origDoc, currentUid)
+                        }
+                    } catch (_: Exception) {}
+                }
+
+                post.copy(
+                    isLikedByCurrentUser = isLiked,
+                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
+                    originalPost = original
+                )
+            }
+
+            // Calculate popular hashtags across recent posts
+            val hashtagCounts = mutableMapOf<String, Int>()
+            inWindowPosts.forEach { post ->
+                val tags = if (post.hashtags.isNotEmpty()) {
+                    post.hashtags
+                } else {
+                    extractHashtags(post.text)
+                }
+                tags.forEach { tag ->
+                    val clean = tag.lowercase().trim()
+                    if (clean.isNotBlank()) {
+                        hashtagCounts[clean] = (hashtagCounts[clean] ?: 0) + 1
+                    }
+                }
+            }
+
+            val topHashtags = hashtagCounts.entries
+                .sortedByDescending { it.value }
+                .take(15)
+                .map { TrendingHashtag(it.key, it.value) }
+
+            Result.success(Pair(topHashtags, hydratedTopPosts))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Search posts by hashtag.
+     */
+    suspend fun getPostsByHashtag(hashtag: String): Result<List<Post>> = withContext(Dispatchers.IO) {
+        try {
+            val cleanTag = hashtag.removePrefix("#").lowercase().trim()
+            val currentUid = currentUserId
+
+            val snapshot = firestore.collection("posts")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(60)
+                .get()
+                .await()
+
+            val bookmarkedIds = if (currentUid != null) {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("bookmarks").get().await()
+                        .documents.map { it.id }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            val matchingPosts = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val post = Post.fromSnapshot(doc, currentUid)
+                    val hasTag = post.hashtags.any { it.equals(cleanTag, ignoreCase = true) }
+                    val textMatches = post.text.contains("#$cleanTag", ignoreCase = true)
+                    if (hasTag || textMatches) {
+                        var isLiked = false
+                        if (currentUid != null) {
+                            try {
+                                val likeDoc = firestore.collection("posts").document(post.id)
+                                    .collection("likes").document(currentUid).get().await()
+                                isLiked = likeDoc.exists()
+                            } catch (_: Exception) {}
+                        }
+                        post.copy(
+                            isLikedByCurrentUser = isLiked,
+                            isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
+                        )
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            Result.success(matchingPosts)
         } catch (e: Exception) {
             Result.failure(e)
         }

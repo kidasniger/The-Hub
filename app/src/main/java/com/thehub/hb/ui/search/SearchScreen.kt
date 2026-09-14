@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,7 +33,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -47,6 +50,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +79,11 @@ import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 
+enum class BlankSearchTab(val title: String) {
+    TRENDING("Tendances"),
+    HISTORY("Historique")
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
@@ -88,6 +99,7 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val focusManager = LocalFocusManager.current
+    var blankTab by remember { mutableStateOf(BlankSearchTab.TRENDING) }
 
     Column(
         modifier = modifier
@@ -110,11 +122,20 @@ fun SearchScreen(
             }
         )
 
-        // Mode Selector Tabs (Utilisateurs / Publications)
-        SearchModeTabs(
-            selectedMode = uiState.searchMode,
-            onModeSelected = { viewModel.onSearchModeSelected(it) }
-        )
+        // Mode Selector Tabs:
+        // When query is empty -> show Tendances / Historique
+        // When query has text -> show Utilisateurs / Publications
+        if (uiState.query.isBlank()) {
+            BlankSearchTabs(
+                selectedTab = blankTab,
+                onTabSelected = { blankTab = it }
+            )
+        } else {
+            SearchModeTabs(
+                selectedMode = uiState.searchMode,
+                onModeSelected = { viewModel.onSearchModeSelected(it) }
+            )
+        }
 
         HorizontalDivider(color = HubBorder, thickness = 1.dp)
 
@@ -141,16 +162,37 @@ fun SearchScreen(
                 }
 
                 uiState.query.isBlank() -> {
-                    // Show Recent Search History
-                    SearchHistorySection(
-                        history = searchHistory,
-                        onHistoryItemClick = { item ->
-                            viewModel.onHistoryItemClicked(item)
-                            focusManager.clearFocus()
-                        },
-                        onRemoveItem = { viewModel.onRemoveHistoryItem(it) },
-                        onClearAll = { viewModel.onClearAllHistory() }
-                    )
+                    when (blankTab) {
+                        BlankSearchTab.TRENDING -> {
+                            TrendingSection(
+                                uiState = uiState,
+                                onHashtagClick = { tag ->
+                                    viewModel.onHashtagClicked(tag)
+                                    focusManager.clearFocus()
+                                },
+                                onPostClick = onPostClick,
+                                onImageClick = onImageClick,
+                                onToggleLike = { viewModel.toggleLike(it) },
+                                onOpenComments = onOpenComments,
+                                onOpenLikes = onOpenLikes,
+                                onOpenShare = onOpenShare,
+                                onToggleBookmark = { viewModel.toggleBookmark(it) },
+                                onRefresh = { viewModel.loadTrending() }
+                            )
+                        }
+
+                        BlankSearchTab.HISTORY -> {
+                            SearchHistorySection(
+                                history = searchHistory,
+                                onHistoryItemClick = { item ->
+                                    viewModel.onHistoryItemClicked(item)
+                                    focusManager.clearFocus()
+                                },
+                                onRemoveItem = { viewModel.onRemoveHistoryItem(it) },
+                                onClearAll = { viewModel.onClearAllHistory() }
+                            )
+                        }
+                    }
                 }
 
                 uiState.searchMode == SearchMode.USERS -> {
@@ -211,7 +253,8 @@ fun SearchScreen(
                                     onToggleLike = { viewModel.toggleLike(post.id) },
                                     onOpenComments = onOpenComments,
                                     onOpenLikes = onOpenLikes,
-                                    onOpenShare = onOpenShare
+                                    onOpenShare = onOpenShare,
+                                    onToggleBookmark = { viewModel.toggleBookmark(post.id) }
                                 )
                             }
                         }
@@ -617,5 +660,262 @@ private fun EmptySearchResults(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
+    }
+}
+
+@Composable
+private fun BlankSearchTabs(
+    selectedTab: BlankSearchTab,
+    onTabSelected: (BlankSearchTab) -> Unit
+) {
+    val tabs = BlankSearchTab.entries
+    val selectedIndex = tabs.indexOf(selectedTab)
+
+    TabRow(
+        selectedTabIndex = selectedIndex,
+        containerColor = HubBlack,
+        contentColor = HubWhite,
+        indicator = { tabPositions ->
+            TabRowDefaults.SecondaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
+                color = HubWhite,
+                height = 2.dp
+            )
+        },
+        divider = {}
+    ) {
+        tabs.forEach { tab ->
+            val isSelected = tab == selectedTab
+            Tab(
+                selected = isSelected,
+                onClick = { onTabSelected(tab) },
+                text = {
+                    Text(
+                        text = tab.title,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) HubWhite else HubSecondary
+                    )
+                },
+                modifier = Modifier.testTag("blank_tab_${tab.name.lowercase()}")
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TrendingSection(
+    uiState: SearchUiState,
+    onHashtagClick: (String) -> Unit,
+    onPostClick: (String) -> Unit,
+    onImageClick: (String) -> Unit,
+    onToggleLike: (String) -> Unit,
+    onOpenComments: (String) -> Unit,
+    onOpenLikes: (String) -> Unit,
+    onOpenShare: (Post) -> Unit,
+    onToggleBookmark: (String) -> Unit,
+    onRefresh: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("trending_section"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Section 1: Hashtags Populaires (Top 10)
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(HubSurfaceDark)
+                    .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+                    .testTag("trending_hashtags_container")
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.TrendingUp,
+                                contentDescription = null,
+                                tint = HubWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Hashtags populaires",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = HubWhite
+                            )
+                        }
+                        Text(
+                            text = "Les 10 plus fréquents ces 7 derniers jours",
+                            fontSize = 12.sp,
+                            color = HubSecondary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onRefresh,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("refresh_trending_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Actualiser les tendances",
+                            tint = HubSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (uiState.isTrendingLoading && uiState.trendingHashtags.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = HubWhite,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                } else if (uiState.trendingHashtags.isEmpty()) {
+                    Text(
+                        text = "Aucun hashtag récent pour le moment.",
+                        fontSize = 13.sp,
+                        color = HubMuted,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        uiState.trendingHashtags.forEach { item ->
+                            HashtagChip(
+                                hashtag = item,
+                                onClick = { onHashtagClick(item.tag) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section 2: Header for Publications Tendance
+        item {
+            Column(modifier = Modifier.padding(top = 8.dp)) {
+                Text(
+                    text = "Publications tendance",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite
+                )
+                Text(
+                    text = "Les publications les plus populaires des 7 derniers jours",
+                    fontSize = 12.sp,
+                    color = HubSecondary
+                )
+            }
+        }
+
+        // Section 3: Trending Posts List
+        if (uiState.isTrendingLoading && uiState.trendingPosts.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = HubWhite,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+        } else if (uiState.trendingPosts.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(HubSurfaceDark)
+                        .padding(24.dp)
+                        .testTag("empty_trending_posts"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Aucune publication populaire ces 7 derniers jours.",
+                        fontSize = 14.sp,
+                        color = HubSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            items(
+                items = uiState.trendingPosts,
+                key = { "trending_${it.id}" }
+            ) { post ->
+                PostCard(
+                    post = post,
+                    onPostClick = onPostClick,
+                    onImageClick = onImageClick,
+                    onToggleLike = { onToggleLike(post.id) },
+                    onOpenComments = onOpenComments,
+                    onOpenLikes = onOpenLikes,
+                    onOpenShare = onOpenShare,
+                    onToggleBookmark = { onToggleBookmark(post.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HashtagChip(
+    hashtag: com.thehub.hb.data.model.TrendingHashtag,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(HubCard)
+            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .testTag("trending_hashtag_${hashtag.tag}"),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "#${hashtag.tag}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = HubWhite
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "${hashtag.count}",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = HubSecondary
+        )
     }
 }

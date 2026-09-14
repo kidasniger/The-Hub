@@ -16,6 +16,8 @@ data class Post(
     val isRepost: Boolean = false,
     val originalPostId: String? = null,
     val isLikedByCurrentUser: Boolean = false,
+    val isBookmarkedByCurrentUser: Boolean = false,
+    val hashtags: List<String> = emptyList(),
     val originalPost: Post? = null
 ) {
     fun toMap(): Map<String, Any?> {
@@ -29,7 +31,8 @@ data class Post(
             "likesCount" to likesCount,
             "commentsCount" to commentsCount,
             "isRepost" to isRepost,
-            "originalPostId" to originalPostId
+            "originalPostId" to originalPostId,
+            "hashtags" to hashtags
         )
     }
 
@@ -39,6 +42,9 @@ data class Post(
             val createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now()
             val likesCount = (doc.getLong("likesCount") ?: 0L).toInt()
             val commentsCount = (doc.getLong("commentsCount") ?: 0L).toInt()
+
+            @Suppress("UNCHECKED_CAST")
+            val hashtags = (doc.get("hashtags") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
 
             return Post(
                 id = doc.id,
@@ -53,6 +59,8 @@ data class Post(
                 isRepost = doc.getBoolean("isRepost") ?: false,
                 originalPostId = doc.getString("originalPostId"),
                 isLikedByCurrentUser = false,
+                isBookmarkedByCurrentUser = false,
+                hashtags = hashtags,
                 originalPost = null
             )
         }

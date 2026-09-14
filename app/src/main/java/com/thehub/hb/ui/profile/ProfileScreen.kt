@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -97,6 +98,7 @@ fun ProfileScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToEditProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToBookmarks: () -> Unit = {},
     onNavigateToFollowers: (String) -> Unit,
     onNavigateToFollowing: (String) -> Unit,
     onNavigateToChat: (String) -> Unit,
@@ -146,6 +148,7 @@ fun ProfileScreen(
                 isBottomTab = isBottomTab,
                 onNavigateBack = onNavigateBack,
                 onNavigateToSettings = onNavigateToSettings,
+                onNavigateToBookmarks = onNavigateToBookmarks,
                 onMenuClick = { showMenu = true }
             )
 
@@ -381,6 +384,7 @@ private fun ProfileTopBar(
     isBottomTab: Boolean,
     onNavigateBack: (() -> Unit)?,
     onNavigateToSettings: () -> Unit,
+    onNavigateToBookmarks: () -> Unit,
     onMenuClick: () -> Unit
 ) {
     Row(
@@ -415,6 +419,17 @@ private fun ProfileTopBar(
         )
 
         if (isOwnProfile) {
+            IconButton(
+                onClick = onNavigateToBookmarks,
+                modifier = Modifier.testTag("profile_bookmarks_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.BookmarkBorder,
+                    contentDescription = "Signets",
+                    tint = HubWhite
+                )
+            }
+
             IconButton(
                 onClick = onNavigateToSettings,
                 modifier = Modifier.testTag("profile_settings_button")

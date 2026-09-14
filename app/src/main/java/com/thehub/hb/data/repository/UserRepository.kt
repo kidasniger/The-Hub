@@ -530,20 +530,52 @@ class UserRepository(
 
     /**
      * Fetch posts by a specific user.
+     * To avoid requiring a composite index on (authorId, createdAt) in Firestore,
+     * we query by authorId and sort in-memory.
      */
     suspend fun getUserPosts(userId: String): Result<List<Post>> = withContext(Dispatchers.IO) {
         try {
+            val currentUid = currentUserId
+
+            // Query posts by authorId without composite order to prevent FAILED_PRECONDITION
             val snapshot = firestore.collection("posts")
                 .whereEqualTo("authorId", userId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(60)
+                .limit(100)
                 .get()
                 .await()
 
-            val currentUid = currentUserId
-            val posts = snapshot.documents.map { doc ->
-                Post.fromSnapshot(doc, currentUid)
-            }
+            // Fetch bookmarks to hydrate bookmark status
+            val bookmarkedIds = if (currentUid != null) {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("bookmarks").get().await()
+                        .documents.map { it.id }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            val posts = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val post = Post.fromSnapshot(doc, currentUid)
+                    var isLiked = post.isLikedByCurrentUser
+                    if (currentUid != null && !isLiked) {
+                        try {
+                            val likeDoc = firestore.collection("posts").document(post.id)
+                                .collection("likes").document(currentUid)
+                                .get().await()
+                            isLiked = likeDoc.exists()
+                        } catch (_: Exception) {}
+                    }
+                    post.copy(
+                        isLikedByCurrentUser = isLiked,
+                        isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            }.sortedByDescending { it.createdAt.toDate().time }
+
             Result.success(posts)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error fetching user posts for $userId: ${e.message}", e)

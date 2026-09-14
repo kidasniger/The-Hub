@@ -108,18 +108,32 @@ class SearchRepository(
                 .await()
 
             val currentUid = currentUserId
+            val rawTag = q.removePrefix("#").lowercase().trim()
+
+            // Fetch user's bookmarks to hydrate bookmark status
+            val bookmarkedIds = if (currentUid != null) {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("bookmarks").get().await()
+                        .documents.map { it.id }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
             val matchingPosts = snapshot.documents.mapNotNull { doc ->
                 try {
                     val post = Post.fromSnapshot(doc, currentUid)
                     val matchText = post.text.contains(q, ignoreCase = true)
                     val matchAuthor = post.authorUsername.contains(q, ignoreCase = true)
-                    if (matchText || matchAuthor) post else null
+                    val matchHashtag = post.hashtags.any { it.equals(rawTag, ignoreCase = true) }
+                    if (matchText || matchAuthor || matchHashtag) post else null
                 } catch (_: Exception) {
                     null
                 }
             }
 
-            // Hydrate like status
+            // Hydrate like and bookmark status
             val hydrated = matchingPosts.map { post ->
                 var isLiked = false
                 if (currentUid != null) {
@@ -130,7 +144,10 @@ class SearchRepository(
                         isLiked = likeDoc.exists()
                     } catch (_: Exception) {}
                 }
-                post.copy(isLikedByCurrentUser = isLiked)
+                post.copy(
+                    isLikedByCurrentUser = isLiked,
+                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
+                )
             }
 
             Result.success(hydrated)

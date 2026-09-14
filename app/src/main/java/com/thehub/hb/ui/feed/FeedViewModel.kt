@@ -139,6 +139,26 @@ class FeedViewModel(
         }
     }
 
+    fun toggleBookmark(postId: String) {
+        val currentState = _uiState.value as? FeedUiState.Success ?: return
+        val originalPosts = currentState.posts
+
+        val updatedPosts = originalPosts.map { post ->
+            if (post.id == postId) {
+                post.copy(isBookmarkedByCurrentUser = !post.isBookmarkedByCurrentUser)
+            } else post
+        }
+        _uiState.value = currentState.copy(posts = updatedPosts)
+
+        viewModelScope.launch {
+            val result = postRepository.toggleBookmark(postId)
+            result.onFailure {
+                // Revert on error
+                _uiState.value = currentState.copy(posts = originalPosts)
+            }
+        }
+    }
+
     fun repost(post: Post, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             val result = postRepository.repost(post.id)
