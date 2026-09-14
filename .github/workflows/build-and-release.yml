@@ -41,22 +41,68 @@ jobs:
             chmod +x gradlew
           fi
 
-      - name: Prepare Secrets & Keystore
+      - name: Prepare Environment, Keystores & Firebase
         run: |
-          # Create placeholder .env if missing for secrets gradle plugin
+          # 1. Ensure .env exists for the secrets gradle plugin
           touch .env
 
-          # Check for custom signing keystore from GitHub Secrets or fallback to debug keystore
+          # 2. Ensure google-services.json exists
+          if [ ! -f app/google-services.json ]; then
+            echo "Restoring app/google-services.json..."
+            cat << 'EOF' > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "183373607979",
+              "project_id": "the-hub-f95f4",
+              "storage_bucket": "the-hub-f95f4.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
+                  "android_client_info": {
+                    "package_name": "com.thehub.hb"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+
+          # 3. Ensure debug.keystore ALWAYS exists for debugConfig
+          if [ -f debug.keystore.base64 ]; then
+            echo "Restoring debug.keystore from debug.keystore.base64..."
+            base64 -d debug.keystore.base64 > debug.keystore || true
+          fi
+
+          if [ ! -f debug.keystore ]; then
+            echo "Generating debug.keystore with keytool..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # 4. Ensure release keystore exists for signingConfigs.release
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "Using custom signing keystore from secrets.KEYSTORE_BASE64"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
             echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
             echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-          elif [ -f debug.keystore.base64 ]; then
-            echo "Using local repository debug keystore for signing fallback"
-            base64 -d debug.keystore.base64 > debug.keystore
-            cp debug.keystore my-upload-key.jks
+          else
+            echo "Generating upload keystore (my-upload-key.jks) with keytool..."
+            keytool -genkey -v -keystore my-upload-key.jks -storepass android -alias upload -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=The Hub,O=The Hub,C=US"
             echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
             echo "STORE_PASSWORD=android" >> $GITHUB_ENV
             echo "KEY_PASSWORD=android" >> $GITHUB_ENV

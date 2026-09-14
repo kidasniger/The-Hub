@@ -18,9 +18,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -103,7 +103,7 @@ fun SharePostBottomSheet(
 
             // Option 2: Envoyer en message (stub disabled)
             ShareOptionItem(
-                icon = Icons.Outlined.Send,
+                icon = Icons.AutoMirrored.Outlined.Send,
                 title = "Envoyer en message",
                 subtitle = "Disponible bientôt",
                 enabled = false,
