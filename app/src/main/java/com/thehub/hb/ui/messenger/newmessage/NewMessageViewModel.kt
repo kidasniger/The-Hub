@@ -45,7 +45,13 @@ class NewMessageViewModel(
                     _uiState.value = NewMessageUiState.Success(users = users, isSearch = false)
                 },
                 onFailure = { err ->
-                    _uiState.value = NewMessageUiState.Error(err.message ?: "Erreur de chargement")
+                    val msg = err.message ?: ""
+                    val friendly = if (msg.contains("PERMISSION_DENIED", ignoreCase = true) || msg.contains("insufficient permissions", ignoreCase = true)) {
+                        "Erreur d'accès Firestore : veuillez configurer les règles de sécurité dans la console Firebase."
+                    } else {
+                        err.message ?: "Erreur de chargement"
+                    }
+                    _uiState.value = NewMessageUiState.Error(friendly)
                 }
             )
         }
@@ -66,7 +72,13 @@ class NewMessageViewModel(
                     )
                 },
                 onFailure = { err ->
-                    _uiState.value = NewMessageUiState.Error(err.message ?: "Erreur de recherche")
+                    val msg = err.message ?: ""
+                    val friendly = if (msg.contains("PERMISSION_DENIED", ignoreCase = true) || msg.contains("insufficient permissions", ignoreCase = true)) {
+                        "Erreur d'accès Firestore : veuillez configurer les règles de sécurité dans la console Firebase."
+                    } else {
+                        err.message ?: "Erreur de recherche"
+                    }
+                    _uiState.value = NewMessageUiState.Error(friendly)
                 }
             )
         }

@@ -52,7 +52,8 @@ class NotificationRepository(
     }
 
     /**
-     * Real-time stream of notifications for the current user, ordered by createdAt descending.
+     * Real-time stream of notifications for the current user.
+     * Filtered by recipientId and sorted in Kotlin to avoid requiring a composite index in Firestore.
      */
     fun getNotifications(): Flow<List<NotificationItem>> = callbackFlow {
         val uid = currentUserId
@@ -64,18 +65,23 @@ class NotificationRepository(
 
         val listener = firestore.collection("notifications")
             .whereEqualTo("recipientId", uid)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(50)
+            .limit(100)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.w("NotificationRepository", "Error observing notifications: ${error.message}")
-                    // Fallback to empty or previous if index isn't ready
-                    trySend(emptyList())
+                    Log.e("NotificationRepository", "Error observing notifications: ${error.message}", error)
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null) {
-                    val list = snapshot.documents.map { NotificationItem.fromSnapshot(it) }
+                    val list = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            NotificationItem.fromSnapshot(doc)
+                        } catch (e: Exception) {
+                            Log.w("NotificationRepository", "Error parsing notification ${doc.id}: ${e.message}")
+                            null
+                        }
+                    }.sortedByDescending { it.createdAt.toDate().time }
+
                     trySend(list)
                 }
             }

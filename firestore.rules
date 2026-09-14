@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Vérifie si l'utilisateur est authentifié avec Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // --- UTILISATEURS & PROFILS ---
+    match /users/{userId} {
+      // Tout utilisateur connecté peut lire les profils (recherche, flux, messagerie)
+      allow read: if isAuthenticated();
+      // Un utilisateur ne peut modifier que son propre document de profil
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+
+      match /blockedUsers/{blockedId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+      match /followers/{followerId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+      match /following/{followingId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+    }
+
+    // --- PUBLICATIONS, LIKES & COMMENTAIRES ---
+    match /posts/{postId} {
+      // Lecture ouverte à tout utilisateur connecté
+      allow read: if isAuthenticated();
+      // Création réservée à l'auteur
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      // Mise à jour (notamment compteurs likesCount et commentsCount lors des transactions)
+      allow update: if isAuthenticated();
+      // Suppression réservée à l'auteur du post
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+
+      // Sous-collection des mentions J'aime
+      match /likes/{userId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && request.auth.uid == userId;
+      }
+
+      // Sous-collection des commentaires
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    // --- MESSAGERIE & CONVERSATIONS DIRECTES ---
+    match /conversations/{conversationId} {
+      allow read, write: if isAuthenticated();
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // --- NOTIFICATIONS ---
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isAuthenticated() && (resource == null || resource.data.recipientId == request.auth.uid);
+      allow create: if isAuthenticated();
+    }
+  }
+}

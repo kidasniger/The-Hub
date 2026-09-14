@@ -165,10 +165,16 @@ class ChatViewModel(
                     }
                 },
                 onFailure = { err ->
+                    val msg = err.message ?: ""
+                    val friendly = if (msg.contains("PERMISSION_DENIED", ignoreCase = true) || msg.contains("insufficient permissions", ignoreCase = true)) {
+                        "Erreur d'accès Firestore : autorisations insuffisantes pour envoyer le message."
+                    } else {
+                        err.message ?: "Impossible d'envoyer le message."
+                    }
                     _inputState.update {
                         it.copy(
                             isSending = false,
-                            errorMessage = err.message ?: "Impossible d'envoyer le message."
+                            errorMessage = friendly
                         )
                     }
                 }

@@ -73,9 +73,15 @@ class CommentsViewModel(
                 result.onSuccess { list ->
                     _uiState.value = _uiState.value.copy(comments = list, isLoading = false)
                 }.onFailure { error ->
+                    val msg = error.message ?: ""
+                    val friendly = if (msg.contains("PERMISSION_DENIED", ignoreCase = true) || msg.contains("insufficient permissions", ignoreCase = true)) {
+                        "Erreur d'accès Firestore : veuillez configurer les règles de sécurité dans la console Firebase."
+                    } else {
+                        error.message ?: "Impossible de charger les commentaires."
+                    }
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Impossible de charger les commentaires."
+                        errorMessage = friendly
                     )
                 }
             }
@@ -100,9 +106,15 @@ class CommentsViewModel(
                     isSending = false
                 )
             }.onFailure { error ->
+                val msg = error.message ?: ""
+                val friendly = if (msg.contains("PERMISSION_DENIED", ignoreCase = true) || msg.contains("insufficient permissions", ignoreCase = true)) {
+                    "Erreur d'autorisation Firestore : autorisations insuffisantes pour publier le commentaire."
+                } else {
+                    error.message ?: "Erreur lors de l'envoi du commentaire."
+                }
                 _uiState.value = _uiState.value.copy(
                     isSending = false,
-                    errorMessage = error.message ?: "Erreur lors de l'envoi du commentaire."
+                    errorMessage = friendly
                 )
             }
         }

@@ -122,13 +122,43 @@ fun NotificationsScreen(
                         contentPadding = PaddingValues(vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        uiState.groupedNotifications.forEach { (periodTitle, itemsInPeriod) ->
-                            item(key = "header_$periodTitle") {
-                                PeriodHeader(title = periodTitle)
-                            }
+                        if (uiState.groupedNotifications.isNotEmpty()) {
+                            uiState.groupedNotifications.forEach { (periodTitle, itemsInPeriod) ->
+                                item(key = "header_$periodTitle") {
+                                    PeriodHeader(title = periodTitle)
+                                }
 
+                                items(
+                                    items = itemsInPeriod,
+                                    key = { it.id }
+                                ) { notification ->
+                                    NotificationRow(
+                                        notification = notification,
+                                        onClick = {
+                                            viewModel.onNotificationClicked(notification)
+                                            when (notification.type) {
+                                                NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT -> {
+                                                    notification.postId?.let { postId ->
+                                                        onPostClick(postId)
+                                                    }
+                                                }
+                                                NotificationItem.TYPE_FOLLOW -> {
+                                                    onUserClick(notification.actorId, notification.actorUsername)
+                                                }
+                                                NotificationItem.TYPE_MESSAGE -> {
+                                                    onOpenMessenger()
+                                                }
+                                                else -> {
+                                                    notification.postId?.let { onPostClick(it) }
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
                             items(
-                                items = itemsInPeriod,
+                                items = uiState.notifications,
                                 key = { it.id }
                             ) { notification ->
                                 NotificationRow(
