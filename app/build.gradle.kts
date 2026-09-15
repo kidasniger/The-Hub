@@ -25,10 +25,9 @@ android {
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
+      storeFile = System.getenv("KEYSTORE_PATH")?.let { file(it) }
       storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
+      keyAlias = System.getenv("KEY_ALIAS")
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     create("debugConfig") {
@@ -40,7 +39,7 @@ android {
   }
 
   buildTypes {
-    release {
+    getByName("release") {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

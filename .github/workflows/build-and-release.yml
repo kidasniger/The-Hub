@@ -93,21 +93,6 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          # 4. Ensure release keystore exists for signingConfigs.release
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Using custom signing keystore from secrets.KEYSTORE_BASE64"
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-          else
-            echo "Generating upload keystore (my-upload-key.jks) with keytool..."
-            keytool -genkey -v -keystore my-upload-key.jks -storepass android -alias upload -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=The Hub,O=The Hub,C=US"
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
-          fi
-
       - name: Determine Tag & Version
         id: version_step
         run: |
@@ -122,15 +107,16 @@ jobs:
           echo "Computed Release Tag: $TAG"
           echo "TAG=$TAG" >> $GITHUB_ENV
 
-      - name: Compile and Build APKs
-        run: |
-          ./gradlew assembleDebug --no-daemon
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
 
-          # Attempt release build if keystore is present
-          if [ -f "$KEYSTORE_PATH" ]; then
-            echo "Building assembleRelease..."
-            ./gradlew assembleRelease --no-daemon || echo "Release build failed or skipped, will package debug APK"
-          fi
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH: keystore.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
 
       - name: Package Artifacts for Release
         run: |
