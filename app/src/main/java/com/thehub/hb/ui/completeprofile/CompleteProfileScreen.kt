@@ -30,15 +30,11 @@ import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -61,6 +57,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.components.WheelDatePickerBottomSheet
+import com.thehub.hb.ui.components.formatBirthdate
+import com.thehub.hb.ui.components.parseBirthdateOrDefault
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubBorderLight
@@ -102,61 +101,16 @@ fun CompleteProfileScreen(
     }
 
     if (showDatePicker) {
-        val parsedMillis = remember(uiState.birthdate) {
-            try {
-                if (uiState.birthdate.isNotBlank()) {
-                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(uiState.birthdate)?.time
-                } else null
-            } catch (_: Exception) {
-                null
-            }
+        val initialLocalDate = remember(uiState.birthdate) {
+            parseBirthdateOrDefault(uiState.birthdate)
         }
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = parsedMillis)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val selectedMillis = datePickerState.selectedDateMillis
-                        if (selectedMillis != null) {
-                            val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                            viewModel.onBirthdateChange(formatter.format(Date(selectedMillis)))
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text("OK", color = HubWhite)
-                }
+        WheelDatePickerBottomSheet(
+            initialDate = initialLocalDate,
+            onDateConfirmed = { confirmedDate ->
+                viewModel.onBirthdateChange(formatBirthdate(confirmedDate))
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Annuler", color = HubSecondary)
-                }
-            },
-            colors = DatePickerDefaults.colors(
-                containerColor = HubSurfaceElevated
-            )
-        ) {
-            DatePicker(
-                state = datePickerState,
-                colors = DatePickerDefaults.colors(
-                    containerColor = HubSurfaceElevated,
-                    titleContentColor = HubWhite,
-                    headlineContentColor = HubWhite,
-                    weekdayContentColor = HubSecondary,
-                    subheadContentColor = HubLightGray,
-                    yearContentColor = HubWhite,
-                    currentYearContentColor = HubWhite,
-                    selectedYearContentColor = HubBlack,
-                    selectedYearContainerColor = HubWhite,
-                    dayContentColor = HubWhite,
-                    selectedDayContentColor = HubBlack,
-                    selectedDayContainerColor = HubWhite,
-                    todayDateBorderColor = HubWhite,
-                    todayContentColor = HubWhite
-                )
-            )
-        }
+            onDismiss = { showDatePicker = false }
+        )
     }
 
     Column(
