@@ -59,6 +59,7 @@ class HubApplication : Application(), ImageLoaderFactory {
         return loader
     }
 
+    @OptIn(coil.annotation.ExperimentalCoilApi::class)
     private fun clearInternalImageCache() {
         try {
             currentImageLoader?.memoryCache?.clear()

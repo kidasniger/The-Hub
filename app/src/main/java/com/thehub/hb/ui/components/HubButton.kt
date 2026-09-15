@@ -3,11 +3,9 @@ package com.thehub.hb.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,15 +53,14 @@ fun HubButton(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = HubWhite,
                     contentColor = HubBlack,
-                    disabledContainerColor = HubSurfaceElevated,
-                    disabledContentColor = HubMuted
+                    disabledContainerColor = if (isLoading) HubWhite else HubSurfaceElevated,
+                    disabledContentColor = if (isLoading) HubBlack else HubMuted
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = HubBlack
+                    AppLogo(
+                        size = 26.dp,
+                        animated = true
                     )
                 } else {
                     Text(
@@ -89,14 +86,13 @@ fun HubButton(
                     containerColor = HubSurfaceElevated,
                     contentColor = HubWhite,
                     disabledContainerColor = HubSurfaceElevated,
-                    disabledContentColor = HubMuted
+                    disabledContentColor = if (isLoading) HubWhite else HubMuted
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = HubWhite
+                    AppLogo(
+                        size = 26.dp,
+                        animated = true
                     )
                 } else {
                     Text(
@@ -119,14 +115,21 @@ fun HubButton(
                     containerColor = Color.Transparent,
                     contentColor = HubWhite,
                     disabledContainerColor = Color.Transparent,
-                    disabledContentColor = HubMuted
+                    disabledContentColor = if (isLoading) HubWhite else HubMuted
                 )
             ) {
-                Text(
-                    text = text,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
-                )
+                if (isLoading) {
+                    AppLogo(
+                        size = 26.dp,
+                        animated = true
+                    )
+                } else {
+                    Text(
+                        text = text,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
             }
         }
     }

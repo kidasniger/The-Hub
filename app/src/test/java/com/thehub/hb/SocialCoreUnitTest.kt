@@ -83,4 +83,19 @@ class SocialCoreUnitTest {
         val threeDaysAgo = Timestamp(Date(System.currentTimeMillis() - 3 * 24 * 3600 * 1000L))
         assertEquals("il y a 3j", RelativeTime.format(threeDaysAgo))
     }
+
+    @Test
+    fun testGoogleSignInConfigurationAndResults() {
+        assertEquals(
+            "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com",
+            com.thehub.hb.data.repository.GOOGLE_WEB_CLIENT_ID
+        )
+
+        val cancelledResult: com.thehub.hb.data.repository.GoogleSignInResult =
+            com.thehub.hb.data.repository.GoogleSignInResult.Cancelled
+        assertTrue(cancelledResult is com.thehub.hb.data.repository.GoogleSignInResult.Cancelled)
+
+        val errorResult = com.thehub.hb.data.repository.GoogleSignInResult.Error("Erreur réseau")
+        assertEquals("Erreur réseau", errorResult.message)
+    }
 }

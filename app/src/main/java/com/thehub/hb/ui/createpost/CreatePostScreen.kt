@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -54,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
+import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubDarkGray
@@ -132,23 +132,22 @@ fun CreatePostScreen(
                             onPostCreated(newPost)
                         }
                     },
-                    enabled = uiState.canPublish,
+                    enabled = uiState.canPublish && !uiState.isLoading,
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = HubWhite,
                         contentColor = HubBlack,
-                        disabledContainerColor = HubSurfaceElevated,
-                        disabledContentColor = HubMuted
+                        disabledContainerColor = if (uiState.isLoading) HubWhite else HubSurfaceElevated,
+                        disabledContentColor = if (uiState.isLoading) HubBlack else HubMuted
                     ),
                     modifier = Modifier
                         .height(36.dp)
                         .testTag("create_post_publish_button")
                 ) {
                     if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            color = HubBlack,
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                        AppLogo(
+                            size = 24.dp,
+                            animated = true
                         )
                     } else {
                         Text(
