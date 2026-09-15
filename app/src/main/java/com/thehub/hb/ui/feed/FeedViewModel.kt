@@ -6,6 +6,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.PostRepository
+import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,11 +29,15 @@ sealed interface FeedUiState {
 
 class FeedViewModel(
     private val postRepository: PostRepository,
-    private val messageRepository: MessageRepository? = null
+    private val messageRepository: MessageRepository? = null,
+    private val userRepository: UserRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
+
+    val currentUserId: String?
+        get() = postRepository.currentUserId
 
     val unreadConversationsCount: StateFlow<Int> = messageRepository?.getUnreadConversationsCount()
         ?.stateIn(
@@ -160,6 +165,38 @@ class FeedViewModel(
                     refresh()
                 }
                 onSuccess()
+            }
+        }
+    }
+
+    fun deletePost(postId: String, onComplete: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = postRepository.deletePost(postId)
+            result.onSuccess {
+                val currentState = _uiState.value as? FeedUiState.Success
+                if (currentState != null) {
+                    _uiState.value = currentState.copy(
+                        posts = currentState.posts.filter { it.id != postId }
+                    )
+                }
+                onComplete(true, null)
+            }.onFailure { e ->
+                onComplete(false, e.message ?: "Échec de la suppression de la publication.")
+            }
+        }
+    }
+
+    fun reportPost(postId: String, reason: String, details: String?, onComplete: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            if (userRepository != null) {
+                val result = userRepository.reportContent("post", postId, reason, details)
+                result.onSuccess {
+                    onComplete(true, null)
+                }.onFailure { e ->
+                    onComplete(false, e.message ?: "Échec du signalement.")
+                }
+            } else {
+                onComplete(true, null)
             }
         }
     }

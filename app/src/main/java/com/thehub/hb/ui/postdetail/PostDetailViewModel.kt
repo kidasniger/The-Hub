@@ -173,5 +173,35 @@ class PostDetailViewModel(
             }
         }
     }
+
+    fun deletePost(onComplete: (Boolean, String?) -> Unit) {
+        val currentState = _uiState.value as? PostDetailUiState.Success ?: run {
+            onComplete(false, "Action non disponible")
+            return
+        }
+        viewModelScope.launch {
+            val result = postRepository.deletePost(currentState.post.id)
+            result.onSuccess {
+                onComplete(true, null)
+            }.onFailure { e ->
+                onComplete(false, e.message ?: "Échec de la suppression de la publication.")
+            }
+        }
+    }
+
+    fun reportPost(reason: String, details: String?, onComplete: (Boolean, String?) -> Unit) {
+        val currentState = _uiState.value as? PostDetailUiState.Success ?: run {
+            onComplete(false, "Action non disponible")
+            return
+        }
+        viewModelScope.launch {
+            val result = userRepository.reportContent("post", currentState.post.id, reason, details)
+            result.onSuccess {
+                onComplete(true, null)
+            }.onFailure { e ->
+                onComplete(false, e.message ?: "Échec du signalement.")
+            }
+        }
+    }
 }
 

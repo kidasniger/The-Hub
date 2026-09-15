@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -75,6 +76,7 @@ fun PostCard(
     onOpenShare: (Post) -> Unit,
     onToggleBookmark: ((String) -> Unit)? = null,
     onAuthorClick: ((String) -> Unit)? = null,
+    onMoreOptionsClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -130,42 +132,63 @@ fun PostCard(
             // Author Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (onAuthorClick != null) Modifier.clickable { onAuthorClick(post.authorId) }
-                        else Modifier
-                    )
+                modifier = Modifier.fillMaxWidth()
             ) {
-                UserAvatar(
-                    name = author.effectiveName,
-                    photoUrl = author.photoUrl,
-                    size = 40.dp
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (onAuthorClick != null) Modifier.clickable { onAuthorClick(post.authorId) }
+                            else Modifier
+                        )
+                ) {
+                    UserAvatar(
+                        name = author.effectiveName,
+                        photoUrl = author.photoUrl,
+                        size = 40.dp
+                    )
 
-                Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = author.effectiveName,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = HubWhite
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "·",
+                                fontSize = 13.sp,
+                                color = HubMuted
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = RelativeTime.format(post.createdAt),
+                                fontSize = 13.sp,
+                                color = HubMuted
+                            )
+                        }
+                    }
+                }
+
+                if (onMoreOptionsClick != null) {
+                    IconButton(
+                        onClick = { onMoreOptionsClick(post) },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("post_options_button_${post.id}")
                     ) {
-                        Text(
-                            text = author.effectiveName,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = HubWhite
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "·",
-                            fontSize = 13.sp,
-                            color = HubMuted
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = RelativeTime.format(post.createdAt),
-                            fontSize = 13.sp,
-                            color = HubMuted
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options de la publication",
+                            tint = HubMuted,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

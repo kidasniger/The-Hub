@@ -16,10 +16,16 @@ data class CreatePostUiState(
     val selectedImageBytes: ByteArray? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isPublished: Boolean = false
+    val isPublished: Boolean = false,
+    val isEditMode: Boolean = false,
+    val editPostId: String? = null
 ) {
     val canPublish: Boolean
-        get() = (text.isNotBlank() || selectedImageBytes != null) && !isLoading && text.length <= 500
+        get() = if (isEditMode) {
+            text.isNotBlank() && !isLoading && text.length <= 500
+        } else {
+            (text.isNotBlank() || selectedImageBytes != null) && !isLoading && text.length <= 500
+        }
 
     val charCount: Int
         get() = text.length
@@ -35,6 +41,35 @@ class CreatePostViewModel(
     private val _uiState = MutableStateFlow(CreatePostUiState())
     val uiState: StateFlow<CreatePostUiState> = _uiState.asStateFlow()
 
+    fun initForEdit(postId: String, initialText: String? = null) {
+        _uiState.value = CreatePostUiState(
+            text = initialText ?: "",
+            isEditMode = true,
+            editPostId = postId,
+            isLoading = initialText.isNullOrBlank()
+        )
+        if (initialText.isNullOrBlank()) {
+            viewModelScope.launch {
+                val result = postRepository.getPost(postId)
+                result.onSuccess { post ->
+                    _uiState.value = _uiState.value.copy(
+                        text = post.text,
+                        isLoading = false
+                    )
+                }.onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Impossible de charger la publication."
+                    )
+                }
+            }
+        }
+    }
+
+    fun reset() {
+        _uiState.value = CreatePostUiState()
+    }
+
     fun updateText(newText: String) {
         if (newText.length <= 500) {
             _uiState.value = _uiState.value.copy(text = newText, errorMessage = null)
@@ -42,6 +77,7 @@ class CreatePostViewModel(
     }
 
     fun setImage(uri: Uri?, bytes: ByteArray?) {
+        if (_uiState.value.isEditMode) return
         _uiState.value = _uiState.value.copy(
             selectedImageUri = uri,
             selectedImageBytes = bytes,
@@ -59,6 +95,34 @@ class CreatePostViewModel(
     fun publishPost(onSuccess: (Post) -> Unit) {
         val currentState = _uiState.value
         if (!currentState.canPublish) return
+
+        if (currentState.isEditMode && currentState.editPostId != null) {
+            viewModelScope.launch {
+                _uiState.value = currentState.copy(isLoading = true, errorMessage = null)
+                val updateResult = postRepository.updatePostText(currentState.editPostId, currentState.text)
+                updateResult.onSuccess {
+                    val postResult = postRepository.getPost(currentState.editPostId)
+                    val post = postResult.getOrNull() ?: Post(
+                        id = currentState.editPostId,
+                        text = currentState.text.trim(),
+                        authorId = postRepository.currentUserId ?: "",
+                        authorUsername = "",
+                        createdAt = com.google.firebase.Timestamp.now()
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isPublished = true
+                    )
+                    onSuccess(post)
+                }.onFailure { exception ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = exception.message ?: "Impossible de modifier la publication."
+                    )
+                }
+            }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.value = currentState.copy(isLoading = true, errorMessage = null)

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -56,6 +57,11 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.PostOptionsBottomSheet
+import com.thehub.hb.ui.components.DeletePostConfirmationDialog
+import com.thehub.hb.ui.components.ReportBottomSheet
+import com.thehub.hb.ui.components.copyPostLinkToClipboard
+import android.widget.Toast
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -85,10 +91,18 @@ fun PostDetailScreen(
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onAuthorClick: ((String) -> Unit)? = null,
+    onEditPost: (Post) -> Unit = {},
+    onPostDeleted: () -> Unit = onNavigateBack,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var postToShare by remember { mutableStateOf<Post?>(null) }
+    var showOptionsMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showReportSheet by remember { mutableStateOf(false) }
+    var isDeletingPost by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -279,6 +293,21 @@ fun PostDetailScreen(
                                         )
                                     }
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+                            IconButton(
+                                onClick = { showOptionsMenu = true },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("post_detail_options_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Options de la publication",
+                                    tint = HubSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
 
@@ -550,6 +579,85 @@ fun PostDetailScreen(
                 onRepost = { p ->
                     viewModel.repost()
                 }
+            )
+        }
+
+        val detailSuccessState = uiState as? PostDetailUiState.Success
+        val currentPost = detailSuccessState?.post
+
+        // Post Options Bottom Sheet ("⋮")
+        if (showOptionsMenu && currentPost != null) {
+            PostOptionsBottomSheet(
+                post = currentPost,
+                currentUserId = detailSuccessState.currentUserId,
+                onDismiss = { showOptionsMenu = false },
+                onEdit = { post ->
+                    onEditPost(post)
+                },
+                onDelete = {
+                    showDeleteConfirmation = true
+                },
+                onReport = {
+                    showReportSheet = true
+                },
+                onCopyLink = { post ->
+                    copyPostLinkToClipboard(context, post.id)
+                }
+            )
+        }
+
+        // Delete Confirmation Dialog
+        DeletePostConfirmationDialog(
+            isOpen = showDeleteConfirmation,
+            isDeleting = isDeletingPost,
+            onConfirm = {
+                isDeletingPost = true
+                viewModel.deletePost { success, errorMsg ->
+                    isDeletingPost = false
+                    showDeleteConfirmation = false
+                    if (success) {
+                        Toast.makeText(context, "Publication supprimée", Toast.LENGTH_SHORT).show()
+                        onPostDeleted()
+                    } else {
+                        Toast.makeText(context, errorMsg ?: "Erreur de suppression", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = {
+                if (!isDeletingPost) {
+                    showDeleteConfirmation = false
+                }
+            }
+        )
+
+        // Report Bottom Sheet
+        if (showReportSheet && currentPost != null) {
+            ReportBottomSheet(
+                targetType = "post",
+                targetId = currentPost.id,
+                targetName = if (currentPost.authorUsername.isNotBlank()) "@${currentPost.authorUsername}" else "cette publication",
+                onDismiss = { showReportSheet = false },
+                onSubmitReport = { reason, details ->
+                    isSubmittingReport = true
+                    viewModel.reportPost(reason, details) { success, errorMsg ->
+                        isSubmittingReport = false
+                        showReportSheet = false
+                        if (success) {
+                            Toast.makeText(
+                                context,
+                                "Signalement envoyé. Merci de nous aider à garder The Hub sûr.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                errorMsg ?: "Erreur lors du signalement",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
+                isSubmitting = isSubmittingReport
             )
         }
     }

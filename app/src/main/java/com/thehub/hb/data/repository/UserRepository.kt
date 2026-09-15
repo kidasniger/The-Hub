@@ -794,9 +794,38 @@ class UserRepository(
                 return@withContext Result.failure(Exception("Non autorisé à supprimer cette publication"))
             }
 
+            // 1. Delete likes subcollection
+            try {
+                val likesDocs = postRef.collection("likes").get().await()
+                if (!likesDocs.isEmpty) {
+                    val batch = firestore.batch()
+                    likesDocs.documents.forEach { doc ->
+                        batch.delete(doc.reference)
+                    }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Failed deleting likes subcollection: ${e.message}")
+            }
+
+            // 2. Delete comments subcollection
+            try {
+                val commentsDocs = postRef.collection("comments").get().await()
+                if (!commentsDocs.isEmpty) {
+                    val batch = firestore.batch()
+                    commentsDocs.documents.forEach { doc ->
+                        batch.delete(doc.reference)
+                    }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Failed deleting comments subcollection: ${e.message}")
+            }
+
+            // 3. Delete the post document itself
             postRef.delete().await()
 
-            // Decrement postsCount on user doc
+            // 4. Decrement postsCount on user doc
             try {
                 firestore.collection("users").document(uid)
                     .update("postsCount", FieldValue.increment(-1))

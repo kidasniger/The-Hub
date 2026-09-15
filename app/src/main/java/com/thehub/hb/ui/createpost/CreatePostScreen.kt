@@ -120,7 +120,7 @@ fun CreatePostScreen(
                 }
 
                 Text(
-                    text = "Nouvelle publication",
+                    text = if (uiState.isEditMode) "Modifier la publication" else "Nouvelle publication",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite
@@ -152,7 +152,7 @@ fun CreatePostScreen(
                         )
                     } else {
                         Text(
-                            text = "Publier",
+                            text = if (uiState.isEditMode) "Enregistrer" else "Publier",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -274,41 +274,43 @@ fun CreatePostScreen(
                 }
             }
 
-            // Bottom Attachment Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(HubSurfaceElevated)
-                    .border(width = 1.dp, color = HubBorder)
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // Bottom Attachment Bar (hidden in edit mode since only text can be edited)
+            if (!uiState.isEditMode) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(HubDarkGray)
-                        .clickable {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                        .testTag("create_post_pick_image_button"),
+                        .fillMaxWidth()
+                        .background(HubSurfaceElevated)
+                        .border(width = 1.dp, color = HubBorder)
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Image,
-                        contentDescription = "Ajouter une image",
-                        tint = HubWhite,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (uiState.selectedImageUri != null) "Changer la photo" else "Ajouter une photo",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = HubWhite
-                    )
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(HubDarkGray)
+                            .clickable {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .testTag("create_post_pick_image_button"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Image,
+                            contentDescription = "Ajouter une image",
+                            tint = HubWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (uiState.selectedImageUri != null) "Changer la photo" else "Ajouter une photo",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HubWhite
+                        )
+                    }
                 }
             }
         }

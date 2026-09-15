@@ -393,6 +393,110 @@ class PostRepository(
     }
 
     /**
+     * Update the text and hashtags of an existing post authored by the current user.
+     */
+    suspend fun updatePostText(postId: String, newText: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+
+        try {
+            val postRef = firestore.collection("posts").document(postId)
+            val postDoc = postRef.get().await()
+            if (!postDoc.exists()) {
+                return@withContext Result.failure(Exception("Publication introuvable"))
+            }
+
+            val authorId = postDoc.getString("authorId") ?: ""
+            if (authorId != uid) {
+                return@withContext Result.failure(Exception("Non autorisé à modifier cette publication"))
+            }
+
+            val trimmed = newText.trim()
+            val hashtags = extractHashtags(trimmed)
+
+            postRef.update(
+                mapOf(
+                    "text" to trimmed,
+                    "hashtags" to hashtags,
+                    "updatedAt" to Timestamp.now()
+                )
+            ).await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error updating post text $postId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete a post document in Firestore, along with its subcollections (likes, comments),
+     * and decrement postsCount on the author user document.
+     */
+    suspend fun deletePost(postId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+
+        try {
+            val postRef = firestore.collection("posts").document(postId)
+            val postDoc = postRef.get().await()
+            if (!postDoc.exists()) {
+                return@withContext Result.failure(Exception("Publication introuvable"))
+            }
+
+            val authorId = postDoc.getString("authorId") ?: ""
+            if (authorId != uid) {
+                return@withContext Result.failure(Exception("Non autorisé à supprimer cette publication"))
+            }
+
+            // 1. Delete likes subcollection
+            try {
+                val likesDocs = postRef.collection("likes").get().await()
+                if (!likesDocs.isEmpty) {
+                    val batch = firestore.batch()
+                    likesDocs.documents.forEach { doc ->
+                        batch.delete(doc.reference)
+                    }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("PostRepository", "Failed deleting likes subcollection: ${e.message}")
+            }
+
+            // 2. Delete comments subcollection
+            try {
+                val commentsDocs = postRef.collection("comments").get().await()
+                if (!commentsDocs.isEmpty) {
+                    val batch = firestore.batch()
+                    commentsDocs.documents.forEach { doc ->
+                        batch.delete(doc.reference)
+                    }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("PostRepository", "Failed deleting comments subcollection: ${e.message}")
+            }
+
+            // 3. Delete the post document itself
+            postRef.delete().await()
+
+            // 4. Decrement author's postsCount
+            if (authorId.isNotBlank()) {
+                try {
+                    firestore.collection("users").document(authorId)
+                        .update("postsCount", FieldValue.increment(-1))
+                        .await()
+                } catch (e: Exception) {
+                    Log.w("PostRepository", "Failed decrementing postsCount: ${e.message}")
+                }
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error deleting post $postId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Toggle like atomically on a post using Firestore transaction.
      * Returns true if post is now liked, false if unliked.
      */

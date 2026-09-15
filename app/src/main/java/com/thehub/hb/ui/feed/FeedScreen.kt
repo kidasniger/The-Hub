@@ -58,6 +58,12 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.thehub.hb.ui.components.DeletePostConfirmationDialog
+import com.thehub.hb.ui.components.PostOptionsBottomSheet
+import com.thehub.hb.ui.components.ReportBottomSheet
+import com.thehub.hb.ui.components.copyPostLinkToClipboard
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -79,11 +85,18 @@ fun FeedScreen(
     onCreatePost: () -> Unit,
     onOpenMessenger: () -> Unit,
     onAuthorClick: ((String) -> Unit)? = null,
+    onEditPost: (Post) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val unreadConversationsCount by viewModel.unreadConversationsCount.collectAsState()
     var postToShare by remember { mutableStateOf<Post?>(null) }
+    var postForOptions by remember { mutableStateOf<Post?>(null) }
+    var postToDelete by remember { mutableStateOf<Post?>(null) }
+    var postToReport by remember { mutableStateOf<Post?>(null) }
+    var isDeletingPost by remember { mutableStateOf(false) }
+    var isSubmittingReport by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     // Pagination detection
@@ -236,7 +249,8 @@ fun FeedScreen(
                                     onOpenLikes = onOpenLikes,
                                     onOpenShare = { postToShare = it },
                                     onToggleBookmark = { viewModel.toggleBookmark(it) },
-                                    onAuthorClick = onAuthorClick
+                                    onAuthorClick = onAuthorClick,
+                                    onMoreOptionsClick = { postForOptions = it }
                                 )
                             }
 
@@ -293,6 +307,82 @@ fun FeedScreen(
                 onRepost = { p ->
                     viewModel.repost(p)
                 }
+            )
+        }
+
+        // Post Options Bottom Sheet ("⋮")
+        postForOptions?.let { post ->
+            PostOptionsBottomSheet(
+                post = post,
+                currentUserId = viewModel.currentUserId,
+                onDismiss = { postForOptions = null },
+                onEdit = {
+                    onEditPost(it)
+                },
+                onDelete = {
+                    postToDelete = it
+                },
+                onReport = {
+                    postToReport = it
+                },
+                onCopyLink = {
+                    copyPostLinkToClipboard(context, it.id)
+                }
+            )
+        }
+
+        // Delete Post Confirmation Dialog
+        DeletePostConfirmationDialog(
+            isOpen = postToDelete != null,
+            isDeleting = isDeletingPost,
+            onConfirm = {
+                val targetPost = postToDelete ?: return@DeletePostConfirmationDialog
+                isDeletingPost = true
+                viewModel.deletePost(targetPost.id) { success, errorMsg ->
+                    isDeletingPost = false
+                    postToDelete = null
+                    if (success) {
+                        Toast.makeText(context, "Publication supprimée", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, errorMsg ?: "Erreur de suppression", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = {
+                if (!isDeletingPost) {
+                    postToDelete = null
+                }
+            }
+        )
+
+        // Report Post Bottom Sheet
+        postToReport?.let { post ->
+            ReportBottomSheet(
+                targetType = "post",
+                targetId = post.id,
+                targetName = if (post.authorUsername.isNotBlank()) "@${post.authorUsername}" else "cette publication",
+                onDismiss = { postToReport = null },
+                onSubmitReport = { reason, details ->
+                    isSubmittingReport = true
+                    viewModel.reportPost(post.id, reason, details) { success, errorMsg ->
+                        isSubmittingReport = false
+                        postToReport = null
+                        if (success) {
+                            Toast.makeText(
+                                context,
+                                "Signalement envoyé. Merci de nous aider à garder The Hub sûr.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                errorMsg ?: "Erreur lors du signalement",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
+                isSubmitting = isSubmittingReport
             )
         }
     }
