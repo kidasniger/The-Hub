@@ -60,17 +60,70 @@ class UserRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Get user profile once.
+     * Get user profile once, reconciling actual counts from collections.
      */
     suspend fun getUserProfile(uid: String): Result<User?> = withContext(Dispatchers.IO) {
         try {
             val doc = firestore.collection("users").document(uid).get().await()
-            if (doc.exists()) {
-                val user = User.fromMap(doc.data ?: emptyMap())
-                Result.success(user)
-            } else {
-                Result.success(null)
+            if (!doc.exists()) {
+                return@withContext Result.success(null)
             }
+            val baseUser = User.fromMap(doc.data ?: emptyMap())
+
+            // Reconcile actual counts
+            val actualPosts = try {
+                firestore.collection("posts")
+                    .whereEqualTo("authorId", uid)
+                    .count()
+                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                    .await().count.toInt()
+            } catch (_: Exception) {
+                baseUser.postsCount
+            }
+
+            val actualFollowers = try {
+                firestore.collection("users").document(uid)
+                    .collection("followers")
+                    .count()
+                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                    .await().count.toInt()
+            } catch (_: Exception) {
+                baseUser.followersCount
+            }
+
+            val actualFollowing = try {
+                firestore.collection("users").document(uid)
+                    .collection("following")
+                    .count()
+                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                    .await().count.toInt()
+            } catch (_: Exception) {
+                baseUser.followingCount
+            }
+
+            val reconciled = baseUser.copy(
+                postsCount = maxOf(baseUser.postsCount, actualPosts),
+                followersCount = maxOf(baseUser.followersCount, actualFollowers),
+                followingCount = maxOf(baseUser.followingCount, actualFollowing)
+            )
+
+            // Asynchronously sync document if counts differ
+            if (reconciled.postsCount != baseUser.postsCount ||
+                reconciled.followersCount != baseUser.followersCount ||
+                reconciled.followingCount != baseUser.followingCount) {
+                try {
+                    firestore.collection("users").document(uid).set(
+                        mapOf(
+                            "postsCount" to reconciled.postsCount,
+                            "followersCount" to reconciled.followersCount,
+                            "followingCount" to reconciled.followingCount
+                        ),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    )
+                } catch (_: Exception) {}
+            }
+
+            Result.success(reconciled)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error fetching user profile $uid: ${e.message}", e)
             Result.failure(e)
@@ -227,25 +280,45 @@ class UserRepository(
             val followingRef = currentUserRef.collection("following").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(uid)
 
-            firestore.runTransaction { transaction ->
-                val followingDoc = transaction.get(followingRef)
-                if (!followingDoc.exists()) {
-                    val now = Timestamp.now()
-                    transaction.set(followingRef, mapOf("followedAt" to now, "uid" to targetUid))
-                    transaction.set(followerRef, mapOf("followedAt" to now, "uid" to uid))
-                    transaction.update(currentUserRef, "followingCount", FieldValue.increment(1))
-                    transaction.update(targetUserRef, "followersCount", FieldValue.increment(1))
-                }
-                null
-            }.await()
+            val alreadyFollowing = try {
+                followingRef.get().await().exists()
+            } catch (_: Exception) {
+                false
+            }
 
-            // Send notification to target user
-            try {
-                notificationRepository.createNotification(
-                    recipientId = targetUid,
-                    type = NotificationItem.TYPE_FOLLOW
-                )
-            } catch (_: Exception) {}
+            if (!alreadyFollowing) {
+                val now = Timestamp.now()
+                val batch = firestore.batch()
+                batch.set(followingRef, mapOf("followedAt" to now, "uid" to targetUid))
+                batch.set(followerRef, mapOf("followedAt" to now, "uid" to uid))
+                batch.commit().await()
+
+                try {
+                    currentUserRef.set(
+                        mapOf("followingCount" to FieldValue.increment(1)),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Failed incrementing followingCount: ${e.message}")
+                }
+
+                try {
+                    targetUserRef.set(
+                        mapOf("followersCount" to FieldValue.increment(1)),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Failed incrementing followersCount: ${e.message}")
+                }
+
+                // Send notification to target user
+                try {
+                    notificationRepository.createNotification(
+                        recipientId = targetUid,
+                        type = NotificationItem.TYPE_FOLLOW
+                    )
+                } catch (_: Exception) {}
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -255,7 +328,7 @@ class UserRepository(
     }
 
     /**
-     * Unfollow a user atomically using Firestore transaction.
+     * Unfollow a user atomically.
      */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
@@ -267,16 +340,36 @@ class UserRepository(
             val followingRef = currentUserRef.collection("following").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(uid)
 
-            firestore.runTransaction { transaction ->
-                val followingDoc = transaction.get(followingRef)
-                if (followingDoc.exists()) {
-                    transaction.delete(followingRef)
-                    transaction.delete(followerRef)
-                    transaction.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-                    transaction.update(targetUserRef, "followersCount", FieldValue.increment(-1))
+            val isFollowing = try {
+                followingRef.get().await().exists()
+            } catch (_: Exception) {
+                true
+            }
+
+            if (isFollowing) {
+                val batch = firestore.batch()
+                batch.delete(followingRef)
+                batch.delete(followerRef)
+                batch.commit().await()
+
+                try {
+                    currentUserRef.set(
+                        mapOf("followingCount" to FieldValue.increment(-1)),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Failed decrementing followingCount: ${e.message}")
                 }
-                null
-            }.await()
+
+                try {
+                    targetUserRef.set(
+                        mapOf("followersCount" to FieldValue.increment(-1)),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Failed decrementing followersCount: ${e.message}")
+                }
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {

@@ -110,8 +110,9 @@ class SearchRepository(
             val currentUid = currentUserId
             val rawTag = q.removePrefix("#").lowercase().trim()
 
-            // Fetch user's bookmarks to hydrate bookmark status
-            val bookmarkedIds = if (currentUid != null) {
+            // Fetch user's bookmarks to hydrate bookmark status (remote + local)
+            val localBookmarks = dataStoreManager.getLocalBookmarkedIds()
+            val remoteBookmarks = if (currentUid != null) {
                 try {
                     firestore.collection("users").document(currentUid)
                         .collection("bookmarks").get().await()
@@ -120,6 +121,7 @@ class SearchRepository(
                     emptySet()
                 }
             } else emptySet()
+            val bookmarkedIds = remoteBookmarks + localBookmarks
 
             val matchingPosts = snapshot.documents.mapNotNull { doc ->
                 try {

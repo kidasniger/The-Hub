@@ -450,7 +450,11 @@ fun HubNavGraph(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return PostDetailViewModel(postId, appContainer.postRepository) as T
+                        return PostDetailViewModel(
+                            postId = postId,
+                            postRepository = appContainer.postRepository,
+                            userRepository = appContainer.userRepository
+                        ) as T
                     }
                 }
             )

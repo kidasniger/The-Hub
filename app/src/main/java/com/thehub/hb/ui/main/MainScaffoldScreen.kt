@@ -44,9 +44,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -122,16 +126,28 @@ fun MainScaffoldScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var selectedTab by remember { mutableIntStateOf(MainTab.FEED.ordinal) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.FEED.ordinal) }
+    val tabHistory = rememberSaveable(
+        saver = listSaver(
+            save = { it.toList() },
+            restore = { it.toMutableStateList() }
+        )
+    ) { mutableStateListOf<Int>() }
     var postToShare by remember { mutableStateOf<Post?>(null) }
     var lastBackPressedTime by remember { mutableLongStateOf(0L) }
     val unreadNotificationsCount by notificationsViewModel.unreadCount.collectAsState()
 
-    // Double back press to exit handling
+    // Back button handling: pop tab history first, or exit if already on FEED
     BackHandler(enabled = true) {
         if (selectedTab != MainTab.FEED.ordinal) {
-            selectedTab = MainTab.FEED.ordinal
+            if (tabHistory.isNotEmpty()) {
+                val previousTab = tabHistory.removeAt(tabHistory.lastIndex)
+                selectedTab = previousTab
+            } else {
+                selectedTab = MainTab.FEED.ordinal
+            }
         } else {
+            tabHistory.clear()
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastBackPressedTime < 2000L) {
                 (context as? Activity)?.finish()
@@ -152,7 +168,10 @@ fun MainScaffoldScreen(
                 selectedTab = MainTab.entries[selectedTab],
                 unreadNotificationsCount = unreadNotificationsCount,
                 onTabSelected = { tab ->
-                    selectedTab = tab.ordinal
+                    if (selectedTab != tab.ordinal) {
+                        tabHistory.add(selectedTab)
+                        selectedTab = tab.ordinal
+                    }
                 }
             )
         }
@@ -198,10 +217,15 @@ fun MainScaffoldScreen(
                     CreatePostScreen(
                         viewModel = createPostViewModel,
                         onNavigateBack = {
-                            selectedTab = MainTab.FEED.ordinal
+                            if (tabHistory.isNotEmpty()) {
+                                selectedTab = tabHistory.removeAt(tabHistory.lastIndex)
+                            } else {
+                                selectedTab = MainTab.FEED.ordinal
+                            }
                         },
                         onPostCreated = {
                             selectedTab = MainTab.FEED.ordinal
+                            tabHistory.clear()
                             feedViewModel.refresh()
                         }
                     )

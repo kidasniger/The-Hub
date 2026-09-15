@@ -58,6 +58,13 @@ import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.thehub.hb.utils.ImageSaver
 import com.thehub.hb.ui.theme.HubDarkGray
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.thehub.hb.ui.theme.HubError
@@ -188,35 +195,81 @@ fun PostDetailScreen(
                         // Author Profile Header
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (onAuthorClick != null) {
-                                        Modifier.clickable { onAuthorClick(post.authorId) }
-                                    } else {
-                                        Modifier
-                                    }
-                                )
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            UserAvatar(
-                                name = post.authorUsername,
-                                photoUrl = post.authorPhotoUrl,
-                                size = 48.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "@${post.authorUsername}",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = HubWhite
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(
+                                        if (onAuthorClick != null) {
+                                            Modifier.clickable { onAuthorClick(post.authorId) }
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                            ) {
+                                UserAvatar(
+                                    name = post.authorUsername,
+                                    photoUrl = post.authorPhotoUrl,
+                                    size = 48.dp
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = RelativeTime.format(post.createdAt),
-                                    fontSize = 13.sp,
-                                    color = HubMuted
-                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "@${post.authorUsername}",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = HubWhite
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = RelativeTime.format(post.createdAt),
+                                        fontSize = 13.sp,
+                                        color = HubMuted
+                                    )
+                                }
+                            }
+
+                            // Follow / Unfollow Button
+                            val detailState = uiState as? PostDetailUiState.Success
+                            val currentUid = detailState?.currentUserId
+                            if (currentUid != null && currentUid != post.authorId) {
+                                val isFollowing = detailState.isFollowingAuthor
+                                val isFollowLoading = detailState.isFollowActionLoading
+                                Button(
+                                    onClick = { viewModel.toggleFollowAuthor() },
+                                    enabled = !isFollowLoading,
+                                    shape = RoundedCornerShape(18.dp),
+                                    colors = if (isFollowing) {
+                                        ButtonDefaults.buttonColors(
+                                            containerColor = HubSurfaceElevated,
+                                            contentColor = HubWhite
+                                        )
+                                    } else {
+                                        ButtonDefaults.buttonColors(
+                                            containerColor = HubWhite,
+                                            contentColor = HubBlack
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .height(36.dp)
+                                        .testTag("post_detail_follow_button")
+                                ) {
+                                    if (isFollowLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = if (isFollowing) HubWhite else HubBlack,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text(
+                                            text = if (isFollowing) "Abonné" else "S'abonner",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -234,22 +287,59 @@ fun PostDetailScreen(
 
                         // Full Post Image
                         if (!post.imageUrl.isNullOrBlank()) {
+                            val context = LocalContext.current
+                            val scope = rememberCoroutineScope()
+                            var isSavingImage by remember { mutableStateOf(false) }
+
                             Spacer(modifier = Modifier.height(16.dp))
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(HubSurfaceElevated)
-                                    .clickable { onImageClick(post.imageUrl) }
                             ) {
                                 AsyncImage(
                                     model = post.imageUrl,
                                     contentDescription = "Image de la publication",
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp)),
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable { onImageClick(post.imageUrl) },
                                     contentScale = ContentScale.FillWidth
                                 )
+
+                                IconButton(
+                                    onClick = {
+                                        if (!isSavingImage) {
+                                            isSavingImage = true
+                                            scope.launch {
+                                                ImageSaver.saveImageToGallery(context, post.imageUrl)
+                                                isSavingImage = false
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(38.dp)
+                                        .background(Color(0x99000000), CircleShape)
+                                        .testTag("post_detail_save_image_button")
+                                ) {
+                                    if (isSavingImage) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = HubWhite,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.FileDownload,
+                                            contentDescription = "Enregistrer l'image",
+                                            tint = HubWhite,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
 

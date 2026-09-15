@@ -83,7 +83,7 @@ fun CreatePostScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             coroutineScope.launch {
-                val bytes = readBytesFromUri(context, uri)
+                val bytes = com.thehub.hb.utils.ImageCompressor.compressImageFromUri(context, uri)
                 if (bytes != null) {
                     viewModel.setImage(uri, bytes)
                 }

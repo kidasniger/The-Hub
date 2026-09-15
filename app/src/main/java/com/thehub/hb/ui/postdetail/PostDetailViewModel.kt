@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.PostRepository
+import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,18 +16,25 @@ sealed interface PostDetailUiState {
     data class Success(
         val post: Post,
         val commentsPreview: List<Comment>,
-        val totalCommentsCount: Int
+        val totalCommentsCount: Int,
+        val isFollowingAuthor: Boolean = false,
+        val isFollowActionLoading: Boolean = false,
+        val currentUserId: String? = null
     ) : PostDetailUiState
     data class Error(val message: String) : PostDetailUiState
 }
 
 class PostDetailViewModel(
     private val postId: String,
-    private val postRepository: PostRepository
+    private val postRepository: PostRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PostDetailUiState>(PostDetailUiState.Loading)
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
+
+    val currentUserId: String?
+        get() = postRepository.currentUserId
 
     init {
         loadPostDetail()
@@ -41,15 +49,60 @@ class PostDetailViewModel(
                 val commentsResult = postRepository.getComments(postId)
                 val allComments = commentsResult.getOrDefault(emptyList())
                 val preview = allComments.take(3)
+                val currentUid = currentUserId
+
+                val initialFollowing = if (currentUid != null && currentUid != post.authorId) {
+                    userRepository.checkIsFollowing(post.authorId).getOrDefault(false)
+                } else false
 
                 _uiState.value = PostDetailUiState.Success(
                     post = post,
                     commentsPreview = preview,
-                    totalCommentsCount = allComments.size.coerceAtLeast(post.commentsCount)
+                    totalCommentsCount = allComments.size.coerceAtLeast(post.commentsCount),
+                    isFollowingAuthor = initialFollowing,
+                    currentUserId = currentUid
                 )
+
+                // Observe real-time follow status
+                if (currentUid != null && currentUid != post.authorId) {
+                    launch {
+                        userRepository.isFollowing(post.authorId).collect { following ->
+                            val current = _uiState.value as? PostDetailUiState.Success
+                            if (current != null) {
+                                _uiState.value = current.copy(isFollowingAuthor = following)
+                            }
+                        }
+                    }
+                }
             }.onFailure { error ->
                 _uiState.value = PostDetailUiState.Error(
                     error.message ?: "Impossible de charger la publication."
+                )
+            }
+        }
+    }
+
+    fun toggleFollowAuthor() {
+        val currentState = _uiState.value as? PostDetailUiState.Success ?: return
+        val authorId = currentState.post.authorId
+        val currentUid = currentUserId
+        if (currentUid == null || authorId == currentUid || currentState.isFollowActionLoading) return
+
+        val currentlyFollowing = currentState.isFollowingAuthor
+        _uiState.value = currentState.copy(isFollowActionLoading = true)
+
+        viewModelScope.launch {
+            val result = if (currentlyFollowing) {
+                userRepository.unfollowUser(authorId)
+            } else {
+                userRepository.followUser(authorId)
+            }
+
+            val latestState = _uiState.value as? PostDetailUiState.Success
+            if (latestState != null) {
+                _uiState.value = latestState.copy(
+                    isFollowActionLoading = false,
+                    isFollowingAuthor = if (result.isSuccess) !currentlyFollowing else currentlyFollowing
                 )
             }
         }
@@ -104,3 +157,4 @@ class PostDetailViewModel(
         }
     }
 }
+

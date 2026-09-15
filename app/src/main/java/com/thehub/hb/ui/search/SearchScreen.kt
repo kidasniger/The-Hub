@@ -1,5 +1,6 @@
 package com.thehub.hb.ui.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,12 +31,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -100,6 +101,12 @@ fun SearchScreen(
     val searchHistory by viewModel.searchHistory.collectAsState()
     val focusManager = LocalFocusManager.current
     var blankTab by remember { mutableStateOf(BlankSearchTab.TRENDING) }
+
+    // Intercept back press when search query is active to clear search before exiting tab
+    BackHandler(enabled = uiState.query.isNotBlank()) {
+        viewModel.onQueryChanged("")
+        focusManager.clearFocus()
+    }
 
     Column(
         modifier = modifier
@@ -743,7 +750,7 @@ private fun TrendingSection(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.TrendingUp,
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                 contentDescription = null,
                                 tint = HubWhite,
                                 modifier = Modifier.size(18.dp)

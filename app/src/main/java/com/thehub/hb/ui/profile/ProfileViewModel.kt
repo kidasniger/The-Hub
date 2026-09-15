@@ -119,12 +119,15 @@ class ProfileViewModel(
 
             val user = userResult.getOrNull()
             val posts = postsResult.getOrDefault(emptyList())
+            val adjustedUser = user?.copy(
+                postsCount = maxOf(user.postsCount, posts.size)
+            )
 
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     isRefreshing = false,
-                    user = user,
+                    user = adjustedUser,
                     posts = posts,
                     isOwnProfile = isOwnProfile,
                     isBlocked = false,
@@ -143,11 +146,17 @@ class ProfileViewModel(
             val userResult = userRepository.getUserProfile(uid)
             val postsResult = userRepository.getUserPosts(uid)
 
+            val rawUser = userResult.getOrNull() ?: _uiState.value.user
+            val posts = postsResult.getOrDefault(_uiState.value.posts)
+            val adjustedUser = rawUser?.copy(
+                postsCount = maxOf(rawUser.postsCount, posts.size)
+            )
+
             _uiState.update {
                 it.copy(
                     isRefreshing = false,
-                    user = userResult.getOrNull() ?: it.user,
-                    posts = postsResult.getOrDefault(it.posts)
+                    user = adjustedUser,
+                    posts = posts
                 )
             }
         }

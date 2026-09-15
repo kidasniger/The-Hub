@@ -50,6 +50,16 @@ import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.thehub.hb.utils.ImageSaver
+import kotlinx.coroutines.launch
 import com.thehub.hb.utils.RelativeTime
 
 @Composable
@@ -165,22 +175,59 @@ fun PostCard(
 
             // Post Image
             if (!post.imageUrl.isNullOrBlank()) {
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                var isSaving by remember { mutableStateOf(false) }
+
                 Spacer(modifier = Modifier.height(12.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(HubSurfaceElevated)
-                        .clickable { onImageClick(post.imageUrl) }
                 ) {
                     AsyncImage(
                         model = post.imageUrl,
                         contentDescription = "Image de la publication",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onImageClick(post.imageUrl) },
                         contentScale = ContentScale.FillWidth
                     )
+
+                    IconButton(
+                        onClick = {
+                            if (!isSaving) {
+                                isSaving = true
+                                scope.launch {
+                                    ImageSaver.saveImageToGallery(context, post.imageUrl)
+                                    isSaving = false
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(34.dp)
+                            .background(Color(0x99000000), CircleShape)
+                            .testTag("post_card_save_image_button")
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = HubWhite,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.FileDownload,
+                                contentDescription = "Enregistrer l'image",
+                                tint = HubWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
 
