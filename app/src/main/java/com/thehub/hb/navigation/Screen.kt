@@ -14,7 +14,10 @@ sealed class Screen(val route: String) {
     }
     data object CompleteProfile : Screen("complete_profile")
     data object Feed : Screen("feed")
-    data object CreatePost : Screen("create_post")
+    data object CreatePost : Screen("create_post?editPostId={editPostId}") {
+        fun createRoute(editPostId: String? = null): String =
+            if (!editPostId.isNullOrBlank()) "create_post?editPostId=$editPostId" else "create_post"
+    }
     data object PostDetail : Screen("post_detail/{postId}") {
         fun createRoute(postId: String): String = "post_detail/$postId"
     }

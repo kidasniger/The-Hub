@@ -419,9 +419,20 @@ fun HubNavGraph(
             )
         }
 
-        // Create Post (standalone destination if opened from notification or deep link)
-        composable(Screen.CreatePost.route) {
+        // Create Post (standalone destination if opened from notification, deep link, or post-detail edit)
+        composable(
+            route = Screen.CreatePost.route,
+            arguments = listOf(
+                navArgument("editPostId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val editPostId = backStackEntry.arguments?.getString("editPostId")
             val createPostViewModel: CreatePostViewModel = viewModel(
+                key = editPostId ?: "create_post_standalone",
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -429,6 +440,12 @@ fun HubNavGraph(
                     }
                 }
             )
+
+            LaunchedEffect(editPostId) {
+                if (!editPostId.isNullOrBlank()) {
+                    createPostViewModel.initForEdit(editPostId)
+                }
+            }
 
             CreatePostScreen(
                 viewModel = createPostViewModel,
@@ -473,6 +490,12 @@ fun HubNavGraph(
                 },
                 onAuthorClick = { authorId ->
                     navController.navigate(Screen.Profile.createRoute(authorId))
+                },
+                onEditPost = { post ->
+                    navController.navigate(Screen.CreatePost.createRoute(post.id))
+                },
+                onPostDeleted = {
+                    navController.popBackStack()
                 }
             )
         }

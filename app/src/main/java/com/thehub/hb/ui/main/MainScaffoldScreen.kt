@@ -190,10 +190,17 @@ fun MainScaffoldScreen(
                         onOpenComments = onOpenComments,
                         onOpenLikes = onOpenLikes,
                         onCreatePost = {
+                            createPostViewModel.reset()
+                            tabHistory.add(selectedTab)
                             selectedTab = MainTab.CREATE.ordinal
                         },
                         onOpenMessenger = onOpenMessenger,
-                        onAuthorClick = onNavigateToProfile
+                        onAuthorClick = onNavigateToProfile,
+                        onEditPost = { post ->
+                            createPostViewModel.initForEdit(post.id, post.text)
+                            tabHistory.add(selectedTab)
+                            selectedTab = MainTab.CREATE.ordinal
+                        }
                     )
                 }
 
@@ -217,6 +224,7 @@ fun MainScaffoldScreen(
                     CreatePostScreen(
                         viewModel = createPostViewModel,
                         onNavigateBack = {
+                            createPostViewModel.reset()
                             if (tabHistory.isNotEmpty()) {
                                 selectedTab = tabHistory.removeAt(tabHistory.lastIndex)
                             } else {
@@ -224,6 +232,7 @@ fun MainScaffoldScreen(
                             }
                         },
                         onPostCreated = {
+                            createPostViewModel.reset()
                             selectedTab = MainTab.FEED.ordinal
                             tabHistory.clear()
                             feedViewModel.refresh()
