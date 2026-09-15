@@ -164,7 +164,7 @@ fun PostMediaImage(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Cette image n'est plus accessible ou a été supprimée.",
+                        text = "Cette image a été supprimée ou n'est plus accessible.",
                         fontSize = 12.sp,
                         color = HubSecondary,
                         textAlign = TextAlign.Center

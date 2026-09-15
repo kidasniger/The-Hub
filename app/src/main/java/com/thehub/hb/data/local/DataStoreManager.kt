@@ -24,6 +24,7 @@ class DataStoreManager(private val context: Context) {
         val KEY_LAST_PHOTO_URL = stringPreferencesKey("last_photo_url")
         val KEY_SEARCH_HISTORY = stringPreferencesKey("recent_search_history")
         val KEY_BOOKMARKED_POSTS = stringSetPreferencesKey("bookmarked_post_ids")
+        val KEY_LIKED_COMMENTS = stringSetPreferencesKey("liked_comment_ids")
         val KEY_NOTIF_LIKES = booleanPreferencesKey("notif_likes")
         val KEY_NOTIF_COMMENTS = booleanPreferencesKey("notif_comments")
         val KEY_NOTIF_FOLLOWS = booleanPreferencesKey("notif_follows")
@@ -212,5 +213,45 @@ class DataStoreManager(private val context: Context) {
             preferences[KEY_BOOKMARKED_POSTS] = current
         }
         return isBookmarked
+    }
+
+    val likedCommentIds: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[KEY_LIKED_COMMENTS] ?: emptySet()
+    }
+
+    suspend fun getLocalLikedCommentIds(): Set<String> {
+        return try {
+            likedCommentIds.first()
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    suspend fun toggleLocalCommentLike(commentId: String): Boolean {
+        var isLiked = false
+        context.dataStore.edit { preferences ->
+            val current = preferences[KEY_LIKED_COMMENTS]?.toMutableSet() ?: mutableSetOf()
+            if (current.contains(commentId)) {
+                current.remove(commentId)
+                isLiked = false
+            } else {
+                current.add(commentId)
+                isLiked = true
+            }
+            preferences[KEY_LIKED_COMMENTS] = current
+        }
+        return isLiked
+    }
+
+    suspend fun setLocalCommentLiked(commentId: String, liked: Boolean) {
+        context.dataStore.edit { preferences ->
+            val current = preferences[KEY_LIKED_COMMENTS]?.toMutableSet() ?: mutableSetOf()
+            if (liked) {
+                current.add(commentId)
+            } else {
+                current.remove(commentId)
+            }
+            preferences[KEY_LIKED_COMMENTS] = current
+        }
     }
 }

@@ -12,7 +12,10 @@ data class Comment(
     val createdAt: Timestamp = Timestamp.now(),
     val likesCount: Int = 0,
     val parentCommentId: String? = null,
-    val isLikedByCurrentUser: Boolean = false
+    val isLikedByCurrentUser: Boolean = false,
+    val isHidden: Boolean = false,
+    val isEdited: Boolean = false,
+    val editedAt: Timestamp? = null
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -22,7 +25,10 @@ data class Comment(
             "text" to text,
             "createdAt" to createdAt,
             "likesCount" to likesCount,
-            "parentCommentId" to parentCommentId
+            "parentCommentId" to parentCommentId,
+            "isHidden" to isHidden,
+            "isEdited" to isEdited,
+            "editedAt" to editedAt
         )
     }
 
@@ -37,7 +43,10 @@ data class Comment(
                 createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now(),
                 likesCount = (doc.getLong("likesCount") ?: 0L).toInt().coerceAtLeast(0),
                 parentCommentId = doc.getString("parentCommentId"),
-                isLikedByCurrentUser = false
+                isLikedByCurrentUser = false,
+                isHidden = doc.getBoolean("isHidden") ?: false,
+                isEdited = doc.getBoolean("isEdited") ?: false,
+                editedAt = doc.getTimestamp("editedAt")
             )
         }
     }

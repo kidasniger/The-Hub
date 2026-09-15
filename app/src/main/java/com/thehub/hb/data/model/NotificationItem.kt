@@ -9,9 +9,10 @@ data class NotificationItem(
     val actorId: String = "",
     val actorUsername: String = "",
     val actorPhotoUrl: String? = null,
-    val type: String = TYPE_LIKE, // "like" | "comment" | "follow" | "message"
+    val type: String = TYPE_LIKE, // "like" | "comment" | "follow" | "message" | "like_comment" | "reply_comment"
     val postId: String? = null,
     val commentText: String? = null,
+    val commentId: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
     val isRead: Boolean = false
 ) {
@@ -24,6 +25,7 @@ data class NotificationItem(
             "type" to type,
             "postId" to postId,
             "commentText" to commentText,
+            "commentId" to commentId,
             "createdAt" to createdAt,
             "isRead" to isRead
         )
@@ -34,6 +36,8 @@ data class NotificationItem(
         const val TYPE_COMMENT = "comment"
         const val TYPE_FOLLOW = "follow"
         const val TYPE_MESSAGE = "message"
+        const val TYPE_LIKE_COMMENT = "like_comment"
+        const val TYPE_REPLY_COMMENT = "reply_comment"
 
         fun fromSnapshot(doc: DocumentSnapshot): NotificationItem {
             return NotificationItem(
@@ -45,6 +49,7 @@ data class NotificationItem(
                 type = doc.getString("type") ?: TYPE_LIKE,
                 postId = doc.getString("postId"),
                 commentText = doc.getString("commentText"),
+                commentId = doc.getString("commentId"),
                 createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now(),
                 isRead = doc.getBoolean("isRead") ?: false
             )

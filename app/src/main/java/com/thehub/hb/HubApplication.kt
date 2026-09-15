@@ -17,8 +17,11 @@ class HubApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
         private set
 
+    private var currentImageLoader: ImageLoader? = null
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         ensureFirebaseInitialized(this)
         container = DefaultAppContainer(this)
     }
@@ -26,17 +29,19 @@ class HubApplication : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
-                // Ensure deleted images on remote hosts (like ImgBB) are checked on network
-                val request = chain.request().newBuilder()
-                    .header("Cache-Control", "no-cache")
-                    .build()
-                chain.proceed(request)
+                val request = chain.request()
+                val response = chain.proceed(request)
+                // If remote host (like ImgBB) returns 404 or 410, the image was deleted
+                if (response.code == 404 || response.code == 410) {
+                    throw java.io.IOException("Image deleted on remote host (HTTP ${response.code})")
+                }
+                response
             }
             .build()
 
-        return ImageLoader.Builder(this)
+        val loader = ImageLoader.Builder(this)
             .okHttpClient(okHttpClient)
-            .respectCacheHeaders(false)
+            .respectCacheHeaders(true)
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)
@@ -44,15 +49,30 @@ class HubApplication : Application(), ImageLoaderFactory {
             }
             .diskCache {
                 DiskCache.Builder()
-                    .directory(cacheDir.resolve("image_cache_v2"))
+                    .directory(cacheDir.resolve("image_cache_v3"))
                     .maxSizeBytes(40L * 1024 * 1024)
                     .build()
             }
             .crossfade(true)
             .build()
+        currentImageLoader = loader
+        return loader
+    }
+
+    private fun clearInternalImageCache() {
+        try {
+            currentImageLoader?.memoryCache?.clear()
+            currentImageLoader?.diskCache?.clear()
+        } catch (_: Exception) {}
     }
 
     companion object {
+        private var instance: HubApplication? = null
+
+        fun clearImageCache(context: Context? = null) {
+            instance?.clearInternalImageCache()
+        }
+
         fun ensureFirebaseInitialized(context: Context) {
             if (FirebaseApp.getApps(context).isEmpty()) {
                 val app = try {

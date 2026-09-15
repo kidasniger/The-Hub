@@ -3,10 +3,12 @@ package com.thehub.hb.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.DocumentSnapshot
+import com.thehub.hb.HubApplication
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.UserRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,6 +56,7 @@ class FeedViewModel(
     }
 
     fun refresh() {
+        HubApplication.clearImageCache()
         startObservingFeed(isRefresh = true)
     }
 
@@ -94,10 +97,22 @@ class FeedViewModel(
                         )
                     }
                 }
+            } catch (e: CancellationException) {
+                // Cancelled due to refresh cancellation - rethrow so coroutine terminates cleanly without error UI
+                throw e
             } catch (e: Exception) {
-                _uiState.value = FeedUiState.Error(
-                    e.message ?: "Impossible de charger les publications."
-                )
+                val currentState = _uiState.value
+                if (currentState is FeedUiState.Success) {
+                    // Do not flash "Oups !" error screen if posts were already displayed
+                    _uiState.value = currentState.copy(
+                        isRefreshing = false,
+                        isLoadingMore = false
+                    )
+                } else {
+                    _uiState.value = FeedUiState.Error(
+                        e.message ?: "Impossible de charger les publications."
+                    )
+                }
             }
         }
     }

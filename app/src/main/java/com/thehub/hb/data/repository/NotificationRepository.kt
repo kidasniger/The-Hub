@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -91,31 +92,11 @@ class NotificationRepository(
 
     /**
      * Real-time stream of unread notification count.
+     * Derived from getNotifications() to avoid requiring composite Firestore indexes
+     * and guarantee 100% synchronization with the real-time notification list.
      */
-    fun getUnreadCount(): Flow<Int> = callbackFlow {
-        val uid = currentUserId
-        if (uid == null) {
-            trySend(0)
-            close()
-            return@callbackFlow
-        }
-
-        val listener = firestore.collection("notifications")
-            .whereEqualTo("recipientId", uid)
-            .whereEqualTo("isRead", false)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.w("NotificationRepository", "Error observing unread count: ${error.message}")
-                    trySend(0)
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null) {
-                    trySend(snapshot.size())
-                }
-            }
-
-        awaitClose { listener.remove() }
+    fun getUnreadCount(): Flow<Int> = getNotifications().map { list ->
+        list.count { !it.isRead }
     }.flowOn(Dispatchers.IO)
 
     /**
@@ -166,7 +147,8 @@ class NotificationRepository(
         recipientId: String,
         type: String,
         postId: String? = null,
-        commentText: String? = null
+        commentText: String? = null,
+        commentId: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val (actorUid, actorUsername, actorPhotoUrl) = getCurrentActorInfo()
@@ -185,6 +167,7 @@ class NotificationRepository(
                 type = type,
                 postId = postId,
                 commentText = commentText,
+                commentId = commentId,
                 createdAt = Timestamp.now(),
                 isRead = false
             )

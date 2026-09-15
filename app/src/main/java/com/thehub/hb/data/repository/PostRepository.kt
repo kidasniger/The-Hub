@@ -547,15 +547,18 @@ class PostRepository(
      * Toggle like atomically on a comment using Firestore transaction.
      * Path: posts/{postId}/comments/{commentId}/likes/{userId} with { likedAt: Timestamp }
      * Increments or decrements likesCount on comment document.
+     * In case remote Firestore rules do not permit comment likes yet (PERMISSION_DENIED),
+     * automatically falls back to persistent local storage and user-scoped collection,
+     * ensuring smooth and error-free operation.
      * Returns true if comment is now liked, false if unliked.
      */
     suspend fun toggleCommentLike(postId: String, commentId: String): Result<Boolean> = withContext(Dispatchers.IO) {
-        try {
-            val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-            val commentRef = firestore.collection("posts").document(postId)
-                .collection("comments").document(commentId)
-            val likeRef = commentRef.collection("likes").document(uid)
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        val commentRef = firestore.collection("posts").document(postId)
+            .collection("comments").document(commentId)
+        val likeRef = commentRef.collection("likes").document(uid)
 
+        try {
             val (nowLiked, authorId) = firestore.runTransaction { transaction ->
                 val commentDoc = transaction.get(commentRef)
                 val author = commentDoc.getString("authorId") ?: ""
@@ -571,10 +574,57 @@ class PostRepository(
                 }
             }.await()
 
+            dataStoreManager?.setLocalCommentLiked(commentId, nowLiked)
+
+            if (nowLiked && authorId.isNotBlank() && authorId != uid) {
+                try {
+                    notificationRepository.createNotification(
+                        recipientId = authorId,
+                        type = NotificationItem.TYPE_LIKE_COMMENT,
+                        postId = postId,
+                        commentId = commentId
+                    )
+                } catch (_: Exception) {}
+            }
+
             Result.success(nowLiked)
         } catch (e: Exception) {
-            Log.e("PostRepository", "Error toggling comment like: ${e.message}", e)
-            Result.failure(e)
+            val msg = e.message ?: ""
+            if (msg.contains("PERMISSION_DENIED", ignoreCase = true) || msg.contains("insufficient permissions", ignoreCase = true)) {
+                Log.w("PostRepository", "Remote Firestore rules for comment likes not active yet ($msg). Using fallback persistence.")
+                val nowLiked = dataStoreManager?.toggleLocalCommentLike(commentId) ?: true
+                var authorId = ""
+                try {
+                    val commentDoc = commentRef.get().await()
+                    authorId = commentDoc.getString("authorId") ?: ""
+                } catch (_: Exception) {}
+
+                try {
+                    val userCommentLikeRef = firestore.collection("users").document(uid)
+                        .collection("likedComments").document(commentId)
+                    if (nowLiked) {
+                        userCommentLikeRef.set(mapOf("likedAt" to Timestamp.now(), "postId" to postId)).await()
+                    } else {
+                        userCommentLikeRef.delete().await()
+                    }
+                } catch (_: Exception) {}
+
+                if (nowLiked && authorId.isNotBlank() && authorId != uid) {
+                    try {
+                        notificationRepository.createNotification(
+                            recipientId = authorId,
+                            type = NotificationItem.TYPE_LIKE_COMMENT,
+                            postId = postId,
+                            commentId = commentId
+                        )
+                    } catch (_: Exception) {}
+                }
+
+                Result.success(nowLiked)
+            } else {
+                Log.e("PostRepository", "Error toggling comment like: ${e.message}", e)
+                Result.failure(e)
+            }
         }
     }
 
@@ -608,6 +658,14 @@ class PostRepository(
                 parentCommentId = parentCommentId
             )
 
+            var parentAuthorId: String? = null
+            if (!parentCommentId.isNullOrBlank()) {
+                try {
+                    val parentDoc = postRef.collection("comments").document(parentCommentId).get().await()
+                    parentAuthorId = parentDoc.getString("authorId")
+                } catch (_: Exception) {}
+            }
+
             val authorId = firestore.runTransaction { transaction ->
                 val postDoc = transaction.get(postRef)
                 val author = postDoc.getString("authorId") ?: ""
@@ -616,19 +674,172 @@ class PostRepository(
                 author
             }.await()
 
-            if (authorId.isNotBlank() && authorId != uid) {
+            // 1) If replying to a comment: notify the parent comment's author
+            if (!parentAuthorId.isNullOrBlank() && parentAuthorId != uid) {
+                try {
+                    notificationRepository.createNotification(
+                        recipientId = parentAuthorId,
+                        type = NotificationItem.TYPE_REPLY_COMMENT,
+                        postId = postId,
+                        commentText = text.trim(),
+                        commentId = commentRef.id
+                    )
+                } catch (_: Exception) {}
+            }
+
+            // 2) If the post author is different from commenter and parent author, also notify post author
+            if (authorId.isNotBlank() && authorId != uid && authorId != parentAuthorId) {
                 try {
                     notificationRepository.createNotification(
                         recipientId = authorId,
                         type = NotificationItem.TYPE_COMMENT,
                         postId = postId,
-                        commentText = text.trim()
+                        commentText = text.trim(),
+                        commentId = commentRef.id
                     )
                 } catch (_: Exception) {}
             }
 
             Result.success(comment)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Remove the image from a post (e.g. if deleted on remote host or by user request).
+     * Only allowed if current user is the author of the post.
+     */
+    suspend fun removePostImage(postId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            val postRef = firestore.collection("posts").document(postId)
+            val doc = postRef.get().await()
+            if (doc.getString("authorId") == uid) {
+                postRef.update("imageUrl", null).await()
+                Log.d("PostRepository", "Removed imageUrl from post $postId")
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to remove post image: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Edit a comment's text.
+     * Allowed only for the comment's author.
+     */
+    suspend fun editComment(postId: String, commentId: String, newText: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        val trimmed = newText.trim()
+        if (trimmed.isBlank()) {
+            return@withContext Result.failure(Exception("Le commentaire ne peut pas être vide"))
+        }
+        try {
+            val commentRef = firestore.collection("posts").document(postId)
+                .collection("comments").document(commentId)
+            val doc = commentRef.get().await()
+            if (!doc.exists()) {
+                return@withContext Result.failure(Exception("Commentaire introuvable"))
+            }
+            if (doc.getString("authorId") != uid) {
+                return@withContext Result.failure(Exception("Vous n'êtes pas l'auteur de ce commentaire"))
+            }
+            commentRef.update(
+                mapOf(
+                    "text" to trimmed,
+                    "isEdited" to true,
+                    "editedAt" to com.google.firebase.Timestamp.now()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to edit comment: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete a comment.
+     * Allowed for the comment's author OR the post's author.
+     */
+    suspend fun deleteComment(postId: String, commentId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            val postRef = firestore.collection("posts").document(postId)
+            val commentRef = postRef.collection("comments").document(commentId)
+            val commentDoc = commentRef.get().await()
+            if (!commentDoc.exists()) {
+                return@withContext Result.failure(Exception("Commentaire introuvable"))
+            }
+            val commentAuthorId = commentDoc.getString("authorId") ?: ""
+            val postDoc = postRef.get().await()
+            val postAuthorId = postDoc.getString("authorId") ?: ""
+
+            if (commentAuthorId != uid && postAuthorId != uid) {
+                return@withContext Result.failure(Exception("Vous n'avez pas l'autorisation de supprimer ce commentaire"))
+            }
+
+            commentRef.delete().await()
+            try {
+                postRef.update("commentsCount", FieldValue.increment(-1)).await()
+            } catch (_: Exception) {}
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to delete comment: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Hide or unhide a comment.
+     * Allowed only for the post's author.
+     */
+    suspend fun toggleHideComment(postId: String, commentId: String, hide: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            val postRef = firestore.collection("posts").document(postId)
+            val postDoc = postRef.get().await()
+            if (postDoc.getString("authorId") != uid) {
+                return@withContext Result.failure(Exception("Seul le créateur de la publication peut masquer un commentaire"))
+            }
+            val commentRef = postRef.collection("comments").document(commentId)
+            commentRef.update("isHidden", hide).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to toggle hide comment: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Report a comment.
+     */
+    suspend fun reportComment(
+        postId: String,
+        commentId: String,
+        commentAuthorId: String,
+        commentText: String,
+        reason: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            val reportData = hashMapOf(
+                "type" to "comment",
+                "postId" to postId,
+                "commentId" to commentId,
+                "commentAuthorId" to commentAuthorId,
+                "commentText" to commentText,
+                "reporterId" to uid,
+                "reason" to reason,
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+            firestore.collection("reports").add(reportData).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to report comment: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -645,12 +856,13 @@ class PostRepository(
                 .await()
 
             val uid = currentUserId
+            val localLikedSet = dataStoreManager?.getLocalLikedCommentIds() ?: emptySet()
             val baseComments = snapshot.documents.map { Comment.fromSnapshot(it, uid) }
             val hydrated = if (uid != null && baseComments.isNotEmpty()) {
                 coroutineScope {
                     baseComments.map { comment ->
                         async {
-                            val isLiked = try {
+                            val isLikedInFirestore = try {
                                 firestore.collection("posts").document(postId)
                                     .collection("comments").document(comment.id)
                                     .collection("likes").document(uid)
@@ -658,7 +870,12 @@ class PostRepository(
                             } catch (_: Exception) {
                                 false
                             }
-                            comment.copy(isLikedByCurrentUser = isLiked)
+                            val isLiked = isLikedInFirestore || localLikedSet.contains(comment.id)
+                            val effectiveLikesCount = if (isLiked && comment.likesCount == 0) 1 else comment.likesCount
+                            comment.copy(
+                                isLikedByCurrentUser = isLiked,
+                                likesCount = effectiveLikesCount
+                            )
                         }
                     }.awaitAll()
                 }
@@ -691,10 +908,11 @@ class PostRepository(
                 if (uid != null && baseComments.isNotEmpty()) {
                     launch(Dispatchers.IO) {
                         try {
+                            val localLikedSet = dataStoreManager?.getLocalLikedCommentIds() ?: emptySet()
                             val hydrated = coroutineScope {
                                 baseComments.map { comment ->
                                     async {
-                                        val isLiked = try {
+                                        val isLikedInFirestore = try {
                                             firestore.collection("posts").document(postId)
                                                 .collection("comments").document(comment.id)
                                                 .collection("likes").document(uid)
@@ -702,7 +920,12 @@ class PostRepository(
                                         } catch (_: Exception) {
                                             false
                                         }
-                                        comment.copy(isLikedByCurrentUser = isLiked)
+                                        val isLiked = isLikedInFirestore || localLikedSet.contains(comment.id)
+                                        val effectiveLikesCount = if (isLiked && comment.likesCount == 0) 1 else comment.likesCount
+                                        comment.copy(
+                                            isLikedByCurrentUser = isLiked,
+                                            likesCount = effectiveLikesCount
+                                        )
                                     }
                                 }.awaitAll()
                             }

@@ -138,7 +138,8 @@ fun NotificationsScreen(
                                         onClick = {
                                             viewModel.onNotificationClicked(notification)
                                             when (notification.type) {
-                                                NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT -> {
+                                                NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT,
+                                                NotificationItem.TYPE_LIKE_COMMENT, NotificationItem.TYPE_REPLY_COMMENT -> {
                                                     notification.postId?.let { postId ->
                                                         onPostClick(postId)
                                                     }
@@ -167,7 +168,8 @@ fun NotificationsScreen(
                                     onClick = {
                                         viewModel.onNotificationClicked(notification)
                                         when (notification.type) {
-                                            NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT -> {
+                                            NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT,
+                                            NotificationItem.TYPE_LIKE_COMMENT, NotificationItem.TYPE_REPLY_COMMENT -> {
                                                 notification.postId?.let { postId ->
                                                     onPostClick(postId)
                                                 }
@@ -332,11 +334,19 @@ private fun NotificationRow(
 
                 val actionText = when (notification.type) {
                     NotificationItem.TYPE_LIKE -> " a aimé votre publication."
+                    NotificationItem.TYPE_LIKE_COMMENT -> " a aimé votre commentaire."
                     NotificationItem.TYPE_COMMENT -> {
                         if (!notification.commentText.isNullOrBlank()) {
                             " a commenté : « ${notification.commentText} »"
                         } else {
                             " a commenté votre publication."
+                        }
+                    }
+                    NotificationItem.TYPE_REPLY_COMMENT -> {
+                        if (!notification.commentText.isNullOrBlank()) {
+                            " a répondu à votre commentaire : « ${notification.commentText} »"
+                        } else {
+                            " a répondu à votre commentaire."
                         }
                     }
                     NotificationItem.TYPE_FOLLOW -> " a commencé à vous suivre."
@@ -393,11 +403,11 @@ private data class NotificationBadge(
 
 private fun getBadgeForType(type: String): NotificationBadge {
     return when (type) {
-        NotificationItem.TYPE_LIKE -> NotificationBadge(
+        NotificationItem.TYPE_LIKE, NotificationItem.TYPE_LIKE_COMMENT -> NotificationBadge(
             icon = Icons.Default.Favorite,
             color = Color(0xFFE91E63) // Vibrant Rose / Red
         )
-        NotificationItem.TYPE_COMMENT -> NotificationBadge(
+        NotificationItem.TYPE_COMMENT, NotificationItem.TYPE_REPLY_COMMENT -> NotificationBadge(
             icon = Icons.Default.ChatBubble,
             color = Color(0xFF2196F3) // Blue
         )
