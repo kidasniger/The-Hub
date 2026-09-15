@@ -17,7 +17,9 @@ data class CommentsUiState(
     val inputText: String = "",
     val currentUserUsername: String = "utilisateur",
     val currentUserPhotoUrl: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val replyingTo: Comment? = null,
+    val expandedThreads: Set<String> = emptySet()
 ) {
     val canSend: Boolean
         get() = inputText.isNotBlank() && !isSending
@@ -94,18 +96,97 @@ class CommentsViewModel(
         _uiState.value = _uiState.value.copy(inputText = newText, errorMessage = null)
     }
 
+    fun startReply(comment: Comment) {
+        val currentText = _uiState.value.inputText
+        val mention = "@${comment.authorUsername} "
+        val newText = if (currentText.isBlank()) {
+            mention
+        } else if (!currentText.contains(mention)) {
+            "$mention$currentText"
+        } else {
+            currentText
+        }
+        _uiState.value = _uiState.value.copy(
+            replyingTo = comment,
+            inputText = newText,
+            errorMessage = null
+        )
+    }
+
+    fun cancelReply() {
+        val replyingTo = _uiState.value.replyingTo
+        var text = _uiState.value.inputText
+        if (replyingTo != null) {
+            val mention = "@${replyingTo.authorUsername} "
+            if (text.trim() == mention.trim()) {
+                text = ""
+            }
+        }
+        _uiState.value = _uiState.value.copy(
+            replyingTo = null,
+            inputText = text
+        )
+    }
+
+    fun toggleThreadExpanded(rootCommentId: String) {
+        val current = _uiState.value.expandedThreads
+        val updated = if (current.contains(rootCommentId)) {
+            current - rootCommentId
+        } else {
+            current + rootCommentId
+        }
+        _uiState.value = _uiState.value.copy(expandedThreads = updated)
+    }
+
+    fun toggleCommentLike(commentId: String) {
+        val currentState = _uiState.value
+        val originalComments = currentState.comments
+
+        // Optimistic UI update
+        val updatedComments = originalComments.map { comment ->
+            if (comment.id == commentId) {
+                val newLikedState = !comment.isLikedByCurrentUser
+                val newCount = if (newLikedState) comment.likesCount + 1 else (comment.likesCount - 1).coerceAtLeast(0)
+                comment.copy(isLikedByCurrentUser = newLikedState, likesCount = newCount)
+            } else comment
+        }
+        _uiState.value = currentState.copy(comments = updatedComments)
+
+        viewModelScope.launch {
+            val result = postRepository.toggleCommentLike(postId, commentId)
+            result.onFailure {
+                // Revert on failure
+                _uiState.value = currentState.copy(comments = originalComments)
+            }
+        }
+    }
+
     fun sendComment() {
         val currentState = _uiState.value
         if (!currentState.canSend) return
 
+        val replyingToComment = currentState.replyingTo
+        val parentId = replyingToComment?.let { it.parentCommentId ?: it.id }
+
         viewModelScope.launch {
             _uiState.value = currentState.copy(isSending = true)
-            val result = postRepository.addComment(postId, currentState.inputText)
+            val result = postRepository.addComment(
+                postId = postId,
+                text = currentState.inputText,
+                parentCommentId = parentId
+            )
 
             result.onSuccess {
+                val newExpanded = if (parentId != null) {
+                    currentState.expandedThreads + parentId
+                } else {
+                    currentState.expandedThreads
+                }
                 _uiState.value = _uiState.value.copy(
                     inputText = "",
-                    isSending = false
+                    replyingTo = null,
+                    isSending = false,
+                    expandedThreads = newExpanded
                 )
             }.onFailure { error ->
                 val msg = error.message ?: ""

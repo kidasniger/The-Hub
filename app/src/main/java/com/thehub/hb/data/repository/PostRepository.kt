@@ -461,12 +461,18 @@ class PostRepository(
                 Log.w("PostRepository", "Failed deleting likes subcollection: ${e.message}")
             }
 
-            // 2. Delete comments subcollection
+            // 2. Delete comments subcollection and their likes
             try {
                 val commentsDocs = postRef.collection("comments").get().await()
                 if (!commentsDocs.isEmpty) {
                     val batch = firestore.batch()
                     commentsDocs.documents.forEach { doc ->
+                        try {
+                            val commentLikes = doc.reference.collection("likes").get().await()
+                            commentLikes.documents.forEach { likeDoc ->
+                                batch.delete(likeDoc.reference)
+                            }
+                        } catch (_: Exception) {}
                         batch.delete(doc.reference)
                     }
                     batch.commit().await()
@@ -538,9 +544,49 @@ class PostRepository(
     }
 
     /**
-     * Add a comment to a post atomically using Firestore transaction.
+     * Toggle like atomically on a comment using Firestore transaction.
+     * Path: posts/{postId}/comments/{commentId}/likes/{userId} with { likedAt: Timestamp }
+     * Increments or decrements likesCount on comment document.
+     * Returns true if comment is now liked, false if unliked.
      */
-    suspend fun addComment(postId: String, text: String): Result<Comment> = withContext(Dispatchers.IO) {
+    suspend fun toggleCommentLike(postId: String, commentId: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+            val commentRef = firestore.collection("posts").document(postId)
+                .collection("comments").document(commentId)
+            val likeRef = commentRef.collection("likes").document(uid)
+
+            val (nowLiked, authorId) = firestore.runTransaction { transaction ->
+                val commentDoc = transaction.get(commentRef)
+                val author = commentDoc.getString("authorId") ?: ""
+                val likeDoc = transaction.get(likeRef)
+                if (likeDoc.exists()) {
+                    transaction.delete(likeRef)
+                    transaction.update(commentRef, "likesCount", FieldValue.increment(-1))
+                    Pair(false, author)
+                } else {
+                    transaction.set(likeRef, mapOf("likedAt" to Timestamp.now()))
+                    transaction.update(commentRef, "likesCount", FieldValue.increment(1))
+                    Pair(true, author)
+                }
+            }.await()
+
+            Result.success(nowLiked)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error toggling comment like: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Add a comment to a post atomically using Firestore transaction.
+     * Supports threading with parentCommentId (null for top-level comments).
+     */
+    suspend fun addComment(
+        postId: String,
+        text: String,
+        parentCommentId: String? = null
+    ): Result<Comment> = withContext(Dispatchers.IO) {
         try {
             val (uid, username, photoUrl) = getCurrentAuthorInfo()
             if (uid.isEmpty()) {
@@ -557,7 +603,9 @@ class PostRepository(
                 authorUsername = username,
                 authorPhotoUrl = photoUrl,
                 text = text.trim(),
-                createdAt = now
+                createdAt = now,
+                likesCount = 0,
+                parentCommentId = parentCommentId
             )
 
             val authorId = firestore.runTransaction { transaction ->
@@ -596,8 +644,28 @@ class PostRepository(
                 .get()
                 .await()
 
-            val comments = snapshot.documents.map { Comment.fromSnapshot(it) }
-            Result.success(comments)
+            val uid = currentUserId
+            val baseComments = snapshot.documents.map { Comment.fromSnapshot(it, uid) }
+            val hydrated = if (uid != null && baseComments.isNotEmpty()) {
+                coroutineScope {
+                    baseComments.map { comment ->
+                        async {
+                            val isLiked = try {
+                                firestore.collection("posts").document(postId)
+                                    .collection("comments").document(comment.id)
+                                    .collection("likes").document(uid)
+                                    .get().await().exists()
+                            } catch (_: Exception) {
+                                false
+                            }
+                            comment.copy(isLikedByCurrentUser = isLiked)
+                        }
+                    }.awaitAll()
+                }
+            } else {
+                baseComments
+            }
+            Result.success(hydrated)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -615,8 +683,33 @@ class PostRepository(
                     close(error)
                     return@addSnapshotListener
                 }
-                val comments = snapshot?.documents?.map { Comment.fromSnapshot(it) } ?: emptyList()
-                trySend(comments)
+                if (snapshot == null) return@addSnapshotListener
+                val uid = currentUserId
+                val baseComments = snapshot.documents.map { Comment.fromSnapshot(it, uid) }
+                trySend(baseComments)
+
+                if (uid != null && baseComments.isNotEmpty()) {
+                    launch(Dispatchers.IO) {
+                        try {
+                            val hydrated = coroutineScope {
+                                baseComments.map { comment ->
+                                    async {
+                                        val isLiked = try {
+                                            firestore.collection("posts").document(postId)
+                                                .collection("comments").document(comment.id)
+                                                .collection("likes").document(uid)
+                                                .get().await().exists()
+                                        } catch (_: Exception) {
+                                            false
+                                        }
+                                        comment.copy(isLikedByCurrentUser = isLiked)
+                                    }
+                                }.awaitAll()
+                            }
+                            trySend(hydrated)
+                        } catch (_: Exception) {}
+                    }
+                }
             }
 
         awaitClose { listener.remove() }

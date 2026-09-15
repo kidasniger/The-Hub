@@ -9,7 +9,10 @@ data class Comment(
     val authorUsername: String = "",
     val authorPhotoUrl: String? = null,
     val text: String = "",
-    val createdAt: Timestamp = Timestamp.now()
+    val createdAt: Timestamp = Timestamp.now(),
+    val likesCount: Int = 0,
+    val parentCommentId: String? = null,
+    val isLikedByCurrentUser: Boolean = false
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -17,19 +20,24 @@ data class Comment(
             "authorUsername" to authorUsername,
             "authorPhotoUrl" to authorPhotoUrl,
             "text" to text,
-            "createdAt" to createdAt
+            "createdAt" to createdAt,
+            "likesCount" to likesCount,
+            "parentCommentId" to parentCommentId
         )
     }
 
     companion object {
-        fun fromSnapshot(doc: DocumentSnapshot): Comment {
+        fun fromSnapshot(doc: DocumentSnapshot, currentUserId: String? = null): Comment {
             return Comment(
                 id = doc.id,
                 authorId = doc.getString("authorId") ?: "",
                 authorUsername = doc.getString("authorUsername") ?: "thehub_user",
                 authorPhotoUrl = doc.getString("authorPhotoUrl"),
                 text = doc.getString("text") ?: "",
-                createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now()
+                createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now(),
+                likesCount = (doc.getLong("likesCount") ?: 0L).toInt().coerceAtLeast(0),
+                parentCommentId = doc.getString("parentCommentId"),
+                isLikedByCurrentUser = false
             )
         }
     }
