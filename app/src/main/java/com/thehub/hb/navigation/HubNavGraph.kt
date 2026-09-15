@@ -167,6 +167,11 @@ fun HubNavGraph(
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
                 },
+                onNavigateToCompleteProfile = {
+                    navController.navigate(Screen.CompleteProfile.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onNavigateToVerifyEmail = {
                     navController.navigate(Screen.VerifyEmail.route)
                 },
@@ -203,6 +208,16 @@ fun HubNavGraph(
                 },
                 onNavigateToTerms = {
                     navController.navigate(Screen.Terms.route)
+                },
+                onNavigateToCompleteProfile = {
+                    navController.navigate(Screen.CompleteProfile.route) {
+                        popUpTo(Screen.SignUp.route) { inclusive = true }
+                    }
+                },
+                onNavigateToFeed = {
+                    navController.navigate(Screen.Feed.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
                 }
             )
         }

@@ -1,5 +1,6 @@
 package com.thehub.hb.ui.signup
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.data.repository.FirestoreCreationException
+import com.thehub.hb.data.repository.GoogleSignInResult
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,13 +32,16 @@ data class SignUpUiState(
     val confirmPasswordError: String? = null,
     val termsError: String? = null,
     val generalError: String? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isGoogleLoading: Boolean = false
 )
 
 sealed interface SignUpNavigationEvent {
     data object NavigateToVerifyEmail : SignUpNavigationEvent
     data object NavigateToLogin : SignUpNavigationEvent
     data object NavigateToTerms : SignUpNavigationEvent
+    data object NavigateToCompleteProfile : SignUpNavigationEvent
+    data object NavigateToFeed : SignUpNavigationEvent
 }
 
 class SignUpViewModel(
@@ -158,6 +163,29 @@ class SignUpViewModel(
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
                 Log.d("SignUpViewModel", "Fin de la tentative d'inscription, bouton réactivé (isLoading=false)")
+            }
+        }
+    }
+
+    fun signInWithGoogle(context: Context) {
+        _uiState.update { it.copy(isGoogleLoading = true, generalError = null) }
+
+        viewModelScope.launch {
+            when (val result = authRepository.signInWithGoogle(context)) {
+                is GoogleSignInResult.Success -> {
+                    _uiState.update { it.copy(isGoogleLoading = false) }
+                    if (result.shouldCompleteProfile) {
+                        _events.send(SignUpNavigationEvent.NavigateToCompleteProfile)
+                    } else {
+                        _events.send(SignUpNavigationEvent.NavigateToFeed)
+                    }
+                }
+                is GoogleSignInResult.Error -> {
+                    _uiState.update { it.copy(isGoogleLoading = false, generalError = result.message) }
+                }
+                is GoogleSignInResult.Cancelled -> {
+                    _uiState.update { it.copy(isGoogleLoading = false) }
+                }
             }
         }
     }

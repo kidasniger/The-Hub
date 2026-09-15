@@ -1,19 +1,36 @@
 package com.thehub.hb.data.repository
 
+import android.content.Context
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.remote.ImgbbService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class FirestoreCreationException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+const val GOOGLE_WEB_CLIENT_ID = "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com"
+
+sealed class GoogleSignInResult {
+    data class Success(val shouldCompleteProfile: Boolean, val user: FirebaseUser) : GoogleSignInResult()
+    data class Error(val message: String) : GoogleSignInResult()
+    data object Cancelled : GoogleSignInResult()
+}
 
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -226,6 +243,7 @@ class AuthRepository(
 
     suspend fun completeProfile(
         displayName: String,
+        username: String? = null,
         bio: String?,
         birthdate: String?,
         photoUrl: String?
@@ -239,6 +257,11 @@ class AuthRepository(
                 "bio" to bio?.trim(),
                 "birthdate" to birthdate?.trim()
             )
+            val cleanUsername = username?.trim()?.lowercase()
+            if (!cleanUsername.isNullOrBlank()) {
+                updates["username"] = cleanUsername
+                updates["usernameLower"] = cleanUsername
+            }
             if (photoUrl != null) {
                 updates["photoUrl"] = photoUrl
             }
@@ -259,6 +282,7 @@ class AuthRepository(
             dataStoreManager.saveLastUser(
                 email = user.email ?: "",
                 name = displayName.trim(),
+                username = cleanUsername,
                 photoUrl = photoUrl
             )
 
@@ -267,7 +291,7 @@ class AuthRepository(
                 com.thehub.hb.data.model.UserInfo(
                     uid = user.uid,
                     displayName = displayName.trim(),
-                    username = "",
+                    username = cleanUsername ?: "",
                     photoUrl = photoUrl
                 )
             )
@@ -275,6 +299,107 @@ class AuthRepository(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun signInWithGoogle(context: Context): GoogleSignInResult {
+        return try {
+            val credentialManager = CredentialManager.create(context)
+            val googleIdOption = GetSignInWithGoogleOption.Builder(GOOGLE_WEB_CLIENT_ID)
+                .build()
+
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+
+            val response = credentialManager.getCredential(
+                request = request,
+                context = context
+            )
+
+            val credential = response.credential
+            if (credential is CustomCredential &&
+                (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL ||
+                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_SIWG_CREDENTIAL)
+            ) {
+                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                val idToken = googleIdTokenCredential.idToken
+                val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
+                val authResult = auth.signInWithCredential(firebaseCredential).await()
+                val firebaseUser = authResult.user ?: throw Exception("Utilisateur introuvable après connexion.")
+
+                // Check if user document already exists in Firestore
+                val userDoc = firestore.collection("users").document(firebaseUser.uid).get().await()
+                val isNewUser = !userDoc.exists()
+
+                val shouldCompleteProfile: Boolean
+                if (isNewUser) {
+                    val userEmail = (firebaseUser.email ?: googleIdTokenCredential.id).trim()
+                    val userDisplayName = (googleIdTokenCredential.displayName ?: firebaseUser.displayName)?.trim()
+                    val userPhotoUrl = googleIdTokenCredential.profilePictureUri?.toString() ?: firebaseUser.photoUrl?.toString()
+
+                    val newUser = User(
+                        uid = firebaseUser.uid,
+                        email = userEmail,
+                        username = "",
+                        usernameLower = "",
+                        displayName = userDisplayName,
+                        photoUrl = userPhotoUrl,
+                        bio = null,
+                        birthdate = null,
+                        createdAt = System.currentTimeMillis()
+                    )
+
+                    firestore.collection("users").document(firebaseUser.uid)
+                        .set(newUser.toMap(), SetOptions.merge())
+                        .await()
+
+                    dataStoreManager.saveLastUser(
+                        email = userEmail,
+                        name = userDisplayName,
+                        photoUrl = userPhotoUrl
+                    )
+
+                    shouldCompleteProfile = true
+                } else {
+                    val userData = User.fromMap(userDoc.data ?: emptyMap())
+                    dataStoreManager.saveLastUser(
+                        email = firebaseUser.email ?: userData.email,
+                        name = userData.displayName ?: firebaseUser.displayName,
+                        username = userData.username,
+                        photoUrl = userData.photoUrl ?: firebaseUser.photoUrl?.toString()
+                    )
+
+                    shouldCompleteProfile = userData.username.isBlank() || userData.displayName.isNullOrBlank()
+                }
+
+                GoogleSignInResult.Success(
+                    shouldCompleteProfile = shouldCompleteProfile,
+                    user = firebaseUser
+                )
+            } else {
+                GoogleSignInResult.Error("Type d'identifiant Google inattendu.")
+            }
+        } catch (e: GetCredentialCancellationException) {
+            android.util.Log.d("AuthRepository", "Connexion Google annulée par l'utilisateur")
+            GoogleSignInResult.Cancelled
+        } catch (e: NoCredentialException) {
+            android.util.Log.w("AuthRepository", "Aucun compte Google disponible", e)
+            GoogleSignInResult.Error("Aucun compte Google disponible sur cet appareil.")
+        } catch (e: Exception) {
+            android.util.Log.e("AuthRepository", "Échec de connexion Google", e)
+            if (e.message?.contains("cancel", ignoreCase = true) == true ||
+                e.cause?.message?.contains("cancel", ignoreCase = true) == true
+            ) {
+                GoogleSignInResult.Cancelled
+            } else {
+                val friendlyMessage = when {
+                    e.message?.contains("network", ignoreCase = true) == true ->
+                        "Erreur réseau. Vérifie ta connexion Internet et réessaie."
+                    else -> e.localizedMessage ?: "Impossible de se connecter avec Google."
+                }
+                GoogleSignInResult.Error(friendlyMessage)
+            }
         }
     }
 

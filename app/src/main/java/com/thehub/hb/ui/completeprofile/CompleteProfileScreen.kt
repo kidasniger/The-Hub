@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Person
@@ -261,6 +262,27 @@ fun CompleteProfileScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Username
+            HubTextField(
+                value = uiState.username,
+                onValueChange = viewModel::onUsernameChange,
+                placeholder = "Nom d'utilisateur (ex: alex_rivera)",
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.AlternateEmail,
+                        contentDescription = null,
+                        tint = HubSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                errorMessage = uiState.usernameError,
+                testTag = "complete_profile_username_input"
+            )
+
             // Display name
             HubTextField(
                 value = uiState.displayName,

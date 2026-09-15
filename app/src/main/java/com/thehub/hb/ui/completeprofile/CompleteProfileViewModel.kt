@@ -19,9 +19,11 @@ import kotlinx.coroutines.withContext
 data class CompleteProfileUiState(
     val selectedImageUri: Uri? = null,
     val selectedImageBytes: ByteArray? = null,
+    val username: String = "",
     val displayName: String = "",
     val bio: String = "",
     val birthdate: String = "",
+    val usernameError: String? = null,
     val displayNameError: String? = null,
     val bioError: String? = null,
     val birthdateError: String? = null,
@@ -52,7 +54,27 @@ class CompleteProfileViewModel(
                     selectedImageUri = user.photoUrl
                 )
             }
+            viewModelScope.launch {
+                authRepository.getUserProfile(user.uid).onSuccess { profile ->
+                    if (profile != null) {
+                        _uiState.update { state ->
+                            state.copy(
+                                username = if (state.username.isBlank()) profile.username else state.username,
+                                displayName = if (state.displayName.isBlank()) (profile.displayName ?: user.displayName ?: "") else state.displayName,
+                                bio = if (state.bio.isBlank()) (profile.bio ?: "") else state.bio,
+                                birthdate = if (state.birthdate.isBlank()) (profile.birthdate ?: "") else state.birthdate,
+                                selectedImageUri = state.selectedImageUri ?: (profile.photoUrl?.let { Uri.parse(it) })
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    fun onUsernameChange(username: String) {
+        val clean = username.lowercase().replace("[^a-z0-9_.]".toRegex(), "")
+        _uiState.update { it.copy(username = clean, usernameError = null, generalError = null) }
     }
 
     fun onImageSelected(context: Context, uri: Uri?) {
@@ -87,6 +109,16 @@ class CompleteProfileViewModel(
 
     fun completeProfile() {
         val state = _uiState.value
+        val cleanUsername = state.username.trim().lowercase()
+
+        if (cleanUsername.isBlank()) {
+            _uiState.update { it.copy(usernameError = "Nom d'utilisateur requis.") }
+            return
+        }
+        if (cleanUsername.length < 3) {
+            _uiState.update { it.copy(usernameError = "Minimum 3 caractères.") }
+            return
+        }
         if (state.displayName.isBlank()) {
             _uiState.update { it.copy(displayNameError = "Veuillez entrer votre nom affiché.") }
             return
@@ -95,6 +127,24 @@ class CompleteProfileViewModel(
         _uiState.update { it.copy(isLoading = true, generalError = null) }
 
         viewModelScope.launch {
+            // Check username uniqueness if changing or initially setting username
+            val currentUid = authRepository.currentFirebaseUser?.uid ?: ""
+            val existingProfile = authRepository.getUserProfile(currentUid).getOrNull()
+            val existingUsername = existingProfile?.username?.lowercase() ?: ""
+
+            if (cleanUsername != existingUsername) {
+                val isUnique = authRepository.checkUsernameUnique(cleanUsername)
+                if (!isUnique) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            usernameError = "Ce nom d'utilisateur est déjà pris."
+                        )
+                    }
+                    return@launch
+                }
+            }
+
             var uploadedPhotoUrl: String? = state.selectedImageUri?.toString()
 
             // If image bytes were loaded from gallery, upload to ImgBB
@@ -109,6 +159,7 @@ class CompleteProfileViewModel(
 
             val result = authRepository.completeProfile(
                 displayName = state.displayName.trim(),
+                username = cleanUsername,
                 bio = state.bio.ifBlank { null },
                 birthdate = state.birthdate.ifBlank { null },
                 photoUrl = uploadedPhotoUrl

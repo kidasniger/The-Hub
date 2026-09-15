@@ -1,8 +1,10 @@
 package com.thehub.hb.ui.login
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.thehub.hb.data.repository.AuthRepository
+import com.thehub.hb.data.repository.GoogleSignInResult
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
@@ -22,11 +24,13 @@ data class LoginUiState(
     val emailError: String? = null,
     val passwordError: String? = null,
     val generalError: String? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isGoogleLoading: Boolean = false
 )
 
 sealed interface LoginNavigationEvent {
     data object NavigateToFeed : LoginNavigationEvent
+    data object NavigateToCompleteProfile : LoginNavigationEvent
     data object NavigateToVerifyEmail : LoginNavigationEvent
     data object NavigateToResetPassword : LoginNavigationEvent
     data object NavigateToSignUp : LoginNavigationEvent
@@ -99,6 +103,29 @@ class LoginViewModel(
                     else -> throwable.localizedMessage ?: "Erreur de connexion, veuillez réessayer."
                 }
                 _uiState.update { it.copy(generalError = friendlyMessage) }
+            }
+        }
+    }
+
+    fun signInWithGoogle(context: Context) {
+        _uiState.update { it.copy(isGoogleLoading = true, generalError = null) }
+
+        viewModelScope.launch {
+            when (val result = authRepository.signInWithGoogle(context)) {
+                is GoogleSignInResult.Success -> {
+                    _uiState.update { it.copy(isGoogleLoading = false) }
+                    if (result.shouldCompleteProfile) {
+                        _events.emit(LoginNavigationEvent.NavigateToCompleteProfile)
+                    } else {
+                        _events.emit(LoginNavigationEvent.NavigateToFeed)
+                    }
+                }
+                is GoogleSignInResult.Error -> {
+                    _uiState.update { it.copy(isGoogleLoading = false, generalError = result.message) }
+                }
+                is GoogleSignInResult.Cancelled -> {
+                    _uiState.update { it.copy(isGoogleLoading = false) }
+                }
             }
         }
     }

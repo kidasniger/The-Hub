@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -54,6 +55,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.HubTextField
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubError
@@ -69,8 +71,11 @@ fun SignUpScreen(
     onNavigateBack: () -> Unit,
     onNavigateToVerifyEmail: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onNavigateToTerms: () -> Unit
+    onNavigateToTerms: () -> Unit,
+    onNavigateToCompleteProfile: () -> Unit = {},
+    onNavigateToFeed: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -79,6 +84,8 @@ fun SignUpScreen(
                 is SignUpNavigationEvent.NavigateToVerifyEmail -> onNavigateToVerifyEmail()
                 is SignUpNavigationEvent.NavigateToLogin -> onNavigateToLogin()
                 is SignUpNavigationEvent.NavigateToTerms -> onNavigateToTerms()
+                is SignUpNavigationEvent.NavigateToCompleteProfile -> onNavigateToCompleteProfile()
+                is SignUpNavigationEvent.NavigateToFeed -> onNavigateToFeed()
             }
         }
     }
@@ -310,6 +317,38 @@ fun SignUpScreen(
                 isLoading = uiState.isLoading,
                 modifier = Modifier.padding(top = 8.dp),
                 testTag = "signup_submit_button"
+            )
+
+            // Divider "OU"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.weight(1f).height(1.dp).background(HubBorder)
+                )
+                Text(
+                    text = "OU",
+                    color = HubMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.weight(1f).height(1.dp).background(HubBorder)
+                )
+            }
+
+            // Social Buttons
+            HubButton(
+                text = "Continuer avec Google",
+                onClick = { viewModel.signInWithGoogle(context) },
+                variant = HubButtonVariant.Secondary,
+                isLoading = uiState.isGoogleLoading,
+                testTag = "signup_google_button"
             )
 
             Row(

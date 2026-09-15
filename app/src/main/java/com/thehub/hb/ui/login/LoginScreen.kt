@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -62,16 +63,19 @@ fun LoginScreen(
     viewModel: LoginViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToFeed: () -> Unit,
+    onNavigateToCompleteProfile: () -> Unit = {},
     onNavigateToVerifyEmail: () -> Unit,
     onNavigateToResetPassword: () -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is LoginNavigationEvent.NavigateToFeed -> onNavigateToFeed()
+                is LoginNavigationEvent.NavigateToCompleteProfile -> onNavigateToCompleteProfile()
                 is LoginNavigationEvent.NavigateToVerifyEmail -> onNavigateToVerifyEmail()
                 is LoginNavigationEvent.NavigateToResetPassword -> onNavigateToResetPassword()
                 is LoginNavigationEvent.NavigateToSignUp -> onNavigateToSignUp()
@@ -223,8 +227,9 @@ fun LoginScreen(
             // Social Buttons
             HubButton(
                 text = "Continuer avec Google",
-                onClick = { /* External sign in */ },
+                onClick = { viewModel.signInWithGoogle(context) },
                 variant = HubButtonVariant.Secondary,
+                isLoading = uiState.isGoogleLoading,
                 testTag = "login_google_button"
             )
 
