@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.UserAvatar
@@ -168,8 +169,19 @@ fun PostDetailScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 20.dp, vertical = 8.dp)
                     ) {
+                        val author = rememberLiveUser(
+                            userId = post.authorId,
+                            fallbackUsername = post.authorUsername,
+                            fallbackPhotoUrl = post.authorPhotoUrl
+                        )
+
                         // Repost indication
                         if (post.isRepost) {
+                            val reposter = rememberLiveUser(
+                                userId = post.authorId,
+                                fallbackUsername = post.authorUsername,
+                                fallbackPhotoUrl = post.authorPhotoUrl
+                            )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
@@ -184,7 +196,7 @@ fun PostDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Reposté par @${post.authorUsername}",
+                                    text = "Reposté par ${reposter.effectiveName}",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = HubSecondary
@@ -210,14 +222,14 @@ fun PostDetailScreen(
                                     )
                             ) {
                                 UserAvatar(
-                                    name = post.authorUsername,
-                                    photoUrl = post.authorPhotoUrl,
+                                    name = author.effectiveName,
+                                    photoUrl = author.photoUrl,
                                     size = 48.dp
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
-                                        text = "@${post.authorUsername}",
+                                        text = author.effectiveName,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = HubWhite
@@ -346,6 +358,11 @@ fun PostDetailScreen(
                         // Original Post if Repost
                         if (post.isRepost && post.originalPost != null) {
                             val orig = post.originalPost
+                            val origAuthor = rememberLiveUser(
+                                userId = orig.authorId,
+                                fallbackUsername = orig.authorUsername,
+                                fallbackPhotoUrl = orig.authorPhotoUrl
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
                             Column(
                                 modifier = Modifier
@@ -357,13 +374,13 @@ fun PostDetailScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     UserAvatar(
-                                        name = orig.authorUsername,
-                                        photoUrl = orig.authorPhotoUrl,
+                                        name = origAuthor.effectiveName,
+                                        photoUrl = origAuthor.photoUrl,
                                         size = 32.dp
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = "@${orig.authorUsername}",
+                                        text = origAuthor.effectiveName,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = HubWhite
@@ -592,6 +609,12 @@ fun PostDetailScreen(
 
 @Composable
 private fun CommentItemPreview(comment: Comment) {
+    val commentAuthor = rememberLiveUser(
+        userId = comment.authorId,
+        fallbackUsername = comment.authorUsername,
+        fallbackPhotoUrl = comment.authorPhotoUrl
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -601,15 +624,15 @@ private fun CommentItemPreview(comment: Comment) {
         verticalAlignment = Alignment.Top
     ) {
         UserAvatar(
-            name = comment.authorUsername,
-            photoUrl = comment.authorPhotoUrl,
+            name = commentAuthor.effectiveName,
+            photoUrl = commentAuthor.photoUrl,
             size = 32.dp
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "@${comment.authorUsername}",
+                    text = commentAuthor.effectiveName,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite

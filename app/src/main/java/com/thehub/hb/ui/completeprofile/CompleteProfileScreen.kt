@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -99,7 +101,16 @@ fun CompleteProfileScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        val parsedMillis = remember(uiState.birthdate) {
+            try {
+                if (uiState.birthdate.isNotBlank()) {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(uiState.birthdate)?.time
+                } else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = parsedMillis)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -297,26 +308,51 @@ fun CompleteProfileScreen(
             }
 
             // Birthdate
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true }
-            ) {
-                HubTextField(
-                    value = uiState.birthdate,
-                    onValueChange = {},
-                    placeholder = "Date de naissance (JJ/MM/AAAA)",
-                    leadingIcon = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Date de naissance",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HubSecondary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF121212), RoundedCornerShape(20.dp))
+                        .border(
+                            width = 1.dp,
+                            color = HubBorder,
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp)
+                        .testTag("complete_profile_birthdate_input"),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.CalendarToday,
-                            contentDescription = null,
+                            contentDescription = "Date de naissance",
                             tint = HubSecondary,
                             modifier = Modifier.size(18.dp)
                         )
-                    },
-                    modifier = Modifier.clickable { showDatePicker = true },
-                    testTag = "complete_profile_birthdate_input"
-                )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = if (uiState.birthdate.isNotBlank()) uiState.birthdate else "JJ/MM/AAAA",
+                            color = if (uiState.birthdate.isNotBlank()) HubWhite else HubMuted,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
 
             if (uiState.generalError != null) {

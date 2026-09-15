@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Conversation
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubTextField
 import com.thehub.hb.ui.components.UserAvatar
@@ -225,15 +226,16 @@ private fun ConversationItem(
     onClick: () -> Unit
 ) {
     val otherInfo = conversation.getOtherParticipantInfo(currentUserId)
+    val otherUid = conversation.participants.firstOrNull { it != currentUserId } ?: otherInfo.uid
+    val liveUser = rememberLiveUser(
+        userId = otherUid,
+        fallbackUsername = otherInfo.username,
+        fallbackDisplayName = otherInfo.displayName,
+        fallbackPhotoUrl = otherInfo.photoUrl
+    )
     val unreadCount = conversation.getUnreadCountFor(currentUserId)
     val hasUnread = unreadCount > 0
-    val displayName = if (!otherInfo.displayName.isNullOrBlank()) {
-        otherInfo.displayName
-    } else if (otherInfo.username.isNotBlank()) {
-        otherInfo.username
-    } else {
-        "Utilisateur"
-    }
+    val displayName = liveUser.effectiveName
 
     Row(
         modifier = Modifier
@@ -245,7 +247,7 @@ private fun ConversationItem(
     ) {
         UserAvatar(
             name = displayName,
-            photoUrl = otherInfo.photoUrl,
+            photoUrl = liveUser.photoUrl,
             size = 52.dp
         )
 

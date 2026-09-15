@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.User
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.HubTextField
@@ -241,6 +242,13 @@ private fun FollowUserRow(
     onUserClick: () -> Unit,
     onToggleFollow: () -> Unit
 ) {
+    val liveUser = rememberLiveUser(
+        userId = user.uid,
+        fallbackUsername = user.username,
+        fallbackDisplayName = user.displayName,
+        fallbackPhotoUrl = user.photoUrl
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -252,8 +260,8 @@ private fun FollowUserRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         UserAvatar(
-            name = user.displayName ?: user.username,
-            photoUrl = user.photoUrl,
+            name = liveUser.effectiveName,
+            photoUrl = liveUser.photoUrl,
             size = 46.dp
         )
 
@@ -261,20 +269,22 @@ private fun FollowUserRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = user.displayName?.takeIf { it.isNotBlank() } ?: "@${user.username}",
+                text = liveUser.effectiveName,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = HubWhite,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = "@${user.username}",
-                fontSize = 13.sp,
-                color = HubSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (liveUser.username.isNotBlank()) {
+                Text(
+                    text = "@${liveUser.username}",
+                    fontSize = 13.sp,
+                    color = HubSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         if (!isMe) {

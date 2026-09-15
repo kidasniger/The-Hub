@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Comment
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -298,6 +299,12 @@ private fun CommentItemRow(
     comment: Comment,
     onUserClick: ((String) -> Unit)? = null
 ) {
+    val author = rememberLiveUser(
+        userId = comment.authorId,
+        fallbackUsername = comment.authorUsername,
+        fallbackPhotoUrl = comment.authorPhotoUrl
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -313,8 +320,8 @@ private fun CommentItemRow(
             )
         ) {
             UserAvatar(
-                name = comment.authorUsername,
-                photoUrl = comment.authorPhotoUrl,
+                name = author.effectiveName,
+                photoUrl = author.photoUrl,
                 size = 38.dp
             )
         }
@@ -326,7 +333,7 @@ private fun CommentItemRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "@${comment.authorUsername}",
+                    text = author.effectiveName,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite,

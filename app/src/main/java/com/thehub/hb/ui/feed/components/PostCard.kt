@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -94,8 +95,19 @@ fun PostCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            val author = rememberLiveUser(
+                userId = post.authorId,
+                fallbackUsername = post.authorUsername,
+                fallbackPhotoUrl = post.authorPhotoUrl
+            )
+
             // Repost banner if repost
             if (post.isRepost) {
+                val reposter = rememberLiveUser(
+                    userId = post.authorId,
+                    fallbackUsername = post.authorUsername,
+                    fallbackPhotoUrl = post.authorPhotoUrl
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -110,7 +122,7 @@ fun PostCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Reposté par @${post.authorUsername}",
+                        text = "Reposté par ${reposter.effectiveName}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = HubSecondary
@@ -129,8 +141,8 @@ fun PostCard(
                     )
             ) {
                 UserAvatar(
-                    name = post.authorUsername,
-                    photoUrl = post.authorPhotoUrl,
+                    name = author.effectiveName,
+                    photoUrl = author.photoUrl,
                     size = 40.dp
                 )
 
@@ -141,7 +153,7 @@ fun PostCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "@${post.authorUsername}",
+                            text = author.effectiveName,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = HubWhite
@@ -339,6 +351,12 @@ private fun EmbeddedOriginalPost(
     onImageClick: (String) -> Unit,
     onPostClick: (String) -> Unit
 ) {
+    val origAuthor = rememberLiveUser(
+        userId = originalPost.authorId,
+        fallbackUsername = originalPost.authorUsername,
+        fallbackPhotoUrl = originalPost.authorPhotoUrl
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -350,13 +368,13 @@ private fun EmbeddedOriginalPost(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             UserAvatar(
-                name = originalPost.authorUsername,
-                photoUrl = originalPost.authorPhotoUrl,
+                name = origAuthor.effectiveName,
+                photoUrl = origAuthor.photoUrl,
                 size = 28.dp
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "@${originalPost.authorUsername}",
+                text = origAuthor.effectiveName,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = HubWhite

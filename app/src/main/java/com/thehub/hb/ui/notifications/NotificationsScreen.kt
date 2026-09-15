@@ -51,6 +51,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.NotificationItem
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -274,6 +275,11 @@ private fun NotificationRow(
     notification: NotificationItem,
     onClick: () -> Unit
 ) {
+    val actor = rememberLiveUser(
+        userId = notification.actorId,
+        fallbackUsername = notification.actorUsername,
+        fallbackPhotoUrl = notification.actorPhotoUrl
+    )
     val backgroundColor = if (!notification.isRead) HubCard else HubBlack
     val borderColor = if (!notification.isRead) HubBorder else Color.Transparent
 
@@ -292,8 +298,8 @@ private fun NotificationRow(
         // Avatar with Action Badge
         Box(contentAlignment = Alignment.BottomEnd) {
             UserAvatar(
-                name = notification.actorUsername,
-                photoUrl = notification.actorPhotoUrl,
+                name = actor.effectiveName,
+                photoUrl = actor.photoUrl,
                 size = 46.dp
             )
 
@@ -321,7 +327,7 @@ private fun NotificationRow(
         Column(modifier = Modifier.weight(1f)) {
             val annotatedText = buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = HubWhite)) {
-                    append(notification.actorUsername)
+                    append(actor.effectiveName)
                 }
 
                 val actionText = when (notification.type) {

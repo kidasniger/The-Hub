@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.theme.HubBlack
@@ -556,6 +557,13 @@ private fun UserSearchResultRow(
     onToggleFollow: () -> Unit,
     onClick: () -> Unit
 ) {
+    val liveUser = rememberLiveUser(
+        userId = user.uid,
+        fallbackUsername = user.username,
+        fallbackDisplayName = user.displayName,
+        fallbackPhotoUrl = user.photoUrl
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -568,8 +576,8 @@ private fun UserSearchResultRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         UserAvatar(
-            name = user.displayName ?: user.username,
-            photoUrl = user.photoUrl,
+            name = liveUser.effectiveName,
+            photoUrl = liveUser.photoUrl,
             size = 46.dp
         )
 
@@ -577,7 +585,7 @@ private fun UserSearchResultRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = user.displayName ?: user.username,
+                text = liveUser.effectiveName,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = HubWhite,
@@ -585,15 +593,17 @@ private fun UserSearchResultRow(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            if (liveUser.username.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
 
-            Text(
-                text = "@${user.username}",
-                fontSize = 13.sp,
-                color = HubSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                Text(
+                    text = "@${liveUser.username}",
+                    fontSize = 13.sp,
+                    color = HubSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             if (!user.bio.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))

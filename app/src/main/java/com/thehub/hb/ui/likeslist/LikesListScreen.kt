@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.LikerUser
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubCard
@@ -201,6 +202,13 @@ private fun LikerItemRow(
     liker: LikerUser,
     onClick: () -> Unit
 ) {
+    val liveUser = rememberLiveUser(
+        userId = liker.uid,
+        fallbackUsername = liker.username,
+        fallbackDisplayName = liker.displayName,
+        fallbackPhotoUrl = liker.photoUrl
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -211,28 +219,28 @@ private fun LikerItemRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         UserAvatar(
-            name = liker.displayName ?: liker.username,
-            photoUrl = liker.photoUrl,
+            name = liveUser.effectiveName,
+            photoUrl = liveUser.photoUrl,
             size = 42.dp
         )
 
         Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            if (!liker.displayName.isNullOrBlank()) {
+            Text(
+                text = liveUser.effectiveName,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite
+            )
+            if (liveUser.username.isNotBlank()) {
                 Text(
-                    text = liker.displayName,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
+                    text = "@${liveUser.username}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = HubSecondary
                 )
             }
-            Text(
-                text = "@${liker.username}",
-                fontSize = if (liker.displayName.isNullOrBlank()) 15.sp else 13.sp,
-                fontWeight = if (liker.displayName.isNullOrBlank()) FontWeight.Bold else FontWeight.Normal,
-                color = if (liker.displayName.isNullOrBlank()) HubWhite else HubSecondary
-            )
         }
 
         Icon(
