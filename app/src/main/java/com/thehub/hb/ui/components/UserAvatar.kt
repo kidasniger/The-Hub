@@ -17,7 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubWhite
@@ -31,6 +32,30 @@ fun UserAvatar(
 ) {
     val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "U"
 
+    @Composable
+    fun DefaultAvatarContent() {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF2E2E2E),
+                            Color(0xFF5A5A5A)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initial,
+                color = HubWhite,
+                fontSize = (size.value * 0.45f).sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+
     Box(
         modifier = modifier
             .size(size)
@@ -39,35 +64,25 @@ fun UserAvatar(
         contentAlignment = Alignment.Center
     ) {
         if (!photoUrl.isNullOrBlank()) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = photoUrl,
                 contentDescription = "Avatar de $name",
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                loading = {
+                    DefaultAvatarContent()
+                },
+                success = {
+                    SubcomposeAsyncImageContent()
+                },
+                error = {
+                    DefaultAvatarContent()
+                }
             )
         } else {
-            Box(
-                modifier = Modifier
-                    .size(size)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFF2E2E2E),
-                                Color(0xFF5A5A5A)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = initial,
-                    color = HubWhite,
-                    fontSize = (size.value * 0.45f).sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            DefaultAvatarContent()
         }
     }
 }

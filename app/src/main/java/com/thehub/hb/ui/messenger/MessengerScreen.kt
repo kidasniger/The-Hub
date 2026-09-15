@@ -226,7 +226,7 @@ private fun ConversationItem(
     onClick: () -> Unit
 ) {
     val otherInfo = conversation.getOtherParticipantInfo(currentUserId)
-    val otherUid = conversation.participants.firstOrNull { it != currentUserId } ?: otherInfo.uid
+    val otherUid = conversation.getOtherParticipantId(currentUserId)
     val liveUser = rememberLiveUser(
         userId = otherUid,
         fallbackUsername = otherInfo.username,

@@ -72,7 +72,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.outlined.BrokenImage
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
@@ -757,14 +759,38 @@ private fun PostGridThumbnail(
             .testTag("profile_post_thumb_${post.id}")
     ) {
         if (!post.imageUrl.isNullOrBlank()) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(post.imageUrl)
                     .crossfade(true)
                     .build(),
                 contentDescription = "Publication",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(HubSurfaceElevated)
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.BrokenImage,
+                                contentDescription = "Photo non disponible",
+                                tint = HubSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Indisponible",
+                                fontSize = 10.sp,
+                                color = HubSecondary
+                            )
+                        }
+                    }
+                }
             )
         } else {
             // Text Preview thumbnail

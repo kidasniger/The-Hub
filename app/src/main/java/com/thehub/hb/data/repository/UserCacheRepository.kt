@@ -55,13 +55,25 @@ class UserCacheRepository(
     ) {
         if (userId.isBlank()) return
 
-        // Seed fallback data if not yet in cache
+        // Seed fallback or current auth user data if not yet in cache
         if (!_usersCache.value.containsKey(userId)) {
+            val authUser = try {
+                val current = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                if (current != null && current.uid == userId) current else null
+            } catch (_: Exception) {
+                null
+            }
+
+            val initialDisplayName = fallbackDisplayName?.trim()?.takeIf { it.isNotBlank() }
+                ?: authUser?.displayName?.trim()?.takeIf { it.isNotBlank() }
+            val initialPhotoUrl = fallbackPhotoUrl
+                ?: authUser?.photoUrl?.toString()
+
             val initial = UserInfo(
                 uid = userId,
-                displayName = fallbackDisplayName?.trim()?.takeIf { it.isNotBlank() },
+                displayName = initialDisplayName,
                 username = fallbackUsername?.trim() ?: "",
-                photoUrl = fallbackPhotoUrl
+                photoUrl = initialPhotoUrl
             )
             _usersCache.update { current ->
                 if (!current.containsKey(userId)) {
@@ -82,8 +94,11 @@ class UserCacheRepository(
                     }
                     if (snapshot != null && snapshot.exists()) {
                         val username = snapshot.getString("username") ?: ""
-                        val displayName = snapshot.getString("displayName")
+                        val displayName = snapshot.getString("displayName")?.trim()?.takeIf { it.isNotBlank() }
+                            ?: snapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() }
                         val photoUrl = snapshot.getString("photoUrl")
+                            ?: snapshot.getString("avatarUrl")
+                            ?: snapshot.getString("photo")
                         val updated = UserInfo(
                             uid = userId,
                             displayName = displayName,

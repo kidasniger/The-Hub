@@ -32,6 +32,7 @@ class LikesListViewModel(
             _uiState.value = LikesListUiState.Loading
             val result = postRepository.getLikers(postId)
             result.onSuccess { list ->
+                com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(list.map { it.uid })
                 _uiState.value = LikesListUiState.Success(list)
             }.onFailure { error ->
                 _uiState.value = LikesListUiState.Error(

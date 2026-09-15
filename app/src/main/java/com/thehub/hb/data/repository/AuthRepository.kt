@@ -262,6 +262,16 @@ class AuthRepository(
                 photoUrl = photoUrl
             )
 
+            // Update shared in-memory UserCacheRepository immediately
+            com.thehub.hb.data.repository.UserCacheRepository.getInstance().putUser(
+                com.thehub.hb.data.model.UserInfo(
+                    uid = user.uid,
+                    displayName = displayName.trim(),
+                    username = "",
+                    photoUrl = photoUrl
+                )
+            )
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

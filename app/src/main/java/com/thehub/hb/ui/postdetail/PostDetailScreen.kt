@@ -54,6 +54,7 @@ import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
@@ -170,17 +171,13 @@ fun PostDetailScreen(
                             .padding(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         val author = rememberLiveUser(
-                            userId = post.authorId,
-                            fallbackUsername = post.authorUsername,
-                            fallbackPhotoUrl = post.authorPhotoUrl
+                            userId = post.authorId
                         )
 
                         // Repost indication
                         if (post.isRepost) {
                             val reposter = rememberLiveUser(
-                                userId = post.authorId,
-                                fallbackUsername = post.authorUsername,
-                                fallbackPhotoUrl = post.authorPhotoUrl
+                                userId = post.authorId
                             )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -299,69 +296,22 @@ fun PostDetailScreen(
 
                         // Full Post Image
                         if (!post.imageUrl.isNullOrBlank()) {
-                            val context = LocalContext.current
-                            val scope = rememberCoroutineScope()
-                            var isSavingImage by remember { mutableStateOf(false) }
-
                             Spacer(modifier = Modifier.height(16.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(HubSurfaceElevated)
-                            ) {
-                                AsyncImage(
-                                    model = post.imageUrl,
-                                    contentDescription = "Image de la publication",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .clickable { onImageClick(post.imageUrl) },
-                                    contentScale = ContentScale.FillWidth
-                                )
-
-                                IconButton(
-                                    onClick = {
-                                        if (!isSavingImage) {
-                                            isSavingImage = true
-                                            scope.launch {
-                                                ImageSaver.saveImageToGallery(context, post.imageUrl)
-                                                isSavingImage = false
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(8.dp)
-                                        .size(38.dp)
-                                        .background(Color(0x99000000), CircleShape)
-                                        .testTag("post_detail_save_image_button")
-                                ) {
-                                    if (isSavingImage) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            color = HubWhite,
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.FileDownload,
-                                            contentDescription = "Enregistrer l'image",
-                                            tint = HubWhite,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
+                            PostMediaImage(
+                                imageUrl = post.imageUrl,
+                                contentDescription = "Image de la publication",
+                                cornerRadius = 14.dp,
+                                showSaveButton = true,
+                                saveButtonTag = "post_detail_save_image_button",
+                                onImageClick = onImageClick
+                            )
                         }
 
                         // Original Post if Repost
                         if (post.isRepost && post.originalPost != null) {
                             val orig = post.originalPost
                             val origAuthor = rememberLiveUser(
-                                userId = orig.authorId,
-                                fallbackUsername = orig.authorUsername,
-                                fallbackPhotoUrl = orig.authorPhotoUrl
+                                userId = orig.authorId
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Column(
@@ -398,14 +348,12 @@ fun PostDetailScreen(
                                 }
                                 if (!orig.imageUrl.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    AsyncImage(
-                                        model = orig.imageUrl,
-                                        contentDescription = "Image",
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onImageClick(orig.imageUrl) },
-                                        contentScale = ContentScale.FillWidth
+                                    PostMediaImage(
+                                        imageUrl = orig.imageUrl,
+                                        contentDescription = "Image repostée",
+                                        cornerRadius = 8.dp,
+                                        showSaveButton = false,
+                                        onImageClick = onImageClick
                                     )
                                 }
                             }
@@ -610,9 +558,7 @@ fun PostDetailScreen(
 @Composable
 private fun CommentItemPreview(comment: Comment) {
     val commentAuthor = rememberLiveUser(
-        userId = comment.authorId,
-        fallbackUsername = comment.authorUsername,
-        fallbackPhotoUrl = comment.authorPhotoUrl
+        userId = comment.authorId
     )
 
     Row(

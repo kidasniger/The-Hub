@@ -34,6 +34,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.outlined.BrokenImage
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.ImageSaver
 import kotlinx.coroutines.launch
@@ -110,6 +119,39 @@ fun ImageViewerScreen(
                             color = HubWhite,
                             modifier = Modifier.size(36.dp)
                         )
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.BrokenImage,
+                                contentDescription = "Photo non disponible",
+                                tint = HubSecondary,
+                                modifier = Modifier.size(56.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Photo non disponible",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = HubWhite
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Cette photo n'est plus accessible ou a été supprimée.",
+                                fontSize = 14.sp,
+                                color = HubSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             )

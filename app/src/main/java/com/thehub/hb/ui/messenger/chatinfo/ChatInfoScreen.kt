@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.thehub.hb.data.repository.rememberLiveUser
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -95,18 +96,17 @@ fun ChatInfoScreen(
 
     val otherInfo = uiState.conversation?.getOtherParticipantInfo(viewModel.currentUserId)
     val contactUser = uiState.contactUser
+    val contactUid = contactUser?.uid ?: uiState.otherUserId
 
-    val displayName = contactUser?.displayName
-        ?: otherInfo?.displayName
-        ?: contactUser?.username
-        ?: otherInfo?.username
-        ?: "Contact"
+    val liveContact = rememberLiveUser(
+        userId = contactUid,
+        fallbackUsername = contactUser?.username ?: otherInfo?.username ?: "",
+        fallbackDisplayName = contactUser?.displayName ?: otherInfo?.displayName,
+        fallbackPhotoUrl = contactUser?.photoUrl ?: otherInfo?.photoUrl
+    )
 
-    val username = contactUser?.username
-        ?: otherInfo?.username
-        ?: ""
-
-    val photoUrl = contactUser?.photoUrl ?: otherInfo?.photoUrl
+    val displayName = liveContact.effectiveName
+    val photoUrl = liveContact.photoUrl
     val bio = contactUser?.bio
 
     Box(
@@ -177,14 +177,7 @@ fun ChatInfoScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    if (username.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "@$username",
-                            fontSize = 14.sp,
-                            color = HubMuted
-                        )
-                    }
+
 
                     if (!bio.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))

@@ -9,6 +9,7 @@ import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.UserRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,6 +61,9 @@ class ProfileViewModel(
                 ?: return false
             return targetUserId.isNullOrBlank() || targetUserId == current
         }
+
+    private var userJob: Job? = null
+    private var postsJob: Job? = null
 
     init {
         loadProfile()
@@ -120,7 +124,7 @@ class ProfileViewModel(
             val user = userResult.getOrNull()
             val posts = postsResult.getOrDefault(emptyList())
             val adjustedUser = user?.copy(
-                postsCount = maxOf(user.postsCount, posts.size)
+                postsCount = posts.size
             )
 
             _uiState.update {
@@ -134,6 +138,38 @@ class ProfileViewModel(
                     isBlockedByMe = false,
                     errorMessage = if (user == null) "Profil introuvable" else null
                 )
+            }
+
+            // Real-time listener on user profile document (avatar, name, bio, counters)
+            userJob?.cancel()
+            userJob = viewModelScope.launch {
+                userRepository.observeUserProfile(uid).collect { liveUser ->
+                    if (liveUser != null) {
+                        _uiState.update { current ->
+                            val currentPostsCount = current.posts.size
+                            val updatedUser = liveUser.copy(
+                                postsCount = currentPostsCount
+                            )
+                            current.copy(user = updatedUser)
+                        }
+                    }
+                }
+            }
+
+            // Real-time listener on user posts (posts deleted/added in Firestore update list and counter immediately)
+            postsJob?.cancel()
+            postsJob = viewModelScope.launch {
+                userRepository.observeUserPosts(uid).collect { livePosts ->
+                    _uiState.update { current ->
+                        val updatedUser = current.user?.copy(
+                            postsCount = livePosts.size
+                        )
+                        current.copy(
+                            posts = livePosts,
+                            user = updatedUser
+                        )
+                    }
+                }
             }
         }
     }
@@ -149,7 +185,7 @@ class ProfileViewModel(
             val rawUser = userResult.getOrNull() ?: _uiState.value.user
             val posts = postsResult.getOrDefault(_uiState.value.posts)
             val adjustedUser = rawUser?.copy(
-                postsCount = maxOf(rawUser.postsCount, posts.size)
+                postsCount = posts.size
             )
 
             _uiState.update {

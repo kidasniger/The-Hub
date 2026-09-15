@@ -24,6 +24,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -102,9 +103,9 @@ class UserRepository(
             }
 
             val reconciled = baseUser.copy(
-                postsCount = maxOf(baseUser.postsCount, actualPosts),
-                followersCount = maxOf(baseUser.followersCount, actualFollowers),
-                followingCount = maxOf(baseUser.followingCount, actualFollowing)
+                postsCount = actualPosts,
+                followersCount = actualFollowers,
+                followingCount = actualFollowing
             )
 
             // Asynchronously sync document if counts differ
@@ -216,6 +217,16 @@ class UserRepository(
                 username = cleanUsername,
                 name = displayName.trim(),
                 photoUrl = photoUrl
+            )
+
+            // Update shared in-memory UserCacheRepository immediately
+            com.thehub.hb.data.repository.UserCacheRepository.getInstance().putUser(
+                com.thehub.hb.data.model.UserInfo(
+                    uid = uid,
+                    displayName = displayName.trim(),
+                    username = cleanUsername,
+                    photoUrl = photoUrl
+                )
             )
 
             Result.success(Unit)
@@ -688,6 +699,82 @@ class UserRepository(
             Result.failure(e)
         }
     }
+
+    /**
+     * Real-time listener for user posts.
+     * Emits immediately whenever a user's post is added, deleted or modified in Firestore.
+     */
+    fun observeUserPosts(userId: String): Flow<List<Post>> = callbackFlow {
+        if (userId.isBlank()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+        val query = firestore.collection("posts")
+            .whereEqualTo("authorId", userId)
+            .limit(100)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.w("UserRepository", "observeUserPosts error: ${error.message}")
+                launch(Dispatchers.IO) {
+                    val result = getUserPosts(userId)
+                    result.onSuccess { posts -> trySend(posts) }
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot == null) return@addSnapshotListener
+
+            val docs = snapshot.documents
+            launch(Dispatchers.IO) {
+                val uid = currentUserId
+                try {
+                    val localBookmarks = dataStoreManager.getLocalBookmarkedIds()
+                    val remoteBookmarks = if (uid != null) {
+                        try {
+                            firestore.collection("users").document(uid)
+                                .collection("bookmarks").get().await()
+                                .documents.map { it.id }.toSet()
+                        } catch (_: Exception) {
+                            emptySet()
+                        }
+                    } else emptySet()
+                    val bookmarkedIds = remoteBookmarks + localBookmarks
+
+                    val basePosts = docs.map { doc ->
+                        Post.fromSnapshot(doc, uid).copy(
+                            isBookmarkedByCurrentUser = bookmarkedIds.contains(doc.id)
+                        )
+                    }.sortedByDescending { it.createdAt.toDate().time }
+                    // Immediate emission for instant reactivity
+                    trySend(basePosts)
+
+                    val hydrated = coroutineScope {
+                        basePosts.map { post ->
+                            async {
+                                var isLiked = post.isLikedByCurrentUser
+                                if (uid != null && !isLiked) {
+                                    try {
+                                        val likeDoc = firestore.collection("posts").document(post.id)
+                                            .collection("likes").document(uid).get().await()
+                                        isLiked = likeDoc.exists()
+                                    } catch (_: Exception) {}
+                                }
+                                post.copy(isLikedByCurrentUser = isLiked)
+                            }
+                        }.awaitAll()
+                    }
+                    trySend(hydrated)
+                } catch (e: Exception) {
+                    val fallback = docs.map { Post.fromSnapshot(it, uid) }
+                        .sortedByDescending { it.createdAt.toDate().time }
+                    trySend(fallback)
+                }
+            }
+        }
+
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Delete a post authored by the current user.

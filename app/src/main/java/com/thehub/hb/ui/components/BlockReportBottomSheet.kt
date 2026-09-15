@@ -122,7 +122,7 @@ fun ReportBottomSheet(
                     )
                     if (targetName.isNotBlank()) {
                         Text(
-                            text = if (targetType == "user") "@$targetName" else "Publié par @$targetName",
+                            text = if (targetType == "user") targetName else "Publié par $targetName",
                             fontSize = 13.sp,
                             color = HubSecondary
                         )

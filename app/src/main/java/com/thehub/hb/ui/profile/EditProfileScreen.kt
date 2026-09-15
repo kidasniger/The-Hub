@@ -57,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubTextField
@@ -233,20 +235,8 @@ fun EditProfileScreen(
                     ) {
                         val imageModel = uiState.selectedImageUri ?: uiState.photoUrl
 
-                        if (imageModel != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(imageModel)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Photo de profil",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .border(2.dp, HubBorder, CircleShape)
-                            )
-                        } else {
+                        @Composable
+                        fun DefaultPersonPlaceholder() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -262,6 +252,32 @@ fun EditProfileScreen(
                                     modifier = Modifier.size(48.dp)
                                 )
                             }
+                        }
+
+                        if (imageModel != null) {
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(imageModel)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Photo de profil",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .border(2.dp, HubBorder, CircleShape),
+                                loading = {
+                                    DefaultPersonPlaceholder()
+                                },
+                                success = {
+                                    SubcomposeAsyncImageContent()
+                                },
+                                error = {
+                                    DefaultPersonPlaceholder()
+                                }
+                            )
+                        } else {
+                            DefaultPersonPlaceholder()
                         }
 
                         // Camera Icon Badge

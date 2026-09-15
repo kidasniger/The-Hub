@@ -62,6 +62,7 @@ class FollowListViewModel(
             }
 
             val users = result.getOrDefault(emptyList())
+            com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(users.map { it.uid })
 
             // Initialize follow status map for current user
             val currentUid = userRepository.currentUserId

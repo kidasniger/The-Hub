@@ -233,14 +233,6 @@ private fun LikerItemRow(
                 fontWeight = FontWeight.Bold,
                 color = HubWhite
             )
-            if (liveUser.username.isNotBlank()) {
-                Text(
-                    text = "@${liveUser.username}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = HubSecondary
-                )
-            }
         }
 
         Icon(

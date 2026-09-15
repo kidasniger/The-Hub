@@ -300,9 +300,7 @@ private fun CommentItemRow(
     onUserClick: ((String) -> Unit)? = null
 ) {
     val author = rememberLiveUser(
-        userId = comment.authorId,
-        fallbackUsername = comment.authorUsername,
-        fallbackPhotoUrl = comment.authorPhotoUrl
+        userId = comment.authorId
     )
 
     Row(

@@ -6,6 +6,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.PostRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,52 +41,57 @@ class FeedViewModel(
             initialValue = 0
         ) ?: MutableStateFlow(0).asStateFlow()
 
-    private var lastVisibleDocument: DocumentSnapshot? = null
-    private var isLoadingPage = false
+    private var feedJob: Job? = null
+    private var feedLimit: Long = 30L
 
     init {
-        loadFeed(isRefresh = false)
+        startObservingFeed(isRefresh = false)
     }
 
     fun refresh() {
-        loadFeed(isRefresh = true)
+        startObservingFeed(isRefresh = true)
     }
 
     fun loadFeed(isRefresh: Boolean = false) {
-        viewModelScope.launch {
-            if (isRefresh) {
-                val currentPosts = (_uiState.value as? FeedUiState.Success)?.posts ?: emptyList()
-                if (currentPosts.isNotEmpty()) {
-                    _uiState.value = FeedUiState.Success(
-                        posts = currentPosts,
-                        isRefreshing = true,
-                        isLoadingMore = false,
-                        hasMore = true
-                    )
-                } else {
-                    _uiState.value = FeedUiState.Loading
-                }
-                lastVisibleDocument = null
-            } else if (_uiState.value !is FeedUiState.Success) {
-                _uiState.value = FeedUiState.Loading
-            }
+        startObservingFeed(isRefresh = isRefresh)
+    }
 
-            val result = postRepository.getFeed(pageSize = 15, lastVisible = null)
-            result.onSuccess { (posts, lastDoc) ->
-                lastVisibleDocument = lastDoc
-                if (posts.isEmpty()) {
-                    _uiState.value = FeedUiState.Empty
-                } else {
-                    _uiState.value = FeedUiState.Success(
-                        posts = posts,
-                        isRefreshing = false,
-                        isLoadingMore = false,
-                        hasMore = lastDoc != null && posts.size >= 15
-                    )
+    fun startObservingFeed(isRefresh: Boolean = false) {
+        feedJob?.cancel()
+        if (isRefresh) {
+            val currentPosts = (_uiState.value as? FeedUiState.Success)?.posts ?: emptyList()
+            if (currentPosts.isNotEmpty()) {
+                _uiState.value = FeedUiState.Success(
+                    posts = currentPosts,
+                    isRefreshing = true,
+                    isLoadingMore = false,
+                    hasMore = true
+                )
+            }
+        } else if (_uiState.value !is FeedUiState.Success) {
+            _uiState.value = FeedUiState.Loading
+        }
+
+        feedJob = viewModelScope.launch {
+            try {
+                postRepository.observeFeed(limit = feedLimit).collect { posts ->
+                    val authorIds = posts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
+                    com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
+
+                    if (posts.isEmpty()) {
+                        _uiState.value = FeedUiState.Empty
+                    } else {
+                        _uiState.value = FeedUiState.Success(
+                            posts = posts,
+                            isRefreshing = false,
+                            isLoadingMore = false,
+                            hasMore = posts.size.toLong() >= feedLimit
+                        )
+                    }
                 }
-            }.onFailure { exception ->
+            } catch (e: Exception) {
                 _uiState.value = FeedUiState.Error(
-                    exception.message ?: "Impossible de charger les publications."
+                    e.message ?: "Impossible de charger les publications."
                 )
             }
         }
@@ -93,27 +99,11 @@ class FeedViewModel(
 
     fun loadMore() {
         val currentState = _uiState.value as? FeedUiState.Success ?: return
-        if (currentState.isLoadingMore || !currentState.hasMore || isLoadingPage) return
-        val lastDoc = lastVisibleDocument ?: return
+        if (currentState.isLoadingMore || !currentState.hasMore) return
 
-        isLoadingPage = true
+        feedLimit += 20L
         _uiState.value = currentState.copy(isLoadingMore = true)
-
-        viewModelScope.launch {
-            val result = postRepository.getFeed(pageSize = 15, lastVisible = lastDoc)
-            isLoadingPage = false
-            result.onSuccess { (newPosts, nextDoc) ->
-                lastVisibleDocument = nextDoc
-                val updatedList = currentState.posts + newPosts
-                _uiState.value = currentState.copy(
-                    posts = updatedList,
-                    isLoadingMore = false,
-                    hasMore = nextDoc != null && newPosts.isNotEmpty()
-                )
-            }.onFailure {
-                _uiState.value = currentState.copy(isLoadingMore = false)
-            }
-        }
+        startObservingFeed(isRefresh = false)
     }
 
     fun toggleLike(postId: String) {

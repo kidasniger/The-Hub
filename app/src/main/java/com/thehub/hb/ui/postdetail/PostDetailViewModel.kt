@@ -51,6 +51,9 @@ class PostDetailViewModel(
                 val preview = allComments.take(3)
                 val currentUid = currentUserId
 
+                val authorIds = listOf(post.authorId) + listOfNotNull(post.originalPost?.authorId) + allComments.map { it.authorId }
+                com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
+
                 val initialFollowing = if (currentUid != null && currentUid != post.authorId) {
                     userRepository.checkIsFollowing(post.authorId).getOrDefault(false)
                 } else false
@@ -62,6 +65,20 @@ class PostDetailViewModel(
                     isFollowingAuthor = initialFollowing,
                     currentUserId = currentUid
                 )
+
+                // Observe real-time post changes (deletions, edits, photo updates)
+                launch {
+                    postRepository.observePost(postId).collect { livePost ->
+                        if (livePost == null) {
+                            _uiState.value = PostDetailUiState.Error("Cette publication a été supprimée.")
+                        } else {
+                            val current = _uiState.value as? PostDetailUiState.Success
+                            if (current != null) {
+                                _uiState.value = current.copy(post = livePost)
+                            }
+                        }
+                    }
+                }
 
                 // Observe real-time follow status
                 if (currentUid != null && currentUid != post.authorId) {

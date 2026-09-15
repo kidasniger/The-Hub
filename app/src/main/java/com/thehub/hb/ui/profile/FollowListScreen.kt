@@ -276,15 +276,6 @@ private fun FollowUserRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (liveUser.username.isNotBlank()) {
-                Text(
-                    text = "@${liveUser.username}",
-                    fontSize = 13.sp,
-                    color = HubSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
         }
 
         if (!isMe) {

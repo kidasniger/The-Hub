@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Message
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -115,13 +116,13 @@ fun ChatScreen(
         }
     }
 
-    val contactName = if (!uiState.otherParticipantInfo.displayName.isNullOrBlank()) {
-        uiState.otherParticipantInfo.displayName!!
-    } else if (uiState.otherParticipantInfo.username.isNotBlank()) {
-        uiState.otherParticipantInfo.username
-    } else {
-        "Contact"
-    }
+    val liveContact = rememberLiveUser(
+        userId = uiState.otherUserId,
+        fallbackUsername = uiState.otherParticipantInfo.username,
+        fallbackDisplayName = uiState.otherParticipantInfo.displayName,
+        fallbackPhotoUrl = uiState.otherParticipantInfo.photoUrl
+    )
+    val contactName = liveContact.effectiveName
 
     Box(
         modifier = modifier
@@ -162,7 +163,7 @@ fun ChatScreen(
                 ) {
                     UserAvatar(
                         name = contactName,
-                        photoUrl = uiState.otherParticipantInfo.photoUrl,
+                        photoUrl = liveContact.photoUrl,
                         size = 38.dp
                     )
 
@@ -177,15 +178,6 @@ fun ChatScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (uiState.otherParticipantInfo.username.isNotBlank()) {
-                            Text(
-                                text = "@${uiState.otherParticipantInfo.username}",
-                                fontSize = 12.sp,
-                                color = HubMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
                     }
                 }
 

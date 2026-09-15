@@ -62,6 +62,7 @@ class CommentsViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 postRepository.observeComments(postId).collect { commentList ->
+                    com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(commentList.map { it.authorId })
                     _uiState.value = _uiState.value.copy(
                         comments = commentList,
                         isLoading = false
@@ -71,6 +72,7 @@ class CommentsViewModel(
                 // Fallback to one-time fetch
                 val result = postRepository.getComments(postId)
                 result.onSuccess { list ->
+                    com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(list.map { it.authorId })
                     _uiState.value = _uiState.value.copy(comments = list, isLoading = false)
                 }.onFailure { error ->
                     val msg = error.message ?: ""

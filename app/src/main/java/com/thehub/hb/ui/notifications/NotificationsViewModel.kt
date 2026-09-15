@@ -39,6 +39,8 @@ class NotificationsViewModel(
     private fun observeNotifications() {
         viewModelScope.launch {
             notificationRepository.getNotifications().collectLatest { items ->
+                val actorIds = items.map { it.actorId }
+                com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(actorIds)
                 val grouped = groupNotifications(items)
                 val unread = items.count { !it.isRead }
                 _uiState.update {

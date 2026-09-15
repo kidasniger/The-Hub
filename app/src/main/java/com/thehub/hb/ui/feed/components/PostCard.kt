@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -96,17 +97,13 @@ fun PostCard(
                 .padding(16.dp)
         ) {
             val author = rememberLiveUser(
-                userId = post.authorId,
-                fallbackUsername = post.authorUsername,
-                fallbackPhotoUrl = post.authorPhotoUrl
+                userId = post.authorId
             )
 
             // Repost banner if repost
             if (post.isRepost) {
                 val reposter = rememberLiveUser(
-                    userId = post.authorId,
-                    fallbackUsername = post.authorUsername,
-                    fallbackPhotoUrl = post.authorPhotoUrl
+                    userId = post.authorId
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -187,60 +184,15 @@ fun PostCard(
 
             // Post Image
             if (!post.imageUrl.isNullOrBlank()) {
-                val context = LocalContext.current
-                val scope = rememberCoroutineScope()
-                var isSaving by remember { mutableStateOf(false) }
-
                 Spacer(modifier = Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubSurfaceElevated)
-                ) {
-                    AsyncImage(
-                        model = post.imageUrl,
-                        contentDescription = "Image de la publication",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onImageClick(post.imageUrl) },
-                        contentScale = ContentScale.FillWidth
-                    )
-
-                    IconButton(
-                        onClick = {
-                            if (!isSaving) {
-                                isSaving = true
-                                scope.launch {
-                                    ImageSaver.saveImageToGallery(context, post.imageUrl)
-                                    isSaving = false
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .size(34.dp)
-                            .background(Color(0x99000000), CircleShape)
-                            .testTag("post_card_save_image_button")
-                    ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = HubWhite,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.FileDownload,
-                                contentDescription = "Enregistrer l'image",
-                                tint = HubWhite,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
+                PostMediaImage(
+                    imageUrl = post.imageUrl,
+                    contentDescription = "Image de la publication",
+                    cornerRadius = 12.dp,
+                    showSaveButton = true,
+                    saveButtonTag = "post_card_save_image_button",
+                    onImageClick = onImageClick
+                )
             }
 
             // Embedded Original Post if Repost
@@ -352,9 +304,7 @@ private fun EmbeddedOriginalPost(
     onPostClick: (String) -> Unit
 ) {
     val origAuthor = rememberLiveUser(
-        userId = originalPost.authorId,
-        fallbackUsername = originalPost.authorUsername,
-        fallbackPhotoUrl = originalPost.authorPhotoUrl
+        userId = originalPost.authorId
     )
 
     Column(
@@ -399,14 +349,12 @@ private fun EmbeddedOriginalPost(
 
         if (!originalPost.imageUrl.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            AsyncImage(
-                model = originalPost.imageUrl,
+            PostMediaImage(
+                imageUrl = originalPost.imageUrl,
                 contentDescription = "Image repostée",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onImageClick(originalPost.imageUrl) },
-                contentScale = ContentScale.FillWidth
+                cornerRadius = 8.dp,
+                showSaveButton = false,
+                onImageClick = onImageClick
             )
         }
     }

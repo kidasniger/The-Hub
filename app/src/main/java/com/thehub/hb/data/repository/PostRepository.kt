@@ -15,10 +15,14 @@ import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.TrendingHashtag
 import com.thehub.hb.data.remote.ImgbbService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
@@ -171,6 +175,133 @@ class PostRepository(
             Result.failure(e)
         }
     }
+
+    /**
+     * Real-time listener for feed posts.
+     * Automatically emits updated list whenever any post is added, deleted or modified in Firestore.
+     */
+    fun observeFeed(limit: Long = 30): Flow<List<Post>> = callbackFlow {
+        val query = firestore.collection("posts")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.w("PostRepository", "observeFeed error: ${error.message}")
+                launch(Dispatchers.IO) {
+                    val result = getFeed(pageSize = limit, lastVisible = null)
+                    result.onSuccess { (posts, _) -> trySend(posts) }
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot == null) return@addSnapshotListener
+
+            val docs = snapshot.documents
+            launch(Dispatchers.IO) {
+                val uid = currentUserId
+                try {
+                    val basePosts = docs.map { doc -> Post.fromSnapshot(doc, uid) }
+                    // Immediate emission for instantaneous UI responsiveness
+                    trySend(basePosts)
+
+                    val bookmarkedIds = getEffectiveBookmarkedIds(uid)
+
+                    val hydrated = coroutineScope {
+                        basePosts.map { post ->
+                            async {
+                                var isLiked = false
+                                if (uid != null) {
+                                    try {
+                                        val likeDoc = firestore.collection("posts").document(post.id)
+                                            .collection("likes").document(uid)
+                                            .get().await()
+                                        isLiked = likeDoc.exists()
+                                    } catch (_: Exception) {}
+                                }
+
+                                var original: Post? = null
+                                if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                                    try {
+                                        val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                                        if (origDoc.exists()) {
+                                            original = Post.fromSnapshot(origDoc, uid)
+                                        }
+                                    } catch (_: Exception) {}
+                                }
+
+                                post.copy(
+                                    isLikedByCurrentUser = isLiked,
+                                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
+                                    originalPost = original
+                                )
+                            }
+                        }.awaitAll()
+                    }
+                    trySend(hydrated)
+                } catch (e: Exception) {
+                    val fallback = docs.map { Post.fromSnapshot(it, uid) }
+                    trySend(fallback)
+                }
+            }
+        }
+
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Real-time listener for a single post by id.
+     * Emits null if the post is deleted.
+     */
+    fun observePost(postId: String): Flow<Post?> = callbackFlow {
+        val currentUid = currentUserId
+        val listener = firestore.collection("posts").document(postId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null || !snapshot.exists()) {
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+
+                launch(Dispatchers.IO) {
+                    try {
+                        val post = Post.fromSnapshot(snapshot, currentUid)
+                        var isLiked = false
+                        var isBookmarked = false
+                        if (currentUid != null) {
+                            try {
+                                val likeDoc = firestore.collection("posts").document(postId)
+                                    .collection("likes").document(currentUid).get().await()
+                                isLiked = likeDoc.exists()
+                            } catch (_: Exception) {}
+
+                            val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
+                            isBookmarked = bookmarkedIds.contains(postId)
+                        }
+
+                        var original: Post? = null
+                        if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                            try {
+                                val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                                if (origDoc.exists()) {
+                                    original = Post.fromSnapshot(origDoc, currentUid)
+                                }
+                            } catch (_: Exception) {}
+                        }
+
+                        trySend(
+                            post.copy(
+                                isLikedByCurrentUser = isLiked,
+                                isBookmarkedByCurrentUser = isBookmarked,
+                                originalPost = original
+                            )
+                        )
+                    } catch (_: Exception) {
+                        trySend(null)
+                    }
+                }
+            }
+
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Fetch a single post by id.
