@@ -3,9 +3,14 @@ package com.thehub.hb.ui.main
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +59,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -115,6 +121,7 @@ fun MainScaffoldScreen(
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onOpenMessenger: () -> Unit,
+    onOpenFriends: () -> Unit = {},
     onNavigateToProfile: (String) -> Unit,
     onNavigateToEditProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -195,6 +202,7 @@ fun MainScaffoldScreen(
                             selectedTab = MainTab.CREATE.ordinal
                         },
                         onOpenMessenger = onOpenMessenger,
+                        onOpenFriends = onOpenFriends,
                         onAuthorClick = onNavigateToProfile,
                         onEditPost = { post ->
                             createPostViewModel.initForEdit(post.id, post.text)
@@ -283,6 +291,8 @@ fun MainScaffoldScreen(
     }
 }
 
+private val TabTransitionEasing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
+
 @Composable
 fun HubBottomNavigationBar(
     selectedTab: MainTab,
@@ -310,46 +320,82 @@ fun HubBottomNavigationBar(
                 val isCreateTab = tab == MainTab.CREATE
                 val isNotifTab = tab == MainTab.NOTIFICATIONS
 
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+
+                val targetIconScale = if (isPressed) 1.3f else if (isSelected) 1.15f else 1.0f
+                val targetLabelScale = if (isPressed) 1.3f else 1.0f
+
+                val iconScale by animateFloatAsState(
+                    targetValue = targetIconScale,
+                    animationSpec = tween(durationMillis = 350, easing = TabTransitionEasing),
+                    label = "tab_icon_scale_${tab.name}"
+                )
+
+                val labelScale by animateFloatAsState(
+                    targetValue = targetLabelScale,
+                    animationSpec = tween(durationMillis = 350, easing = TabTransitionEasing),
+                    label = "tab_label_scale_${tab.name}"
+                )
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onTabSelected(tab) }
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { onTabSelected(tab) }
                         .padding(horizontal = 12.dp, vertical = 4.dp)
                         .testTag(tab.testTag)
                 ) {
-                    if (isCreateTab) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) HubWhite else HubSurfaceElevated)
-                                .border(1.dp, if (isSelected) HubWhite else HubBorder, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.title,
-                                tint = if (isSelected) HubBlack else HubWhite,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    } else if (isNotifTab && unreadNotificationsCount > 0) {
-                        BadgedBox(
-                            badge = {
-                                Badge(
-                                    containerColor = HubWhite,
-                                    contentColor = HubBlack,
-                                    modifier = Modifier.testTag("notifications_unread_badge")
-                                ) {
-                                    Text(
-                                        text = if (unreadNotificationsCount > 99) "99+" else "$unreadNotificationsCount",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                    Box(
+                        modifier = Modifier.graphicsLayer(
+                            scaleX = iconScale,
+                            scaleY = iconScale
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isCreateTab) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) HubWhite else HubSurfaceElevated)
+                                    .border(1.dp, if (isSelected) HubWhite else HubBorder, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.title,
+                                    tint = if (isSelected) HubBlack else HubWhite,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                        ) {
+                        } else if (isNotifTab && unreadNotificationsCount > 0) {
+                            BadgedBox(
+                                badge = {
+                                    Badge(
+                                        containerColor = HubWhite,
+                                        contentColor = HubBlack,
+                                        modifier = Modifier.testTag("notifications_unread_badge")
+                                    ) {
+                                        Text(
+                                            text = if (unreadNotificationsCount > 99) "99+" else "$unreadNotificationsCount",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.title,
+                                    tint = if (isSelected) HubWhite else HubMuted,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else {
                             Icon(
                                 imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
                                 contentDescription = tab.title,
@@ -357,13 +403,6 @@ fun HubBottomNavigationBar(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                    } else {
-                        Icon(
-                            imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                            contentDescription = tab.title,
-                            tint = if (isSelected) HubWhite else HubMuted,
-                            modifier = Modifier.size(24.dp)
-                        )
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -372,7 +411,11 @@ fun HubBottomNavigationBar(
                         text = tab.title,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) HubWhite else HubMuted
+                        color = if (isSelected) HubWhite else HubMuted,
+                        modifier = Modifier.graphicsLayer(
+                            scaleX = labelScale,
+                            scaleY = labelScale
+                        )
                     )
                 }
             }

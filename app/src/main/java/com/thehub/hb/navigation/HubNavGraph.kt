@@ -25,6 +25,8 @@ import com.thehub.hb.ui.confirmpassword.ConfirmPasswordViewModel
 import com.thehub.hb.ui.createpost.CreatePostScreen
 import com.thehub.hb.ui.createpost.CreatePostViewModel
 import com.thehub.hb.ui.feed.FeedViewModel
+import com.thehub.hb.ui.friends.FriendsScreen
+import com.thehub.hb.ui.friends.FriendsViewModel
 import com.thehub.hb.ui.imageviewer.ImageViewerScreen
 import com.thehub.hb.ui.likeslist.LikesListScreen
 import com.thehub.hb.ui.likeslist.LikesListViewModel
@@ -389,6 +391,9 @@ fun HubNavGraph(
                 },
                 onOpenMessenger = {
                     navController.navigate(Screen.Messenger.route)
+                },
+                onOpenFriends = {
+                    navController.navigate(Screen.Friends.createRoute(appContainer.userRepository.currentUserId))
                 },
                 onNavigateToProfile = { userId ->
                     navController.navigate(Screen.Profile.createRoute(userId))
@@ -788,6 +793,37 @@ fun HubNavGraph(
 
             FollowListScreen(
                 viewModel = followListViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { uid ->
+                    navController.navigate(Screen.Profile.createRoute(uid))
+                }
+            )
+        }
+
+        // Friends List
+        composable(
+            route = Screen.Friends.route,
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val targetUserId = backStackEntry.arguments?.getString("userId")
+                ?: appContainer.userRepository.currentUserId
+                ?: ""
+            val friendsViewModel: FriendsViewModel = viewModel(
+                key = "friends_$targetUserId",
+                factory = FriendsViewModel.Factory(
+                    targetUserId = targetUserId,
+                    userRepository = appContainer.userRepository
+                )
+            )
+
+            FriendsScreen(
+                viewModel = friendsViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onUserClick = { uid ->
                     navController.navigate(Screen.Profile.createRoute(uid))

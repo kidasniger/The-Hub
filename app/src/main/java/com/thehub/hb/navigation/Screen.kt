@@ -52,6 +52,10 @@ sealed class Screen(val route: String) {
     data object FollowingList : Screen("following_list/{userId}") {
         fun createRoute(userId: String): String = "following_list/$userId"
     }
+    data object Friends : Screen("friends?userId={userId}") {
+        fun createRoute(userId: String? = null): String =
+            if (!userId.isNullOrBlank()) "friends?userId=$userId" else "friends"
+    }
     data object Settings : Screen("settings")
     data object BlockedUsers : Screen("blocked_users")
     data object Bookmarks : Screen("bookmarks")

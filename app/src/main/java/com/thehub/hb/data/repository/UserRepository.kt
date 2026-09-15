@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.thehub.hb.data.local.DataStoreManager
@@ -279,7 +280,9 @@ class UserRepository(
 
     /**
      * Follow a user atomically using Firestore transaction.
-     * Updates followers/following subcollections and denormalized counters.
+     * Updates followers/following subcollections, denormalized counters,
+     * and reciprocal friends subcollections (users/{uid}/friends/{targetUid} and
+     * users/{targetUid}/friends/{uid}) when the follow creates a mutual relationship.
      */
     suspend fun followUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
@@ -290,46 +293,83 @@ class UserRepository(
             val targetUserRef = firestore.collection("users").document(targetUid)
             val followingRef = currentUserRef.collection("following").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(uid)
+            val targetFollowingRef = targetUserRef.collection("following").document(uid)
+            val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
+            val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
 
-            val alreadyFollowing = try {
-                followingRef.get().await().exists()
+            val now = Timestamp.now()
+
+            // Check if target user already follows current user (reciprocal relationship)
+            val isMutual = try {
+                val targetFollowsCurrentDoc = targetFollowingRef.get().await()
+                targetFollowsCurrentDoc.exists()
             } catch (_: Exception) {
                 false
             }
 
-            if (!alreadyFollowing) {
-                val now = Timestamp.now()
-                val batch = firestore.batch()
-                batch.set(followingRef, mapOf("followedAt" to now, "uid" to targetUid))
-                batch.set(followerRef, mapOf("followedAt" to now, "uid" to uid))
-                batch.commit().await()
+            // 1. Record following for current user (own document, guaranteed allowed)
+            followingRef.set(
+                mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid),
+                SetOptions.merge()
+            ).await()
 
-                try {
-                    currentUserRef.set(
-                        mapOf("followingCount" to FieldValue.increment(1)),
-                        com.google.firebase.firestore.SetOptions.merge()
-                    ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Failed incrementing followingCount: ${e.message}")
-                }
-
-                try {
-                    targetUserRef.set(
-                        mapOf("followersCount" to FieldValue.increment(1)),
-                        com.google.firebase.firestore.SetOptions.merge()
-                    ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Failed incrementing followersCount: ${e.message}")
-                }
-
-                // Send notification to target user
-                try {
-                    notificationRepository.createNotification(
-                        recipientId = targetUid,
-                        type = NotificationItem.TYPE_FOLLOW
-                    )
-                } catch (_: Exception) {}
+            // 2. Increment followingCount for current user
+            try {
+                currentUserRef.set(
+                    mapOf("followingCount" to FieldValue.increment(1)),
+                    SetOptions.merge()
+                ).await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not increment followingCount: ${e.message}")
             }
+
+            // 3. Record follower on target user's followers subcollection
+            try {
+                followerRef.set(
+                    mapOf("followedAt" to now, "followerId" to uid, "uid" to uid),
+                    SetOptions.merge()
+                ).await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not set follower doc on target user: ${e.message}")
+            }
+
+            // 4. Try incrementing target user followersCount if allowed by security rules
+            try {
+                targetUserRef.set(
+                    mapOf("followersCount" to FieldValue.increment(1)),
+                    SetOptions.merge()
+                ).await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not increment target followersCount: ${e.message}")
+            }
+
+            // 5. If reciprocal relationship established, maintain friends subcollections
+            if (isMutual) {
+                try {
+                    currentUserFriendRef.set(
+                        mapOf("friendedAt" to now, "uid" to targetUid),
+                        SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Could not write to currentUser friends: ${e.message}")
+                }
+                try {
+                    targetUserFriendRef.set(
+                        mapOf("friendedAt" to now, "uid" to uid),
+                        SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Could not write to targetUser friends: ${e.message}")
+                }
+            }
+
+            // 6. Send notification to target user
+            try {
+                notificationRepository.createNotification(
+                    recipientId = targetUid,
+                    type = NotificationItem.TYPE_FOLLOW
+                )
+            } catch (_: Exception) {}
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -339,7 +379,8 @@ class UserRepository(
     }
 
     /**
-     * Unfollow a user atomically.
+     * Unfollow a user safely.
+     * Removes following/followers records and mutual friend records.
      */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
@@ -350,41 +391,202 @@ class UserRepository(
             val targetUserRef = firestore.collection("users").document(targetUid)
             val followingRef = currentUserRef.collection("following").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(uid)
+            val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
+            val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
 
-            val isFollowing = try {
-                followingRef.get().await().exists()
-            } catch (_: Exception) {
-                true
+            // 1. Delete following record from current user's following subcollection (guaranteed authorized)
+            followingRef.delete().await()
+
+            // 2. Decrement current user's following count (current user's document)
+            try {
+                currentUserRef.set(
+                    mapOf("followingCount" to FieldValue.increment(-1)),
+                    SetOptions.merge()
+                ).await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not decrement followingCount: ${e.message}")
             }
 
-            if (isFollowing) {
-                val batch = firestore.batch()
-                batch.delete(followingRef)
-                batch.delete(followerRef)
-                batch.commit().await()
+            // 3. Delete follower record from target user's followers subcollection
+            try {
+                followerRef.delete().await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not delete follower doc on target user: ${e.message}")
+            }
 
-                try {
-                    currentUserRef.set(
-                        mapOf("followingCount" to FieldValue.increment(-1)),
-                        com.google.firebase.firestore.SetOptions.merge()
-                    ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Failed decrementing followingCount: ${e.message}")
-                }
+            // 4. Try decrementing followersCount on target user if permitted
+            try {
+                targetUserRef.set(
+                    mapOf("followersCount" to FieldValue.increment(-1)),
+                    SetOptions.merge()
+                ).await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not decrement target followersCount: ${e.message}")
+            }
 
-                try {
-                    targetUserRef.set(
-                        mapOf("followersCount" to FieldValue.increment(-1)),
-                        com.google.firebase.firestore.SetOptions.merge()
-                    ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Failed decrementing followersCount: ${e.message}")
-                }
+            // 5. Remove friend relationship from both users' friends subcollections if it existed
+            try {
+                currentUserFriendRef.delete().await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not delete from currentUser friends: ${e.message}")
+            }
+            try {
+                targetUserFriendRef.delete().await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not delete from targetUser friends: ${e.message}")
             }
 
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error unfollowing user $targetUid: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Real-time listener to check if target user is a friend (mutual relationship).
+     */
+    fun isFriend(targetUid: String): Flow<Boolean> = callbackFlow {
+        val uid = currentUserId
+        if (uid == null || uid == targetUid) {
+            trySend(false)
+            close()
+            return@callbackFlow
+        }
+
+        var listener: ListenerRegistration? = null
+        try {
+            listener = firestore.collection("users").document(uid)
+                .collection("friends").document(targetUid)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        trySend(snapshot.exists())
+                    }
+                }
+        } catch (_: Exception) {}
+
+        launch {
+            val result = checkIsFriend(targetUid).getOrDefault(false)
+            trySend(result)
+        }
+
+        awaitClose { listener?.remove() }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Check if target user is in current user's friends subcollection once.
+     * Falls back to checking mutual follow state if subcollection is restricted.
+     */
+    suspend fun checkIsFriend(targetUid: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.success(false)
+        if (uid == targetUid) return@withContext Result.success(false)
+        try {
+            val doc = firestore.collection("users").document(uid)
+                .collection("friends").document(targetUid)
+                .get()
+                .await()
+            Result.success(doc.exists())
+        } catch (_: Exception) {
+            // Fallback: check mutual follows directly
+            try {
+                val followsTarget = checkIsFollowing(targetUid).getOrDefault(false)
+                if (!followsTarget) return@withContext Result.success(false)
+                val targetDoc = firestore.collection("users").document(targetUid)
+                    .collection("following").document(uid)
+                    .get()
+                    .await()
+                Result.success(targetDoc.exists())
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Get list of mutual friends (users who follow each other) for a user.
+     * Reads from users/{uid}/friends subcollection. If the subcollection is empty
+     * or inaccessible, checks mutual follows and backfills them automatically.
+     */
+    suspend fun getFriends(uid: String): Result<List<User>> = withContext(Dispatchers.IO) {
+        try {
+            val friendIds = mutableListOf<String>()
+
+            // 1. Try reading directly from users/{uid}/friends subcollection
+            try {
+                val snapshot = firestore.collection("users").document(uid)
+                    .collection("friends")
+                    .limit(100)
+                    .get()
+                    .await()
+                for (doc in snapshot.documents) {
+                    friendIds.add(doc.id)
+                }
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Direct friends subcollection read failed (${e.message}), checking mutual follows fallback")
+            }
+
+            // 2. If subcollection is empty or read was denied by security rules,
+            // compute mutual follows from following & followers
+            if (friendIds.isEmpty()) {
+                try {
+                    val followingSnap = firestore.collection("users").document(uid)
+                        .collection("following")
+                        .limit(100)
+                        .get()
+                        .await()
+                    val followingIds = followingSnap.documents.map { it.id }.toSet()
+
+                    if (followingIds.isNotEmpty()) {
+                        val followersSnap = firestore.collection("users").document(uid)
+                            .collection("followers")
+                            .limit(100)
+                            .get()
+                            .await()
+                        val followerIds = followersSnap.documents.map { it.id }.toSet()
+
+                        val mutualIds = followingIds.intersect(followerIds).toList()
+                        friendIds.addAll(mutualIds)
+
+                        // Attempt to populate friends subcollection for future direct queries
+                        if (mutualIds.isNotEmpty()) {
+                            try {
+                                val now = Timestamp.now()
+                                val batch = firestore.batch()
+                                for (mId in mutualIds) {
+                                    val ref1 = firestore.collection("users").document(uid).collection("friends").document(mId)
+                                    val ref2 = firestore.collection("users").document(mId).collection("friends").document(uid)
+                                    batch.set(ref1, mapOf("friendedAt" to now, "uid" to mId))
+                                    batch.set(ref2, mapOf("friendedAt" to now, "uid" to uid))
+                                }
+                                batch.commit().await()
+                            } catch (e: Exception) {
+                                Log.w("UserRepository", "Friends cache backfill skipped: ${e.message}")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Mutual follows computation error: ${e.message}")
+                }
+            }
+
+            // 3. Fetch User profile documents for each friend ID
+            val users = mutableListOf<User>()
+            for (friendId in friendIds.distinct()) {
+                try {
+                    val userDoc = firestore.collection("users").document(friendId).get().await()
+                    if (userDoc.exists()) {
+                        users.add(User.fromMap(userDoc.data ?: emptyMap()))
+                    }
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Could not fetch user $friendId: ${e.message}")
+                }
+            }
+            Result.success(users)
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error getting friends for $uid: ${e.message}", e)
             Result.failure(e)
         }
     }

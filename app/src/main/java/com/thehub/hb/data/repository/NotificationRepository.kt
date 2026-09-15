@@ -222,16 +222,26 @@ class NotificationRepository(
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val currentUid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         try {
-            val batch = firestore.batch()
-            val followerDoc = firestore.collection("users").document(targetUid)
-                .collection("followers").document(currentUid)
-            batch.delete(followerDoc)
-
             val followingDoc = firestore.collection("users").document(currentUid)
                 .collection("following").document(targetUid)
-            batch.delete(followingDoc)
+            followingDoc.delete().await()
 
-            batch.commit().await()
+            try {
+                val followerDoc = firestore.collection("users").document(targetUid)
+                    .collection("followers").document(currentUid)
+                followerDoc.delete().await()
+            } catch (_: Exception) {}
+
+            try {
+                firestore.collection("users").document(currentUid)
+                    .collection("friends").document(targetUid).delete().await()
+            } catch (_: Exception) {}
+
+            try {
+                firestore.collection("users").document(targetUid)
+                    .collection("friends").document(currentUid).delete().await()
+            } catch (_: Exception) {}
+
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("NotificationRepository", "Error unfollowing user: ${e.message}", e)

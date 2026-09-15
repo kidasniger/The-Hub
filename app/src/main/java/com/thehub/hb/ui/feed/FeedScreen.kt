@@ -24,13 +24,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -84,6 +83,7 @@ fun FeedScreen(
     onOpenLikes: (String) -> Unit,
     onCreatePost: () -> Unit,
     onOpenMessenger: () -> Unit,
+    onOpenFriends: () -> Unit = {},
     onAuthorClick: ((String) -> Unit)? = null,
     onEditPost: (Post) -> Unit = {},
     modifier: Modifier = Modifier
@@ -160,6 +160,24 @@ fun FeedScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Actualiser",
+                            tint = HubWhite,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    IconButton(
+                        onClick = onOpenFriends,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(HubSurfaceElevated)
+                            .testTag("feed_friends_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.People,
+                            contentDescription = "Amis",
                             tint = HubWhite,
                             modifier = Modifier.size(20.dp)
                         )
@@ -270,7 +288,7 @@ fun FeedScreen(
                                 }
                             }
 
-                            // Extra bottom spacer so last post isn't hidden under bottom bar / FAB
+                            // Extra bottom spacer so last post isn't hidden under bottom bar
                             item {
                                 Spacer(modifier = Modifier.height(72.dp))
                             }
@@ -278,25 +296,6 @@ fun FeedScreen(
                     }
                 }
             }
-        }
-
-        // Quick Create Floating Action Button
-        FloatingActionButton(
-            onClick = onCreatePost,
-            containerColor = HubWhite,
-            contentColor = HubBlack,
-            shape = CircleShape,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 84.dp)
-                .size(56.dp)
-                .testTag("feed_fab_create_post")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Nouvelle publication",
-                modifier = Modifier.size(28.dp)
-            )
         }
 
         // Share Post Bottom Sheet
