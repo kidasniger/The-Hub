@@ -96,20 +96,26 @@ jobs:
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "CLEAN_VER=$CLEAN_VER" >> "$GITHUB_ENV"
 
-      - name: Configure Keystores
+      - name: Configure Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          if [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "ERROR: KEYSTORE_BASE64 secret is required for release builds."
+            exit 1
           fi
+          if [ -z "${{ secrets.STORE_PASSWORD }}" ] || [ -z "${{ secrets.KEY_ALIAS }}" ] || [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "ERROR: STORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD secrets are required."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+          test -s app/keystore.jks || { echo "ERROR: Invalid decoded release keystore"; exit 1; }
+          echo "KEYSTORE_PATH=keystore.jks" >> "$GITHUB_ENV"
+
+      - name: Prepare Debug Keystore
+        run: |
           if [ ! -f debug.keystore ]; then
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
-            echo "KEYSTORE_PATH=keystore.jks" >> "$GITHUB_ENV"
-          else
-            echo "WARNING: release keystore secret absent; local/debug fallback will be used."
-            echo "KEYSTORE_PATH=" >> "$GITHUB_ENV"
           fi
 
       - name: Run Unit Tests
@@ -137,13 +143,33 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew bundleRelease -PreleaseVersion="$CLEAN_VER" -PreleaseVersionCode="${{ github.run_number }}"
 
-      - name: Verify Artifacts Integrity
+      - name: Verify Artifacts, Signing & Integrity
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           mkdir -p release-artifacts
           APK_FILE="app/build/outputs/apk/release/app-release.apk"
           AAB_FILE="app/build/outputs/bundle/release/app-release.aab"
           test -s "$APK_FILE" || { echo "ERROR: APK missing or empty"; exit 1; }
           test -s "$AAB_FILE" || { echo "ERROR: AAB missing or empty"; exit 1; }
+
+          EXPECTED_CERT_SHA1="F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
+          apksigner verify --verbose --print-certs "$APK_FILE" > apk-cert.txt
+          cat apk-cert.txt
+          grep -qi "$EXPECTED_CERT_SHA1" apk-cert.txt || {
+            echo "ERROR: APK signing certificate changed. Update continuity would be broken."
+            exit 1
+          }
+
+          jarsigner -verify -verbose -certs "$AAB_FILE" >/tmp/aab-signature.txt 2>&1 || {
+            cat /tmp/aab-signature.txt
+            echo "ERROR: AAB signature verification failed"
+            exit 1
+          }
+          echo "SUCCESS: APK/AAB artifacts and release signing verified"
+
           cp "$APK_FILE" "release-artifacts/TheHub-${TAG}.apk"
           cp "$AAB_FILE" "release-artifacts/TheHub-${TAG}.aab"
           sha256sum release-artifacts/*
