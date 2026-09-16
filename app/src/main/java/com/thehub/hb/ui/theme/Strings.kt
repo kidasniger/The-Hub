@@ -3,14 +3,14 @@ package com.thehub.hb.ui.theme
 import androidx.compose.runtime.staticCompositionLocalOf
 
 data class HubStrings(
-    // Bottom Navigation
+    // Navigation
     val tabFeed: String,
     val tabSearch: String,
     val tabCreate: String,
     val tabNotifications: String,
     val tabProfile: String,
 
-    // Settings Screen
+    // Paramètres
     val settingsTitle: String,
     val accountSection: String,
     val editProfile: String,
@@ -20,9 +20,8 @@ data class HubStrings(
     val privacySection: String,
     val blockedUsers: String,
     val blockedUsersSubtitle: String,
-    val appearanceAndLanguageSection: String,
+    val appearanceSection: String,
     val themeModeTitle: String,
-    val appLanguageTitle: String,
     val notificationsSection: String,
     val notifLikes: String,
     val notifLikesSubtitle: String,
@@ -42,9 +41,8 @@ data class HubStrings(
     val deleteAccountTitle: String,
     val deleteAccountSubtitle: String,
 
-    // Dialogs & Confirmations
+    // Dialogues et confirmations
     val dialogThemeTitle: String,
-    val dialogLanguageTitle: String,
     val dialogSignOutTitle: String,
     val dialogSignOutMessage: String,
     val dialogDeleteAccountTitle: String,
@@ -53,12 +51,15 @@ data class HubStrings(
     val dialogCancel: String,
     val dialogClose: String,
     val deletingAccount: String,
+    val deleteAccountConfirmationPrompt: String,
+    val deleteAccountConfirmationWord: String,
 
-    // Feed & Post
+    // Fil et publications
     val forYou: String,
     val following: String,
     val friendsOnly: String,
     val noPostsYet: String,
+    val noPostsDescription: String,
     val pullToRefresh: String,
     val share: String,
     val repost: String,
@@ -71,13 +72,13 @@ data class HubStrings(
     val bookmarkAdded: String,
     val bookmarkRemoved: String,
 
-    // Create Post
+    // Création de publication
     val publish: String,
     val whatOnYourMind: String,
     val addPhoto: String,
     val publishing: String,
 
-    // Profile
+    // Profil
     val followers: String,
     val followingCount: String,
     val postsCount: String,
@@ -87,7 +88,7 @@ data class HubStrings(
     val editBio: String,
     val noBio: String,
 
-    // Search
+    // Recherche
     val searchPlaceholder: String,
     val searchUsers: String,
     val searchHashtags: String,
@@ -101,12 +102,12 @@ data class HubStrings(
     val commentedOnYourPost: String,
     val startedFollowingYou: String,
 
-    // Messaging
+    // Messagerie
     val messagesTitle: String,
     val typeMessage: String,
     val noConversations: String,
 
-    // Updates
+    // Mises à jour
     val updateAvailable: String,
     val updateWhatsNew: String,
     val updateDownload: String,
@@ -116,7 +117,7 @@ data class HubStrings(
     val updateChecking: String,
     val updateUpToDate: String,
 
-    // Errors & Auth
+    // Erreurs et authentification
     val accountDeletedError: String,
     val connectionError: String,
     val emailPlaceholder: String,
@@ -125,11 +126,11 @@ data class HubStrings(
     val signUpButton: String
 )
 
-val FrHubStrings = HubStrings(
-    tabFeed = "Feed",
+val FrenchHubStrings = HubStrings(
+    tabFeed = "Fil",
     tabSearch = "Recherche",
     tabCreate = "Publier",
-    tabNotifications = "Notifs",
+    tabNotifications = "Notifications",
     tabProfile = "Profil",
 
     settingsTitle = "Paramètres",
@@ -141,14 +142,13 @@ val FrHubStrings = HubStrings(
     privacySection = "Confidentialité",
     blockedUsers = "Utilisateurs bloqués",
     blockedUsersSubtitle = "Gérer les profils que vous avez bloqués",
-    appearanceAndLanguageSection = "Apparence & Langue",
+    appearanceSection = "Apparence",
     themeModeTitle = "Mode d'affichage (Thème)",
-    appLanguageTitle = "Langue de l'application",
     notificationsSection = "Notifications",
     notifLikes = "Mentions J'aime",
     notifLikesSubtitle = "Lorsqu'un utilisateur aime vos publications",
     notifComments = "Commentaires",
-    notifCommentsSubtitle = "Lorsqu'un commentaire est déposé sur votre post",
+    notifCommentsSubtitle = "Lorsqu'un commentaire est déposé sur votre publication",
     notifFollows = "Nouveaux abonnés",
     notifFollowsSubtitle = "Lorsqu'un utilisateur commence à vous suivre",
     notifMessages = "Messages directs",
@@ -164,7 +164,6 @@ val FrHubStrings = HubStrings(
     deleteAccountSubtitle = "Cette action est irréversible",
 
     dialogThemeTitle = "Choisir le thème",
-    dialogLanguageTitle = "Langue de l'application",
     dialogSignOutTitle = "Déconnexion",
     dialogSignOutMessage = "Êtes-vous sûr de vouloir vous déconnecter de The Hub ?",
     dialogDeleteAccountTitle = "Supprimer définitivement le compte ?",
@@ -173,11 +172,14 @@ val FrHubStrings = HubStrings(
     dialogCancel = "Annuler",
     dialogClose = "Fermer",
     deletingAccount = "Suppression en cours...",
+    deleteAccountConfirmationPrompt = "Veuillez taper \"SUPPRIMER\" en majuscules pour confirmer la suppression définitive :",
+    deleteAccountConfirmationWord = "SUPPRIMER",
 
     forYou = "Pour vous",
     following = "Abonnements",
     friendsOnly = "Amis",
     noPostsYet = "Aucune publication pour le moment",
+    noPostsDescription = "Soyez le premier à partager une pensée ou une photo avec la communauté !",
     pullToRefresh = "Tirer pour actualiser",
     share = "Partager",
     repost = "Republier",
@@ -237,116 +239,4 @@ val FrHubStrings = HubStrings(
     signUpButton = "S'inscrire"
 )
 
-val EnHubStrings = HubStrings(
-    tabFeed = "Feed",
-    tabSearch = "Search",
-    tabCreate = "Post",
-    tabNotifications = "Alerts",
-    tabProfile = "Profile",
-
-    settingsTitle = "Settings",
-    accountSection = "Account",
-    editProfile = "Edit profile",
-    editProfileSubtitle = "Name, bio, photo and birthdate",
-    changePassword = "Change password",
-    changePasswordSubtitle = "Update your account password",
-    privacySection = "Privacy",
-    blockedUsers = "Blocked users",
-    blockedUsersSubtitle = "Manage accounts you have blocked",
-    appearanceAndLanguageSection = "Appearance & Language",
-    themeModeTitle = "Display mode (Theme)",
-    appLanguageTitle = "App language",
-    notificationsSection = "Notifications",
-    notifLikes = "Likes",
-    notifLikesSubtitle = "When someone likes your posts",
-    notifComments = "Comments",
-    notifCommentsSubtitle = "When someone comments on your post",
-    notifFollows = "New followers",
-    notifFollowsSubtitle = "When someone starts following you",
-    notifMessages = "Direct messages",
-    notifMessagesSubtitle = "When you receive a new private message",
-    aboutSection = "About",
-    termsTitle = "Terms of Service & Privacy",
-    termsSubtitle = "Review our guidelines and rules",
-    appVersionTitle = "App version",
-    checkForUpdatesTitle = "Check for updates",
-    checkForUpdatesSubtitle = "Check the latest GitHub release",
-    signOutTitle = "Sign out",
-    deleteAccountTitle = "Delete my account",
-    deleteAccountSubtitle = "This action cannot be undone",
-
-    dialogThemeTitle = "Choose theme",
-    dialogLanguageTitle = "App language",
-    dialogSignOutTitle = "Sign out",
-    dialogSignOutMessage = "Are you sure you want to sign out of The Hub?",
-    dialogDeleteAccountTitle = "Permanently delete account?",
-    dialogDeleteAccountMessage = "All your data, posts, followers, and messages will be permanently removed.",
-    dialogConfirm = "Confirm",
-    dialogCancel = "Cancel",
-    dialogClose = "Close",
-    deletingAccount = "Deleting account...",
-
-    forYou = "For You",
-    following = "Following",
-    friendsOnly = "Friends",
-    noPostsYet = "No posts yet",
-    pullToRefresh = "Pull to refresh",
-    share = "Share",
-    repost = "Repost",
-    comments = "Comments",
-    likes = "Likes",
-    writeComment = "Write a comment...",
-    send = "Send",
-    deletePost = "Delete post",
-    reportPost = "Report",
-    bookmarkAdded = "Saved to bookmarks",
-    bookmarkRemoved = "Removed from bookmarks",
-
-    publish = "Post",
-    whatOnYourMind = "What's on your mind?",
-    addPhoto = "Add photo",
-    publishing = "Posting...",
-
-    followers = "Followers",
-    followingCount = "Following",
-    postsCount = "Posts",
-    follow = "Follow",
-    unfollow = "Unfollow",
-    message = "Message",
-    editBio = "Edit bio",
-    noBio = "No bio provided",
-
-    searchPlaceholder = "Search on The Hub...",
-    searchUsers = "Accounts",
-    searchHashtags = "Hashtags",
-    trendingTopics = "Trending",
-    noResultsFound = "No results found",
-
-    notificationsTitle = "Notifications",
-    noNotifications = "No notifications yet",
-    likedYourPost = "liked your post",
-    commentedOnYourPost = "commented on your post",
-    startedFollowingYou = "started following you",
-
-    messagesTitle = "Messages",
-    typeMessage = "Type a message...",
-    noConversations = "No conversations yet",
-
-    updateAvailable = "Update Available",
-    updateWhatsNew = "What's Changed",
-    updateDownload = "Download",
-    updateDownloading = "Downloading...",
-    updateInstall = "Install",
-    updateLater = "Later",
-    updateChecking = "Checking for update...",
-    updateUpToDate = "The Hub is up to date!",
-
-    accountDeletedError = "This account has been deleted.",
-    connectionError = "Connection error. Please check your network.",
-    emailPlaceholder = "Email address",
-    passwordPlaceholder = "Password",
-    loginButton = "Log In",
-    signUpButton = "Sign Up"
-)
-
-val LocalHubStrings = staticCompositionLocalOf<HubStrings> { FrHubStrings }
+val LocalHubStrings = staticCompositionLocalOf<HubStrings> { FrenchHubStrings }
