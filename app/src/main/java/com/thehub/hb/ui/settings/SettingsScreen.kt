@@ -1,10 +1,9 @@
 package com.thehub.hb.ui.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,20 +24,11 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import com.thehub.hb.BuildConfig
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LockReset
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
-import com.thehub.hb.ui.theme.AppLanguage
-import com.thehub.hb.ui.theme.AppThemeMode
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -61,16 +50,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.BuildConfig
 import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.theme.AppThemeMode
 import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubMuted
@@ -90,20 +79,19 @@ fun SettingsScreen(
     onCheckForUpdates: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val notifLikes by viewModel.notifLikes.collectAsState()
     val notifComments by viewModel.notifComments.collectAsState()
     val notifFollows by viewModel.notifFollows.collectAsState()
     val notifMessages by viewModel.notifMessages.collectAsState()
     val currentThemeMode by viewModel.currentThemeMode.collectAsState()
-    val currentLanguage by viewModel.currentLanguage.collectAsState()
 
     val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
 
     var showThemeDialog by remember { mutableStateOf(false) }
-    var showLanguageDialog by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showDeleteStep1Dialog by remember { mutableStateOf(false) }
     var showDeleteStep2Dialog by remember { mutableStateOf(false) }
@@ -129,7 +117,6 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -146,7 +133,6 @@ fun SettingsScreen(
                         tint = HubWhite
                     )
                 }
-
                 Text(
                     text = strings.settingsTitle,
                     fontSize = 18.sp,
@@ -162,245 +148,146 @@ fun SettingsScreen(
                     .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Section 1: Compte
-                SettingsSectionTitle(title = strings.accountSection)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                ) {
+                SettingsSectionTitle(strings.accountSection)
+                SettingsCard {
                     SettingsActionRow(
                         icon = Icons.Default.Person,
                         title = strings.emailPlaceholder,
                         subtitle = uiState.userEmail.takeIf { it.isNotBlank() } ?: "—",
                         onClick = null,
-                        showArrow = false,
                         testTag = "settings_row_email"
                     )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
+                    Divider()
                     SettingsActionRow(
                         icon = Icons.Default.LockReset,
                         title = strings.changePassword,
                         subtitle = strings.changePasswordSubtitle,
                         onClick = onNavigateToResetPassword,
-                        showArrow = true,
                         testTag = "settings_row_change_password"
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Section 2: Confidentialité
-                SettingsSectionTitle(title = strings.privacySection)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                ) {
+                SettingsSectionTitle(strings.privacySection)
+                SettingsCard {
                     SettingsActionRow(
                         icon = Icons.Default.Block,
                         title = strings.blockedUsers,
                         subtitle = strings.blockedUsersSubtitle,
                         onClick = onNavigateToBlockedUsers,
-                        showArrow = true,
                         testTag = "settings_row_blocked_users"
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Section 3: Apparence & Langue
-                SettingsSectionTitle(title = strings.appearanceAndLanguageSection)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                ) {
+                SettingsSectionTitle(strings.appearanceSection)
+                SettingsCard {
                     SettingsActionRow(
                         icon = Icons.Default.Palette,
                         title = strings.themeModeTitle,
-                        subtitle = if (currentLanguage == AppLanguage.EN) currentThemeMode.titleEn else currentThemeMode.titleFr,
+                        subtitle = currentThemeMode.titleFr,
                         onClick = { showThemeDialog = true },
-                        showArrow = true,
                         testTag = "settings_row_theme"
                     )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
-                    SettingsActionRow(
-                        icon = Icons.Default.Language,
-                        title = strings.appLanguageTitle,
-                        subtitle = "${currentLanguage.flagEmoji} ${currentLanguage.displayName}",
-                        onClick = { showLanguageDialog = true },
-                        showArrow = true,
-                        testTag = "settings_row_language"
-                    )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Section 4: Notifications
-                SettingsSectionTitle(title = strings.notificationsSection)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                ) {
-                    SettingsToggleRow(
-                        title = strings.notifLikes,
-                        subtitle = strings.notifLikesSubtitle,
-                        checked = notifLikes,
-                        onCheckedChange = { viewModel.setNotifLikes(it) },
-                        testTag = "settings_switch_likes"
-                    )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
-                    SettingsToggleRow(
-                        title = strings.notifComments,
-                        subtitle = strings.notifCommentsSubtitle,
-                        checked = notifComments,
-                        onCheckedChange = { viewModel.setNotifComments(it) },
-                        testTag = "settings_switch_comments"
-                    )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
-                    SettingsToggleRow(
-                        title = strings.notifFollows,
-                        subtitle = strings.notifFollowsSubtitle,
-                        checked = notifFollows,
-                        onCheckedChange = { viewModel.setNotifFollows(it) },
-                        testTag = "settings_switch_follows"
-                    )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
-                    SettingsToggleRow(
-                        title = strings.notifMessages,
-                        subtitle = strings.notifMessagesSubtitle,
-                        checked = notifMessages,
-                        onCheckedChange = { viewModel.setNotifMessages(it) },
-                        testTag = "settings_switch_messages"
-                    )
+                SettingsSectionTitle(strings.notificationsSection)
+                SettingsCard {
+                    SettingsToggleRow(strings.notifLikes, strings.notifLikesSubtitle, notifLikes) {
+                        viewModel.setNotifLikes(it)
+                    }
+                    Divider()
+                    SettingsToggleRow(strings.notifComments, strings.notifCommentsSubtitle, notifComments) {
+                        viewModel.setNotifComments(it)
+                    }
+                    Divider()
+                    SettingsToggleRow(strings.notifFollows, strings.notifFollowsSubtitle, notifFollows) {
+                        viewModel.setNotifFollows(it)
+                    }
+                    Divider()
+                    SettingsToggleRow(strings.notifMessages, strings.notifMessagesSubtitle, notifMessages) {
+                        viewModel.setNotifMessages(it)
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Section 4: À propos
-                SettingsSectionTitle(title = strings.aboutSection)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                ) {
+                SettingsSectionTitle(strings.aboutSection)
+                SettingsCard {
                     SettingsActionRow(
                         icon = Icons.Default.Description,
                         title = strings.termsTitle,
                         subtitle = strings.termsSubtitle,
                         onClick = onNavigateToTerms,
-                        showArrow = true,
                         testTag = "settings_row_terms"
                     )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
+                    Divider()
                     SettingsActionRow(
                         icon = Icons.Default.Info,
                         title = strings.appVersionTitle,
                         subtitle = "v${BuildConfig.VERSION_NAME} (The Hub)",
                         onClick = null,
-                        showArrow = false,
                         testTag = "settings_row_version"
                     )
-
                     if (onCheckForUpdates != null) {
-                        HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
+                        Divider()
                         SettingsActionRow(
                             icon = Icons.Default.SystemUpdate,
                             title = strings.checkForUpdatesTitle,
                             subtitle = strings.checkForUpdatesSubtitle,
                             onClick = onCheckForUpdates,
-                            showArrow = true,
                             testTag = "settings_row_check_update"
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(Modifier.height(28.dp))
 
-                // Section 5: Déconnexion & Danger
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                ) {
+                SettingsCard {
                     SettingsActionRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
                         title = strings.signOutTitle,
-                        titleColor = HubWhite,
                         onClick = { showSignOutDialog = true },
-                        showArrow = false,
                         testTag = "settings_row_sign_out"
                     )
-
-                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
+                    Divider()
                     SettingsActionRow(
                         icon = Icons.Default.DeleteForever,
                         title = strings.deleteAccountTitle,
                         subtitle = strings.deleteAccountSubtitle,
                         titleColor = HubError,
                         onClick = { showDeleteStep1Dialog = true },
-                        showArrow = true,
                         testTag = "settings_row_delete_account"
                     )
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(Modifier.height(40.dp))
             }
         }
     }
 
-    // Theme Selection Dialog
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
             containerColor = HubCard,
             title = {
-                Text(
-                    text = strings.dialogThemeTitle,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
+                Text(strings.dialogThemeTitle, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HubWhite)
             },
             text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppThemeMode.entries.forEach { mode ->
                         val isSelected = mode == currentThemeMode
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) HubSurfaceElevated else HubBlack.copy(alpha = 0.5f))
+                                .background(
+                                    if (isSelected) HubSurfaceElevated else HubBlack.copy(alpha = 0.5f),
+                                    RoundedCornerShape(10.dp)
+                                )
                                 .clickable {
                                     viewModel.setThemeMode(mode)
                                     showThemeDialog = false
@@ -408,27 +295,14 @@ fun SettingsScreen(
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(Modifier.weight(1f)) {
                                 Text(
-                                    text = if (currentLanguage == AppLanguage.EN) mode.titleEn else mode.titleFr,
+                                    mode.titleFr,
                                     fontSize = 15.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) HubWhite else HubSecondary
                                 )
-                                Text(
-                                    text = if (currentLanguage == AppLanguage.EN) mode.descriptionEn else mode.descriptionFr,
-                                    fontSize = 12.sp,
-                                    color = HubMuted
-                                )
-                            }
-                            if (isSelected) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = HubWhite,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Text(mode.descriptionFr, fontSize = 12.sp, color = HubMuted)
                             }
                         }
                     }
@@ -442,89 +316,12 @@ fun SettingsScreen(
         )
     }
 
-    // Language Selection Dialog
-    if (showLanguageDialog) {
-        AlertDialog(
-            onDismissRequest = { showLanguageDialog = false },
-            containerColor = HubCard,
-            title = {
-                Text(
-                    text = strings.dialogLanguageTitle,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AppLanguage.entries.forEach { lang ->
-                        val isSelected = lang == currentLanguage
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) HubSurfaceElevated else HubBlack.copy(alpha = 0.5f))
-                                .clickable {
-                                    viewModel.setLanguage(lang)
-                                    showLanguageDialog = false
-                                }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = lang.flagEmoji,
-                                fontSize = 22.sp,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                            Text(
-                                text = lang.displayName,
-                                fontSize = 15.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) HubWhite else HubSecondary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = HubWhite,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLanguageDialog = false }) {
-                    Text(strings.dialogClose, color = HubWhite)
-                }
-            }
-        )
-    }
-
-    // Sign Out Dialog
     if (showSignOutDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
-            title = {
-                Text(
-                    text = strings.dialogSignOutTitle,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
-            },
-            text = {
-                Text(
-                    text = strings.dialogSignOutMessage,
-                    fontSize = 14.sp,
-                    color = HubSecondary
-                )
-            },
+            containerColor = HubCard,
+            title = { Text(strings.dialogSignOutTitle, fontWeight = FontWeight.Bold, color = HubWhite) },
+            text = { Text(strings.dialogSignOutMessage, color = HubSecondary) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -540,42 +337,16 @@ fun SettingsScreen(
                 TextButton(onClick = { showSignOutDialog = false }) {
                     Text(strings.dialogCancel, color = HubSecondary)
                 }
-            },
-            containerColor = HubCard,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.testTag("sign_out_dialog")
+            }
         )
     }
 
-    // Delete Step 1 Dialog
     if (showDeleteStep1Dialog) {
         AlertDialog(
             onDismissRequest = { showDeleteStep1Dialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteForever,
-                        contentDescription = null,
-                        tint = HubError,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = strings.dialogDeleteAccountTitle,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = HubWhite
-                    )
-                }
-            },
-            text = {
-                Text(
-                    text = strings.dialogDeleteAccountMessage,
-                    fontSize = 14.sp,
-                    color = HubSecondary,
-                    lineHeight = 20.sp
-                )
-            },
+            containerColor = HubCard,
+            title = { Text(strings.dialogDeleteAccountTitle, fontWeight = FontWeight.Bold, color = HubWhite) },
+            text = { Text(strings.dialogDeleteAccountMessage, color = HubSecondary, lineHeight = 20.sp) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -592,43 +363,22 @@ fun SettingsScreen(
                 TextButton(onClick = { showDeleteStep1Dialog = false }) {
                     Text(strings.dialogCancel, color = HubSecondary)
                 }
-            },
-            containerColor = HubCard,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.testTag("delete_step1_dialog")
+            }
         )
     }
 
-    // Delete Step 2 Dialog (Text Confirmation)
     if (showDeleteStep2Dialog) {
-        val requiredWord = if (currentLanguage == AppLanguage.EN) "DELETE" else "SUPPRIMER"
-        val isInputMatching = deleteConfirmInput.trim().equals(requiredWord, ignoreCase = false) ||
-                deleteConfirmInput.trim().equals("SUPPRIMER", ignoreCase = false) ||
-                deleteConfirmInput.trim().equals("DELETE", ignoreCase = false)
+        val requiredWord = strings.deleteAccountConfirmationWord
+        val isInputMatching = deleteConfirmInput.trim() == requiredWord
 
         AlertDialog(
-            onDismissRequest = {
-                if (!uiState.isDeletingAccount) showDeleteStep2Dialog = false
-            },
-            title = {
-                Text(
-                    text = strings.dialogDeleteAccountTitle,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
-            },
+            onDismissRequest = { if (!uiState.isDeletingAccount) showDeleteStep2Dialog = false },
+            containerColor = HubCard,
+            title = { Text(strings.dialogDeleteAccountTitle, fontWeight = FontWeight.Bold, color = HubWhite) },
             text = {
                 Column {
-                    Text(
-                        text = if (currentLanguage == AppLanguage.EN)
-                            "Please type \"DELETE\" in uppercase to confirm permanent deletion:"
-                        else
-                            "Veuillez taper \"SUPPRIMER\" en majuscules pour confirmer la suppression définitive :",
-                        fontSize = 14.sp,
-                        color = HubSecondary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(strings.deleteAccountConfirmationPrompt, color = HubSecondary)
+                    Spacer(Modifier.height(12.dp))
                     HubTextField(
                         value = deleteConfirmInput,
                         onValueChange = { deleteConfirmInput = it },
@@ -644,6 +394,7 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.deleteAccount {
                             showDeleteStep2Dialog = false
+                            Toast.makeText(context, "Compte supprimé", Toast.LENGTH_SHORT).show()
                             onAccountDeleted()
                         }
                     },
@@ -651,14 +402,10 @@ fun SettingsScreen(
                     modifier = Modifier.testTag("confirm_delete_step2_button")
                 ) {
                     if (uiState.isDeletingAccount) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = HubError
-                        )
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = HubError)
                     } else {
                         Text(
-                            text = strings.deleteAccountTitle,
+                            strings.deleteAccountTitle,
                             color = if (isInputMatching) HubError else HubMuted,
                             fontWeight = FontWeight.Bold
                         )
@@ -672,12 +419,25 @@ fun SettingsScreen(
                 ) {
                     Text(strings.dialogCancel, color = HubSecondary)
                 }
-            },
-            containerColor = HubCard,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.testTag("delete_step2_dialog")
+            }
         )
     }
+}
+
+@Composable
+private fun SettingsCard(content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HubCard, RoundedCornerShape(12.dp))
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun Divider() {
+    HorizontalDivider(color = HubMuted.copy(alpha = 0.2f), thickness = 1.dp)
 }
 
 @Composable
@@ -698,7 +458,6 @@ private fun SettingsActionRow(
     subtitle: String? = null,
     titleColor: androidx.compose.ui.graphics.Color = HubWhite,
     onClick: (() -> Unit)?,
-    showArrow: Boolean = false,
     testTag: String
 ) {
     Row(
@@ -715,26 +474,14 @@ private fun SettingsActionRow(
             tint = if (titleColor == HubError) HubError else HubSecondary,
             modifier = Modifier.size(22.dp)
         )
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = titleColor
-            )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = titleColor)
             if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    fontSize = 12.sp,
-                    color = HubSecondary
-                )
+                Text(subtitle, fontSize = 12.sp, color = HubSecondary)
             }
         }
-
-        if (showArrow) {
+        if (onClick != null) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
@@ -750,8 +497,7 @@ private fun SettingsToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    testTag: String
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -759,22 +505,11 @@ private fun SettingsToggleRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = HubWhite
-            )
-            Text(
-                text = subtitle,
-                fontSize = 12.sp,
-                color = HubSecondary
-            )
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = HubWhite)
+            Text(subtitle, fontSize = 12.sp, color = HubSecondary)
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
+        Spacer(Modifier.width(12.dp))
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -783,8 +518,7 @@ private fun SettingsToggleRow(
                 checkedTrackColor = HubWhite.copy(alpha = 0.4f),
                 uncheckedThumbColor = HubSecondary,
                 uncheckedTrackColor = HubSurfaceElevated
-            ),
-            modifier = Modifier.testTag(testTag)
+            )
         )
     }
 }
