@@ -11,6 +11,7 @@ import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.TheHubTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
+import android.os.Build
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +21,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [Build.VERSION_CODES.UPSIDE_DOWN_CAKE])
 class GreetingScreenshotTest {
 
   @get:Rule val composeTestRule = createComposeRule()
