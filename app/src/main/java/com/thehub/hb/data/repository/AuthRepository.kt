@@ -17,10 +17,12 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class FirestoreCreationException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
@@ -54,26 +56,52 @@ class AuthRepository(
     val currentFirebaseUser: FirebaseUser?
         get() = auth.currentUser
 
-    suspend fun checkUsernameUnique(username: String): Boolean {
-        return try {
+    companion object {
+        private val USERNAME_REGEX = Regex("^[a-zA-Z0-9._]{3,30}$")
+
+        fun isValidUsername(username: String): Boolean {
+            val clean = username.trim()
+            return clean.matches(USERNAME_REGEX)
+        }
+    }
+
+    suspend fun checkUsernameUnique(username: String): Boolean = withContext(Dispatchers.IO) {
+        val clean = username.trim().lowercase()
+        if (!isValidUsername(clean)) return@withContext false
+        return@withContext try {
+            val usernameDoc = kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                firestore.collection("usernames").document(clean).get().await()
+            }
+            if (usernameDoc != null && usernameDoc.exists()) {
+                val currentUid = auth.currentUser?.uid
+                val ownerUid = usernameDoc.getString("uid")
+                return@withContext (currentUid != null && ownerUid == currentUid)
+            }
+
             val snapshot = kotlinx.coroutines.withTimeoutOrNull(5000L) {
                 firestore.collection("users")
-                    .whereEqualTo("username", username.trim().lowercase())
+                    .whereEqualTo("usernameLower", clean)
                     .limit(1)
                     .get()
                     .await()
             }
-            snapshot?.isEmpty ?: true
+            if (snapshot != null && !snapshot.isEmpty) {
+                val currentUid = auth.currentUser?.uid
+                return@withContext (currentUid != null && snapshot.documents.all { it.id == currentUid })
+            }
+            true
         } catch (e: Exception) {
             android.util.Log.w("AuthRepository", "checkUsernameUnique skipped: ${e.message}")
-            // If offline or permission check, allow progression or handle error
-            true
+            false
         }
     }
 
     suspend fun signUp(email: String, username: String, password: String): Result<FirebaseUser> {
         return try {
             val cleanUsername = username.trim().lowercase()
+            if (!isValidUsername(cleanUsername)) {
+                return Result.failure(Exception("Le nom d'utilisateur doit contenir entre 3 et 30 caractères alphanumériques (lettres, chiffres, tirets bas ou points)."))
+            }
             val isUnique = checkUsernameUnique(cleanUsername)
             if (!isUnique) {
                 return Result.failure(Exception("Ce nom d'utilisateur est déjà pris."))
@@ -107,6 +135,19 @@ class AuthRepository(
                 android.util.Log.w("AuthRepository", "Échec d'envoi de l'email de vérification", e)
                 lastVerificationEmailSentSuccessfully = false
                 lastVerificationEmailError = e
+            }
+
+            // Reserve username in usernames collection atomically
+            try {
+                firestore.collection("usernames").document(cleanUsername).set(
+                    mapOf(
+                        "uid" to user.uid,
+                        "createdAt" to com.google.firebase.Timestamp.now()
+                    ),
+                    SetOptions.merge()
+                ).await()
+            } catch (e: Exception) {
+                android.util.Log.w("AuthRepository", "Failed to reserve username in usernames collection: ${e.message}")
             }
 
             // Save user document in Firestore
@@ -264,8 +305,26 @@ class AuthRepository(
             )
             val cleanUsername = username?.trim()?.lowercase()
             if (!cleanUsername.isNullOrBlank()) {
+                if (!isValidUsername(cleanUsername)) {
+                    return Result.failure(Exception("Le nom d'utilisateur doit contenir entre 3 et 30 caractères (lettres, chiffres, tirets bas ou points)."))
+                }
+                val isUnique = checkUsernameUnique(cleanUsername)
+                if (!isUnique) {
+                    return Result.failure(Exception("Ce nom d'utilisateur est déjà pris."))
+                }
                 updates["username"] = cleanUsername
                 updates["usernameLower"] = cleanUsername
+                try {
+                    firestore.collection("usernames").document(cleanUsername).set(
+                        mapOf(
+                            "uid" to user.uid,
+                            "createdAt" to com.google.firebase.Timestamp.now()
+                        ),
+                        SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    android.util.Log.w("AuthRepository", "Could not reserve username: ${e.message}")
+                }
             }
             if (photoUrl != null) {
                 updates["photoUrl"] = photoUrl
@@ -415,5 +474,8 @@ class AuthRepository(
 
     fun signOut() {
         auth.signOut()
+        try {
+            com.thehub.hb.data.repository.UserCacheRepository.getInstance().clear()
+        } catch (_: Exception) {}
     }
 }

@@ -136,8 +136,14 @@ class UserRepository(
      * Check if username is taken by another user.
      */
     suspend fun checkUsernameUnique(username: String, currentUid: String): Boolean = withContext(Dispatchers.IO) {
+        val lower = username.trim().lowercase()
+        if (lower.length < 3 || lower.length > 30 || !lower.matches(Regex("^[a-zA-Z0-9._]+$"))) return@withContext false
         try {
-            val lower = username.trim().lowercase()
+            val usernameDoc = firestore.collection("usernames").document(lower).get().await()
+            if (usernameDoc.exists()) {
+                val docUid = usernameDoc.getString("uid")
+                return@withContext (docUid == currentUid)
+            }
             val query = firestore.collection("users")
                 .whereEqualTo("usernameLower", lower)
                 .limit(2)
@@ -173,9 +179,10 @@ class UserRepository(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         val cleanUsername = username.trim()
+        val newLower = cleanUsername.lowercase()
 
-        if (cleanUsername.length < 3) {
-            return@withContext Result.failure(Exception("Le nom d'utilisateur doit contenir au moins 3 caractères."))
+        if (cleanUsername.length < 3 || cleanUsername.length > 30 || !cleanUsername.matches(Regex("^[a-zA-Z0-9._]+$"))) {
+            return@withContext Result.failure(Exception("Le nom d'utilisateur doit contenir entre 3 et 30 caractères (lettres, chiffres, tirets bas ou points)."))
         }
 
         // Check uniqueness
@@ -185,15 +192,36 @@ class UserRepository(
         }
 
         try {
+            // Retrieve old username to release old claim if changed
+            val currentUserDoc = firestore.collection("users").document(uid).get().await()
+            val oldLower = currentUserDoc.getString("usernameLower") ?: currentUserDoc.getString("username")?.lowercase()
+
             val updates = mutableMapOf<String, Any?>(
                 "displayName" to displayName.trim(),
                 "username" to cleanUsername,
-                "usernameLower" to cleanUsername.lowercase(),
+                "usernameLower" to newLower,
                 "bio" to bio?.trim(),
                 "birthdate" to birthdate?.trim()
             )
             if (photoUrl != null) {
                 updates["photoUrl"] = photoUrl
+            }
+
+            // Reserve new username in usernames collection
+            try {
+                firestore.collection("usernames").document(newLower).set(
+                    mapOf(
+                        "uid" to uid,
+                        "updatedAt" to Timestamp.now()
+                    ),
+                    SetOptions.merge()
+                ).await()
+
+                if (!oldLower.isNullOrBlank() && oldLower != newLower) {
+                    firestore.collection("usernames").document(oldLower).delete().await()
+                }
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not update usernames collection: ${e.message}")
             }
 
             firestore.collection("users").document(uid)
@@ -1050,6 +1078,17 @@ class UserRepository(
         val authUser = auth.currentUser ?: return@withContext Result.failure(Exception("Utilisateur introuvable"))
 
         try {
+            // Retrieve old username to release from usernames collection
+            try {
+                val userDoc = firestore.collection("users").document(uid).get().await()
+                val lower = userDoc.getString("usernameLower") ?: userDoc.getString("username")?.lowercase()
+                if (!lower.isNullOrBlank()) {
+                    firestore.collection("usernames").document(lower).delete().await()
+                }
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Could not remove username claim: ${e.message}")
+            }
+
             // 1. Mark user document as deleted in Firestore so no further messages/posts can be sent
             try {
                 firestore.collection("users").document(uid)
@@ -1066,12 +1105,15 @@ class UserRepository(
                 Log.w("UserRepository", "Failed to delete user document: ${e.message}")
             }
 
-            // 3. Clear local DataStore
+            // 3. Clear local DataStore and in-memory caches
             try {
                 dataStoreManager.clearAll()
             } catch (e: Exception) {
                 Log.w("UserRepository", "Failed to clear DataStore: ${e.message}")
             }
+            try {
+                com.thehub.hb.data.repository.UserCacheRepository.getInstance().clear()
+            } catch (_: Exception) {}
 
             // 4. Delete Firebase Auth account
             try {

@@ -19,15 +19,17 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Build APK, Tag & Release
+    name: Build, Test & Release Android APK & AAB
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2. Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -35,64 +37,56 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      # 3. Prepare Environment & Permissions
       - name: Grant execute permission for gradlew
         run: |
           if [ -f gradlew ]; then
             chmod +x gradlew
           fi
 
-      - name: Prepare Environment, Keystores & Firebase
+      # 4. Firebase Configuration
+      - name: Prepare Firebase & Local Environment
         run: |
-          # 1. Ensure .env exists for the secrets gradle plugin
+          # Ensure .env exists for the secrets gradle plugin
           touch .env
 
-          # 2. Ensure google-services.json exists
+          # Ensure app/google-services.json exists
           if [ ! -f app/google-services.json ]; then
             echo "Restoring app/google-services.json..."
             cat << 'EOF' > app/google-services.json
-          {
-            "project_info": {
-              "project_number": "183373607979",
-              "project_id": "the-hub-f95f4",
-              "storage_bucket": "the-hub-f95f4.firebasestorage.app"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
-                  "android_client_info": {
-                    "package_name": "com.thehub.hb"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
-              }
-            ],
-            "configuration_version": "1"
-          }
-          EOF
+{
+  "project_info": {
+    "project_number": "183373607979",
+    "project_id": "the-hub-f95f4",
+    "storage_bucket": "the-hub-f95f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
+        "android_client_info": {
+          "package_name": "com.thehub.hb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+EOF
           fi
 
-          # 3. Ensure debug.keystore ALWAYS exists for debugConfig
-          if [ -f debug.keystore.base64 ]; then
-            echo "Restoring debug.keystore from debug.keystore.base64..."
-            base64 -d debug.keystore.base64 > debug.keystore || true
-          fi
-
-          if [ ! -f debug.keystore ]; then
-            echo "Generating debug.keystore with keytool..."
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
-
+      # 5. Versioning
       - name: Determine Tag & Version
         id: version_step
         run: |
@@ -104,66 +98,123 @@ jobs:
             TAG="v1.0.${{ github.run_number }}"
           fi
           CLEAN_VER="${TAG#v}"
-          echo "Computed Release Tag: $TAG (version: $CLEAN_VER)"
+          echo "Release Tag: $TAG (versionName: $CLEAN_VER, versionCode: ${{ github.run_number }})"
           echo "TAG=$TAG" >> $GITHUB_ENV
-          # Inject real versionName and versionCode into app/build.gradle.kts so Android OS Settings displays the real version
+          echo "CLEAN_VER=$CLEAN_VER" >> $GITHUB_ENV
+
+          # Inject real versionName and versionCode into app/build.gradle.kts
           sed -i "s/versionName = .*/versionName = \"$CLEAN_VER\"/" app/build.gradle.kts
           sed -i "s/versionCode = .*/versionCode = ${{ github.run_number }}/" app/build.gradle.kts
 
-      - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+      # 6. Keystore setup
+      - name: Configure Keystores
+        run: |
+          # 1. Ensure debug.keystore ALWAYS exists for debug builds and fallback
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
+          fi
 
-      - name: Build signed release APK
+          if [ ! -f debug.keystore ]; then
+            echo "Generating debug.keystore with keytool..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # 2. If release keystore secret is provided, decode it to app/keystore.jks
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding release keystore from secrets..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+            echo "USE_RELEASE_KEYSTORE=true" >> $GITHUB_ENV
+          else
+            echo "Release keystore secret not provided, will sign with debug keystore."
+            echo "USE_RELEASE_KEYSTORE=false" >> $GITHUB_ENV
+          fi
+
+      # 7. Unit Tests
+      - name: Run Unit Tests
+        run: ./gradlew test
+
+      # 8. Build Release APK
+      - name: Build Release APK
         env:
-          KEYSTORE_PATH: keystore.jks
+          KEYSTORE_PATH: ${{ env.USE_RELEASE_KEYSTORE == 'true' && 'keystore.jks' || '' }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
-      - name: Package Artifacts for Release
+      # 9. Build Release AAB
+      - name: Build Release AAB (Android App Bundle)
+        env:
+          KEYSTORE_PATH: ${{ env.USE_RELEASE_KEYSTORE == 'true' && 'keystore.jks' || '' }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew bundleRelease
+
+      # 10. Verify Artifacts exist and are non-empty
+      - name: Verify Artifacts Integrity
         run: |
           mkdir -p release-artifacts
 
-          # Debug APK
-          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk "release-artifacts/TheHub-${TAG}-debug.apk"
-            # If no release apk exists, make this the main apk
-            cp app/build/outputs/apk/debug/app-debug.apk "release-artifacts/TheHub-${TAG}.apk"
+          APK_FILE="app/build/outputs/apk/release/app-release.apk"
+          AAB_FILE="app/build/outputs/bundle/release/app-release.aab"
+
+          echo "=== Verifying Artifacts ==="
+
+          if [ ! -f "$APK_FILE" ]; then
+            echo "ERROR: Release APK was not found at $APK_FILE"
+            exit 1
           fi
 
-          # Release APK (if generated)
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk "release-artifacts/TheHub-${TAG}.apk"
+          if [ ! -s "$APK_FILE" ]; then
+            echo "ERROR: Release APK at $APK_FILE is empty"
+            exit 1
           fi
 
-          # Bundle AAB (if generated)
-          if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
-            cp app/build/outputs/bundle/release/app-release.aab "release-artifacts/TheHub-${TAG}.aab"
+          if [ ! -f "$AAB_FILE" ]; then
+            echo "ERROR: Release AAB was not found at $AAB_FILE"
+            exit 1
           fi
 
-          echo "Files prepared for release:"
-          ls -la release-artifacts/
+          if [ ! -s "$AAB_FILE" ]; then
+            echo "ERROR: Release AAB at $AAB_FILE is empty"
+            exit 1
+          fi
 
-      - name: Create Git Tag (if not already tagged)
+          # Prepare named release artifacts
+          TARGET_APK="release-artifacts/TheHub-${TAG}.apk"
+          TARGET_AAB="release-artifacts/TheHub-${TAG}.aab"
+
+          cp "$APK_FILE" "$TARGET_APK"
+          cp "$AAB_FILE" "$TARGET_AAB"
+
+          echo "Artifacts successfully created and verified:"
+          ls -lh release-artifacts/
+          sha256sum release-artifacts/*
+
+      # 11. Create Git Tag (if not existing)
+      - name: Create Git Tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Creating tag $TAG..."
-            git tag -a "$TAG" -m "Automated Release $TAG"
+            echo "Creating and pushing tag $TAG..."
+            git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"
           else
-            echo "Tag $TAG already exists on remote."
+            echo "Tag $TAG already exists."
           fi
 
+      # 12. Publish GitHub Release with APK & AAB attached
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          name: "The Hub - Release ${{ env.TAG }}"
-          files: release-artifacts/*
+          name: "The Hub ${{ env.TAG }}"
+          files: |
+            release-artifacts/*.apk
+            release-artifacts/*.aab
           generate_release_notes: true
           draft: false
           prerelease: false
