@@ -17,8 +17,8 @@ android {
     applicationId = "com.thehub.hb"
     minSdk = 24
     targetSdk = 36
-    versionCode = providers.gradleProperty("releaseVersionCode").map(String::toInt).orElse(21)
-    versionName = providers.gradleProperty("releaseVersion").orElse("1.0.21")
+    versionCode = providers.gradleProperty("releaseVersionCode").orNull?.toInt() ?: 21
+    versionName = providers.gradleProperty("releaseVersion").orNull ?: "1.0.21"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -33,7 +33,7 @@ android {
         keyAlias = System.getenv("KEY_ALIAS")
         keyPassword = System.getenv("KEY_PASSWORD")
       } else if (file("${rootDir}/debug.keystore").exists()) {
-        // Fallback remains available for local development; release CI validates the real signing secret.
+        // Local fallback only. CI requires the real release keystore before building release artifacts.
         storeFile = file("${rootDir}/debug.keystore")
         storePassword = "android"
         keyAlias = "androiddebugkey"
