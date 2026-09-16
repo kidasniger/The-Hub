@@ -1,20 +1,126 @@
 package com.thehub.hb.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// The Hub - Minimalist Monochromatic Theme Colors
-val HubBlack = Color(0xFF050505)
-val HubSurfaceDark = Color(0xFF0A0A0A)
-val HubCard = Color(0xFF121212)
-val HubSurfaceElevated = Color(0xFF181818)
-val HubBorder = Color(0xFF1E1E1E)
-val HubBorderLight = Color(0xFF2A2A2A)
+/**
+ * Palette de couleurs adaptable selon le mode de thème (Sombre, Clair, Effet Glass).
+ */
+data class HubPalette(
+    val black: Color,
+    val surfaceDark: Color,
+    val card: Color,
+    val surfaceElevated: Color,
+    val border: Color,
+    val borderLight: Color,
+    val darkGray: Color,
+    val muted: Color,
+    val secondary: Color,
+    val lightGray: Color,
+    val white: Color,
+    val error: Color,
+    val success: Color,
+    val isGlass: Boolean = false,
+    val isLight: Boolean = false
+)
 
-val HubDarkGray = Color(0xFF363636)
-val HubMuted = Color(0xFF5A5A5A)
-val HubSecondary = Color(0xFF8A8A8A)
-val HubLightGray = Color(0xFFC6C6C6)
-val HubWhite = Color(0xFFFFFFFF)
+// Palette Sombre : Noir profond & surfaces foncées minimalistes
+val HubDarkPalette = HubPalette(
+    black = Color(0xFF050505),
+    surfaceDark = Color(0xFF0A0A0A),
+    card = Color(0xFF121212),
+    surfaceElevated = Color(0xFF181818),
+    border = Color(0xFF1E1E1E),
+    borderLight = Color(0xFF2A2A2A),
+    darkGray = Color(0xFF363636),
+    muted = Color(0xFF5A5A5A),
+    secondary = Color(0xFF8A8A8A),
+    lightGray = Color(0xFFC6C6C6),
+    white = Color(0xFFFFFFFF),
+    error = Color(0xFFFF5A5A),
+    success = Color(0xFF4CAF50),
+    isGlass = false,
+    isLight = false
+)
 
-val HubError = Color(0xFFFF5A5A)
-val HubSuccess = Color(0xFF4CAF50)
+// Palette Claire : Toile lumineuse épurée, cartes blanches, texte sombre contrasté
+val HubLightPalette = HubPalette(
+    black = Color(0xFFF6F7F9), // Fond principal
+    surfaceDark = Color(0xFFFFFFFF), // Surface élevée
+    card = Color(0xFFFFFFFF), // Cartes de contenu
+    surfaceElevated = Color(0xFFECEEF2),
+    border = Color(0xFFE2E4E9),
+    borderLight = Color(0xFFEAEBED),
+    darkGray = Color(0xFFCFD3DA),
+    muted = Color(0xFF868B96),
+    secondary = Color(0xFF555B67),
+    lightGray = Color(0xFF333742),
+    white = Color(0xFF111418), // Texte et icônes principaux contrastés
+    error = Color(0xFFE53935),
+    success = Color(0xFF2E7D32),
+    isGlass = false,
+    isLight = true
+)
+
+// Palette Glass : Effet verre dépoli aéro avec reflets translucides et lueur moderne
+val HubGlassPalette = HubPalette(
+    black = Color(0xFF090D18), // Fond saphir nuit cosmique
+    surfaceDark = Color(0xFF0F172A),
+    card = Color(0x2EFFFFFF), // 18% verre dépoli translucide
+    surfaceElevated = Color(0x40FFFFFF), // 25% verre dépoli surélevé
+    border = Color(0x38FFFFFF), // 22% bordure translucide lumineuse
+    borderLight = Color(0x4DFFFFFF), // 30% reflet de lumière sur les contours
+    darkGray = Color(0x507C94B2),
+    muted = Color(0xFF8DA2BC),
+    secondary = Color(0xFFB4C8DF),
+    lightGray = Color(0xFFDCE8F7),
+    white = Color(0xFFFFFFFF), // Texte et icônes d'un blanc pur éclatant
+    error = Color(0xFFFF6B6B),
+    success = Color(0xFF4ECCA3),
+    isGlass = true,
+    isLight = false
+)
+
+val LocalHubColors = staticCompositionLocalOf { HubDarkPalette }
+
+// Couleurs dynamiques accessibles dans tous les Composables existants
+val HubBlack: Color
+    @Composable get() = LocalHubColors.current.black
+
+val HubSurfaceDark: Color
+    @Composable get() = LocalHubColors.current.surfaceDark
+
+val HubCard: Color
+    @Composable get() = LocalHubColors.current.card
+
+val HubSurfaceElevated: Color
+    @Composable get() = LocalHubColors.current.surfaceElevated
+
+val HubBorder: Color
+    @Composable get() = LocalHubColors.current.border
+
+val HubBorderLight: Color
+    @Composable get() = LocalHubColors.current.borderLight
+
+val HubDarkGray: Color
+    @Composable get() = LocalHubColors.current.darkGray
+
+val HubMuted: Color
+    @Composable get() = LocalHubColors.current.muted
+
+val HubSecondary: Color
+    @Composable get() = LocalHubColors.current.secondary
+
+val HubLightGray: Color
+    @Composable get() = LocalHubColors.current.lightGray
+
+val HubWhite: Color
+    @Composable get() = LocalHubColors.current.white
+
+val HubError: Color
+    @Composable get() = LocalHubColors.current.error
+
+val HubSuccess: Color
+    @Composable get() = LocalHubColors.current.success
+

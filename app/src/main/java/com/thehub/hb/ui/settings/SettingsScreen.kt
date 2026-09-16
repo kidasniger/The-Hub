@@ -30,11 +30,16 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import com.thehub.hb.BuildConfig
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
+import com.thehub.hb.ui.theme.AppLanguage
+import com.thehub.hb.ui.theme.AppThemeMode
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -90,10 +95,14 @@ fun SettingsScreen(
     val notifComments by viewModel.notifComments.collectAsState()
     val notifFollows by viewModel.notifFollows.collectAsState()
     val notifMessages by viewModel.notifMessages.collectAsState()
+    val currentThemeMode by viewModel.currentThemeMode.collectAsState()
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
 
+    var showThemeDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showDeleteStep1Dialog by remember { mutableStateOf(false) }
     var showDeleteStep2Dialog by remember { mutableStateOf(false) }
@@ -205,7 +214,44 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Section 3: Notifications
+                // Section 3: Apparence & Langue
+                SettingsSectionTitle(title = "Apparence & Langue")
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(HubCard)
+                ) {
+                    SettingsActionRow(
+                        icon = Icons.Default.Palette,
+                        title = "Mode d'affichage (Thème)",
+                        subtitle = when (currentThemeMode) {
+                            AppThemeMode.DARK -> "Mode Sombre"
+                            AppThemeMode.LIGHT -> "Mode Clair"
+                            AppThemeMode.GLASS -> "Effet Glass"
+                            AppThemeMode.SYSTEM -> "Système (Automatique)"
+                        },
+                        onClick = { showThemeDialog = true },
+                        showArrow = true,
+                        testTag = "settings_row_theme"
+                    )
+
+                    HorizontalDivider(color = HubBorder, thickness = 1.dp)
+
+                    SettingsActionRow(
+                        icon = Icons.Default.Language,
+                        title = "Langue de l'application",
+                        subtitle = "${currentLanguage.flagEmoji} ${currentLanguage.displayName}",
+                        onClick = { showLanguageDialog = true },
+                        showArrow = true,
+                        testTag = "settings_row_language"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Section 4: Notifications
                 SettingsSectionTitle(title = "Notifications")
 
                 Column(
@@ -332,6 +378,136 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
+    }
+
+    // Theme Selection Dialog
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            containerColor = HubCard,
+            title = {
+                Text(
+                    text = "Mode d'affichage",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppThemeMode.entries.forEach { mode ->
+                        val isSelected = mode == currentThemeMode
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) HubSurfaceElevated else HubBlack.copy(alpha = 0.5f))
+                                .clickable {
+                                    viewModel.setThemeMode(mode)
+                                    showThemeDialog = false
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = mode.titleFr,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) HubWhite else HubSecondary
+                                )
+                                Text(
+                                    text = mode.descriptionFr,
+                                    fontSize = 12.sp,
+                                    color = HubMuted
+                                )
+                            }
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = HubWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Fermer", color = HubWhite)
+                }
+            }
+        )
+    }
+
+    // Language Selection Dialog
+    if (showLanguageDialog) {
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            containerColor = HubCard,
+            title = {
+                Text(
+                    text = "Langue de l'application",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppLanguage.entries.forEach { lang ->
+                        val isSelected = lang == currentLanguage
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) HubSurfaceElevated else HubBlack.copy(alpha = 0.5f))
+                                .clickable {
+                                    viewModel.setLanguage(lang)
+                                    showLanguageDialog = false
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = lang.flagEmoji,
+                                fontSize = 22.sp,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                            Text(
+                                text = lang.displayName,
+                                fontSize = 15.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) HubWhite else HubSecondary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = HubWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text("Fermer", color = HubWhite)
+                }
+            }
+        )
     }
 
     // Sign Out Dialog

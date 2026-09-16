@@ -82,8 +82,9 @@ fun WheelDatePicker(
     minYear: Int = 1900,
     maxYear: Int = LocalDate.now().year,
     itemHeight: Dp = 44.dp,
-    containerBackgroundColor: Color = HubCard
+    containerBackgroundColor: Color = Color.Unspecified
 ) {
+    val effectiveContainerBg = if (containerBackgroundColor != Color.Unspecified) containerBackgroundColor else HubCard
     val currentYear = selectedDate.year.coerceIn(minYear, maxYear)
     val currentMonth = selectedDate.monthValue.coerceIn(1, 12)
     val maxDaysInCurrentMonth = remember(currentYear, currentMonth) {
@@ -198,8 +199,8 @@ fun WheelDatePicker(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            containerBackgroundColor,
-                            containerBackgroundColor.copy(alpha = 0.7f),
+                            effectiveContainerBg,
+                            effectiveContainerBg.copy(alpha = 0.7f),
                             Color.Transparent
                         )
                     )
@@ -216,8 +217,8 @@ fun WheelDatePicker(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            containerBackgroundColor.copy(alpha = 0.7f),
-                            containerBackgroundColor
+                            effectiveContainerBg.copy(alpha = 0.7f),
+                            effectiveContainerBg
                         )
                     )
                 )

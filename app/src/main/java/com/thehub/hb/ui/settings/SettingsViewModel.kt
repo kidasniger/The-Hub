@@ -43,6 +43,20 @@ class SettingsViewModel(
     val notifMessages: StateFlow<Boolean> = dataStoreManager.notifMessagesEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val currentThemeMode: StateFlow<com.thehub.hb.ui.theme.AppThemeMode> = dataStoreManager.appThemeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.thehub.hb.ui.theme.AppThemeMode.DARK)
+
+    val currentLanguage: StateFlow<com.thehub.hb.ui.theme.AppLanguage> = dataStoreManager.appLanguage
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.thehub.hb.ui.theme.AppLanguage.FR)
+
+    fun setThemeMode(mode: com.thehub.hb.ui.theme.AppThemeMode) {
+        viewModelScope.launch { dataStoreManager.setAppThemeMode(mode) }
+    }
+
+    fun setLanguage(language: com.thehub.hb.ui.theme.AppLanguage) {
+        viewModelScope.launch { dataStoreManager.setAppLanguage(language) }
+    }
+
     fun setNotifLikes(enabled: Boolean) {
         viewModelScope.launch { dataStoreManager.setNotifLikes(enabled) }
     }
