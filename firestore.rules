@@ -3,29 +3,22 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isAuthenticated() { return request.auth != null; }
     function isUser(uid) { return isAuthenticated() && request.auth.uid == uid; }
-    function validNotificationType(type) {
-      return type in ['like', 'comment', 'follow', 'message', 'like_comment', 'reply_comment'];
-    }
+    function validNotificationType(type) { return type in ['like', 'comment', 'follow', 'message', 'like_comment', 'reply_comment']; }
 
     match /usernames/{usernameLower} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid', 'createdAt', 'updatedAt'])
-        && (
-          ('createdAt' in request.resource.data && request.resource.data.createdAt is timestamp)
-          || ('updatedAt' in request.resource.data && request.resource.data.updatedAt is timestamp)
-        );
+        && ((!('createdAt' in request.resource.data)) || request.resource.data.createdAt is timestamp)
+        && ((!('updatedAt' in request.resource.data)) || request.resource.data.updatedAt is timestamp)
+        && (('createdAt' in request.resource.data) || ('updatedAt' in request.resource.data));
       allow update: if isAuthenticated()
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid', 'createdAt', 'updatedAt'])
-        && (
-          !('createdAt' in request.resource.data) || request.resource.data.createdAt is timestamp
-        )
-        && (
-          !('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp
-        );
+        && ((!('createdAt' in request.resource.data)) || request.resource.data.createdAt is timestamp)
+        && ((!('updatedAt' in request.resource.data)) || request.resource.data.updatedAt is timestamp);
       allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
     }
 
@@ -45,17 +38,24 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
           && request.resource.data.followersCount >= 0
           && (
-            request.resource.data.followersCount == resource.data.followersCount + 1
-            || request.resource.data.followersCount == resource.data.followersCount - 1
-            || (resource.data.followersCount == null && request.resource.data.followersCount == 1)
+            (request.resource.data.followersCount == resource.data.followersCount + 1
+              && !get(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
+              && getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists())
+            || (request.resource.data.followersCount == resource.data.followersCount - 1
+              && get(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
+              && !getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists())
+            || (resource.data.followersCount == null && request.resource.data.followersCount == 1
+              && getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists())
           )
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount'])
           && request.resource.data.followingCount >= 0
           && (
-            request.resource.data.followingCount == resource.data.followingCount + 1
-            || request.resource.data.followingCount == resource.data.followingCount - 1
+            (request.resource.data.followingCount == resource.data.followingCount + 1
+              && !get(/databases/$(database)/documents/users/$(userId)/following/{request.auth.uid}).exists())
+            || (request.resource.data.followingCount == resource.data.followingCount - 1
+              && get(/databases/$(database)/documents/users/$(userId)/following/{request.auth.uid}).exists())
             || (resource.data.followingCount == null && request.resource.data.followingCount == 1)
           )
         )
@@ -73,19 +73,15 @@ service cloud.firestore {
 
       match /blockedUsers/{blockedId} {
         allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == blockedId);
-        allow create: if isUser(userId)
-          && blockedId != userId
-          && request.resource.data.keys().hasOnly(['blockedAt'])
-          && request.resource.data.blockedAt is timestamp;
+        allow create: if isUser(userId) && blockedId != userId
+          && request.resource.data.keys().hasOnly(['blockedAt']) && request.resource.data.blockedAt is timestamp;
         allow update: if false;
         allow delete: if isUser(userId);
       }
 
       match /followers/{followerId} {
         allow read: if isAuthenticated();
-        allow create: if isAuthenticated()
-          && request.auth.uid == followerId
-          && followerId != userId
+        allow create: if isAuthenticated() && request.auth.uid == followerId && followerId != userId
           && request.resource.data.keys().hasOnly(['followedAt', 'followerId', 'uid'])
           && request.resource.data.followerId == request.auth.uid
           && request.resource.data.uid == request.auth.uid
@@ -96,8 +92,7 @@ service cloud.firestore {
 
       match /following/{followingId} {
         allow read: if isAuthenticated();
-        allow create: if isUser(userId)
-          && followingId != userId
+        allow create: if isUser(userId) && followingId != userId
           && request.resource.data.keys().hasOnly(['followedAt', 'followingId', 'uid'])
           && request.resource.data.followingId == followingId
           && request.resource.data.uid == followingId
@@ -111,125 +106,95 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      match /bookmarks/{bookmarkId} {
-        allow read, write: if isUser(userId);
-      }
+      match /bookmarks/{bookmarkId} { allow read, write: if isUser(userId); }
     }
 
     match /reports/{reportId} {
-      allow create: if isAuthenticated()
-        && request.resource.data.reporterId == request.auth.uid
+      allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid
         && request.resource.data.createdAt is timestamp
         && (
-          (
-            request.resource.data.targetType in ['user', 'post']
+          (request.resource.data.targetType in ['user', 'post']
             && request.resource.data.targetId is string
             && request.resource.data.targetId.size() > 0
             && request.resource.data.reason is string
-            && request.resource.data.reason.size() > 0
-          )
-          || (
-            request.resource.data.type == 'comment'
+            && request.resource.data.reason.size() > 0)
+          ||
+          (request.resource.data.type == 'comment'
             && request.resource.data.postId is string
-            && request.resource.data.postId.size() > 0
             && request.resource.data.commentId is string
-            && request.resource.data.commentId.size() > 0
             && request.resource.data.reason is string
-            && request.resource.data.reason.size() > 0
-          )
+            && request.resource.data.reason.size() > 0)
         );
       allow read, update, delete: if false;
     }
 
     match /posts/{postId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
-        && request.resource.data.authorId == request.auth.uid
-        && request.resource.data.text is string
-        && request.resource.data.createdAt is timestamp;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string && request.resource.data.createdAt is timestamp;
       allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
       allow update: if isAuthenticated() && (
         (
           resource.data.authorId == request.auth.uid
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'text', 'hashtags', 'updatedAt', 'imageUrl', 'authorUsername', 'authorPhotoUrl'
-          ])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'hashtags', 'updatedAt', 'imageUrl', 'authorUsername', 'authorPhotoUrl'])
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
           && request.resource.data.likesCount >= 0
           && (
-            request.resource.data.likesCount == resource.data.likesCount + 1
-            || request.resource.data.likesCount == resource.data.likesCount - 1
+            (request.resource.data.likesCount == resource.data.likesCount + 1
+              && !get(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
+              && getAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists())
+            || (request.resource.data.likesCount == resource.data.likesCount - 1
+              && get(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
+              && !getAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists())
           )
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
           && request.resource.data.commentsCount >= 0
-          && (
-            request.resource.data.commentsCount == resource.data.commentsCount + 1
-            || request.resource.data.commentsCount == resource.data.commentsCount - 1
-          )
+          && (request.resource.data.commentsCount == resource.data.commentsCount + 1 || request.resource.data.commentsCount == resource.data.commentsCount - 1)
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount'])
           && request.resource.data.repostsCount >= 0
-          && (
-            request.resource.data.repostsCount == resource.data.repostsCount + 1
-            || request.resource.data.repostsCount == resource.data.repostsCount - 1
-          )
+          && (request.resource.data.repostsCount == resource.data.repostsCount + 1 || request.resource.data.repostsCount == resource.data.repostsCount - 1)
         )
       );
 
       match /likes/{userId} {
         allow read: if isAuthenticated();
-        allow create: if isUser(userId)
-          && request.resource.data.keys().hasOnly(['likedAt'])
-          && request.resource.data.likedAt is timestamp;
+        allow create: if isUser(userId) && request.resource.data.keys().hasOnly(['likedAt']) && request.resource.data.likedAt is timestamp;
         allow update: if false;
         allow delete: if isUser(userId);
       }
 
       match /comments/{commentId} {
         allow read: if isAuthenticated();
-        allow create: if isAuthenticated()
-          && request.resource.data.authorId == request.auth.uid
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.createdAt is timestamp
-          && request.resource.data.likesCount == 0;
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.text is string && request.resource.data.text.size() > 0
+          && request.resource.data.createdAt is timestamp && request.resource.data.likesCount == 0;
         allow delete: if isAuthenticated() && (
           resource.data.authorId == request.auth.uid
           || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
         );
         allow update: if isAuthenticated() && (
-          (
-            resource.data.authorId == request.auth.uid
+          (resource.data.authorId == request.auth.uid
             && request.resource.data.authorId == resource.data.authorId
             && request.resource.data.createdAt == resource.data.createdAt
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited', 'editedAt'])
-          )
-          || (
-            get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHidden'])
-          )
-          || (
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited', 'editedAt']))
+          || (get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHidden']))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
             && request.resource.data.likesCount >= 0
-            && (
-              request.resource.data.likesCount == resource.data.likesCount + 1
-              || request.resource.data.likesCount == resource.data.likesCount - 1
-            )
-          )
+            && (request.resource.data.likesCount == resource.data.likesCount + 1 || request.resource.data.likesCount == resource.data.likesCount - 1))
         );
 
         match /likes/{userId} {
           allow read: if isAuthenticated();
-          allow create: if isUser(userId)
-            && request.resource.data.keys().hasOnly(['likedAt'])
-            && request.resource.data.likedAt is timestamp;
+          allow create: if isUser(userId) && request.resource.data.keys().hasOnly(['likedAt']) && request.resource.data.likedAt is timestamp;
           allow update: if false;
           allow delete: if isUser(userId);
         }
@@ -238,36 +203,27 @@ service cloud.firestore {
 
     match /conversations/{conversationId} {
       allow read: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
-      allow create: if isAuthenticated()
-        && request.resource.data.participantIds is list
+      allow create: if isAuthenticated() && request.resource.data.participantIds is list
         && request.resource.data.participantIds.size() == 2
         && request.resource.data.participantIds[0] != request.resource.data.participantIds[1]
         && request.auth.uid in request.resource.data.participantIds;
-      allow update: if isAuthenticated()
-        && request.auth.uid in resource.data.participantIds
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participantIds
         && request.resource.data.participantIds == resource.data.participantIds;
       allow delete: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
 
       match /messages/{messageId} {
         function canAccess() {
-          return isAuthenticated()
-            && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+          return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
         }
         allow read: if canAccess();
-        allow create: if canAccess()
-          && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.createdAt is timestamp;
+        allow create: if canAccess() && request.resource.data.senderId == request.auth.uid && request.resource.data.createdAt is timestamp;
         allow update: if isAuthenticated() && (
-          (
-            resource.data.senderId == request.auth.uid
+          (resource.data.senderId == request.auth.uid
             && request.resource.data.senderId == resource.data.senderId
-            && request.resource.data.createdAt == resource.data.createdAt
-          )
-          || (
-            canAccess()
+            && request.resource.data.createdAt == resource.data.createdAt)
+          || (canAccess()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-            && request.resource.data.status in ['sent', 'delivered', 'read']
-          )
+            && request.resource.data.status in ['sent', 'delivered', 'read'])
         );
         allow delete: if isAuthenticated() && resource.data.senderId == request.auth.uid;
       }
@@ -275,19 +231,16 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow read, update, delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
-      allow create: if isAuthenticated()
-        && request.resource.data.actorId == request.auth.uid
+      allow create: if isAuthenticated() && request.resource.data.actorId == request.auth.uid
         && request.resource.data.recipientId != request.auth.uid
         && request.resource.data.actorUsername is string
         && request.resource.data.actorUsername.size() <= 64
         && validNotificationType(request.resource.data.type)
         && request.resource.data.createdAt is timestamp
         && request.resource.data.isRead == false
-        && (
-          !('actorPhotoUrl' in request.resource.data)
+        && ((!('actorPhotoUrl' in request.resource.data))
           || request.resource.data.actorPhotoUrl == null
-          || request.resource.data.actorPhotoUrl is string
-        );
+          || request.resource.data.actorPhotoUrl is string);
     }
   }
 }
