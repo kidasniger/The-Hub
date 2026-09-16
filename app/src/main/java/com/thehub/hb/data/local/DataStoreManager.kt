@@ -30,7 +30,6 @@ class DataStoreManager(private val context: Context) {
         val KEY_NOTIF_FOLLOWS = booleanPreferencesKey("notif_follows")
         val KEY_NOTIF_MESSAGES = booleanPreferencesKey("notif_messages")
         val KEY_APP_THEME_MODE = stringPreferencesKey("app_theme_mode")
-        val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
     }
 
     val appThemeMode: Flow<com.thehub.hb.ui.theme.AppThemeMode> = context.dataStore.data.map { preferences ->
@@ -41,17 +40,6 @@ class DataStoreManager(private val context: Context) {
     suspend fun setAppThemeMode(mode: com.thehub.hb.ui.theme.AppThemeMode) {
         context.dataStore.edit { preferences ->
             preferences[KEY_APP_THEME_MODE] = mode.key
-        }
-    }
-
-    val appLanguage: Flow<com.thehub.hb.ui.theme.AppLanguage> = context.dataStore.data.map { preferences ->
-        val raw = preferences[KEY_APP_LANGUAGE]
-        com.thehub.hb.ui.theme.AppLanguage.fromCode(raw)
-    }
-
-    suspend fun setAppLanguage(language: com.thehub.hb.ui.theme.AppLanguage) {
-        context.dataStore.edit { preferences ->
-            preferences[KEY_APP_LANGUAGE] = language.code
         }
     }
 
