@@ -5,6 +5,8 @@ import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
+import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -39,137 +41,59 @@ class UserRepository(
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
-    /**
-     * Real-time listener for a user profile.
-     */
-    fun observeUserProfile(uid: String): Flow<User?> = callbackFlow {
-        val listener = firestore.collection("users").document(uid)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null || !snapshot.exists()) {
-                    trySend(null)
-                    return@addSnapshotListener
-                }
-                try {
-                    val user = User.fromMap(snapshot.data ?: emptyMap())
-                    trySend(user)
-                } catch (e: Exception) {
-                    Log.e("UserRepository", "Error parsing user $uid: ${e.message}")
-                    trySend(null)
-                }
-            }
+    private fun userRef(uid: String) = firestore.collection("users").document(uid)
 
-        awaitClose { listener.remove() }
-    }.flowOn(Dispatchers.IO)
-
-    /**
-     * Get user profile once, reconciling actual counts from collections.
-     */
     suspend fun getUserProfile(uid: String): Result<User?> = withContext(Dispatchers.IO) {
         try {
-            val doc = firestore.collection("users").document(uid).get().await()
-            if (!doc.exists()) {
-                return@withContext Result.success(null)
-            }
-            val baseUser = User.fromMap(doc.data ?: emptyMap())
-
-            // Reconcile actual counts
-            val actualPosts = try {
-                firestore.collection("posts")
-                    .whereEqualTo("authorId", uid)
-                    .count()
-                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                    .await().count.toInt()
-            } catch (_: Exception) {
-                baseUser.postsCount
-            }
-
-            val actualFollowers = try {
-                firestore.collection("users").document(uid)
-                    .collection("followers")
-                    .count()
-                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                    .await().count.toInt()
-            } catch (_: Exception) {
-                baseUser.followersCount
-            }
-
-            val actualFollowing = try {
-                firestore.collection("users").document(uid)
-                    .collection("following")
-                    .count()
-                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                    .await().count.toInt()
-            } catch (_: Exception) {
-                baseUser.followingCount
-            }
-
-            val reconciled = baseUser.copy(
-                postsCount = actualPosts,
-                followersCount = actualFollowers,
-                followingCount = actualFollowing
-            )
-
-            // Asynchronously sync document if counts differ
-            if (reconciled.postsCount != baseUser.postsCount ||
-                reconciled.followersCount != baseUser.followersCount ||
-                reconciled.followingCount != baseUser.followingCount) {
-                try {
-                    firestore.collection("users").document(uid).set(
-                        mapOf(
-                            "postsCount" to reconciled.postsCount,
-                            "followersCount" to reconciled.followersCount,
-                            "followingCount" to reconciled.followingCount
-                        ),
-                        com.google.firebase.firestore.SetOptions.merge()
-                    )
-                } catch (_: Exception) {}
-            }
-
-            Result.success(reconciled)
+            val doc = userRef(uid).get().await()
+            if (!doc.exists()) return@withContext Result.success(null)
+            val base = User.fromMap(doc.data ?: emptyMap())
+            val posts = try {
+                firestore.collection("posts").whereEqualTo("authorId", uid)
+                    .count().get(AggregateSource.SERVER).await().count.toInt()
+            } catch (_: Exception) { base.postsCount }
+            val followers = try {
+                userRef(uid).collection("followers")
+                    .count().get(AggregateSource.SERVER).await().count.toInt()
+            } catch (_: Exception) { base.followersCount }
+            val following = try {
+                userRef(uid).collection("following")
+                    .count().get(AggregateSource.SERVER).await().count.toInt()
+            } catch (_: Exception) { base.followingCount }
+            Result.success(base.copy(postsCount = posts, followersCount = followers, followingCount = following))
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error fetching user profile $uid: ${e.message}", e)
+            Log.e("UserRepository", "Erreur profil $uid", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Check if username is taken by another user.
-     */
+    fun observeUserProfile(uid: String): Flow<User?> = callbackFlow {
+        val listener = userRef(uid).addSnapshotListener { snapshot, error ->
+            if (error != null || snapshot == null || !snapshot.exists()) {
+                trySend(null)
+                return@addSnapshotListener
+            }
+            trySend(runCatching { User.fromMap(snapshot.data ?: emptyMap()) }.getOrNull())
+        }
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
     suspend fun checkUsernameUnique(username: String, currentUid: String): Boolean = withContext(Dispatchers.IO) {
         val lower = username.trim().lowercase()
-        if (lower.length < 3 || lower.length > 30 || !lower.matches(Regex("^[a-zA-Z0-9._]+$"))) return@withContext false
+        if (lower.length !in 3..30 || !lower.matches(Regex("^[a-zA-Z0-9._]+$"))) return@withContext false
         try {
-            val usernameDoc = firestore.collection("usernames").document(lower).get().await()
-            if (usernameDoc.exists()) {
-                val docUid = usernameDoc.getString("uid")
-                return@withContext (docUid == currentUid)
-            }
-            val query = firestore.collection("users")
-                .whereEqualTo("usernameLower", lower)
-                .limit(2)
-                .get()
-                .await()
-
-            if (query.isEmpty) return@withContext true
-            val docs = query.documents
-            // If the only document with this username is the current user, it is valid/unique
-            return@withContext docs.all { it.id == currentUid }
+            val claim = firestore.collection("usernames").document(lower).get().await()
+            if (claim.exists()) return@withContext claim.getString("uid") == currentUid
+            val users = firestore.collection("users").whereEqualTo("usernameLower", lower).limit(2).get().await()
+            users.documents.all { it.id == currentUid }
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error checking username uniqueness: ${e.message}", e)
-            return@withContext false
+            Log.e("UserRepository", "Erreur unicité username", e)
+            false
         }
     }
 
-    /**
-     * Upload an image to ImgBB for profile photo.
-     */
-    suspend fun uploadProfilePhoto(imageBytes: ByteArray): Result<String> {
-        return imgbbService.uploadImage(imageBytes)
-    }
+    suspend fun uploadProfilePhoto(imageBytes: ByteArray): Result<String> = imgbbService.uploadImage(imageBytes)
 
-    /**
-     * Update user profile fields.
-     */
     suspend fun updateProfile(
         displayName: String,
         username: String,
@@ -178,962 +102,431 @@ class UserRepository(
         photoUrl: String?
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        val cleanName = displayName.trim().take(80)
         val cleanUsername = username.trim()
         val newLower = cleanUsername.lowercase()
-
-        if (cleanUsername.length < 3 || cleanUsername.length > 30 || !cleanUsername.matches(Regex("^[a-zA-Z0-9._]+$"))) {
-            return@withContext Result.failure(Exception("Le nom d'utilisateur doit contenir entre 3 et 30 caractères (lettres, chiffres, tirets bas ou points)."))
+        if (cleanUsername.length !in 3..30 || !cleanUsername.matches(Regex("^[a-zA-Z0-9._]+$"))) {
+            return@withContext Result.failure(Exception("Nom d'utilisateur invalide"))
         }
-
-        // Check uniqueness
-        val isUnique = checkUsernameUnique(cleanUsername, uid)
-        if (!isUnique) {
-            return@withContext Result.failure(Exception("Ce nom d'utilisateur est déjà pris."))
-        }
-
         try {
-            // Retrieve old username to release old claim if changed
-            val currentUserDoc = firestore.collection("users").document(uid).get().await()
-            val oldLower = currentUserDoc.getString("usernameLower") ?: currentUserDoc.getString("username")?.lowercase()
-
-            val updates = mutableMapOf<String, Any?>(
-                "displayName" to displayName.trim(),
-                "username" to cleanUsername,
-                "usernameLower" to newLower,
-                "bio" to bio?.trim(),
-                "birthdate" to birthdate?.trim()
-            )
-            if (photoUrl != null) {
-                updates["photoUrl"] = photoUrl
-            }
-
-            // Reserve new username in usernames collection
-            try {
-                firestore.collection("usernames").document(newLower).set(
-                    mapOf(
-                        "uid" to uid,
-                        "updatedAt" to Timestamp.now()
-                    ),
-                    SetOptions.merge()
-                ).await()
-
-                if (!oldLower.isNullOrBlank() && oldLower != newLower) {
-                    firestore.collection("usernames").document(oldLower).delete().await()
-                }
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not update usernames collection: ${e.message}")
-            }
-
-            firestore.collection("users").document(uid)
-                .set(updates, SetOptions.merge())
-                .await()
-
-            // Update Firebase Auth profile
-            val authUser = auth.currentUser
-            if (authUser != null) {
-                val profileUpdates = userProfileChangeRequest {
-                    this.displayName = displayName.trim()
-                    if (photoUrl != null) {
-                        this.photoUri = Uri.parse(photoUrl)
+            val userDocument = userRef(uid)
+            val newUsernameRef = firestore.collection("usernames").document(newLower)
+            val oldUsernameRefHolder = arrayOf<DocumentSnapshot?>(null)
+            firestore.runTransaction { tx ->
+                val current = tx.get(userDocument)
+                if (!current.exists() || current.getBoolean("isDeleted") == true) throw IllegalStateException("Compte supprimé")
+                val oldLower = current.getString("usernameLower") ?: current.getString("username")?.lowercase()
+                if (oldLower != newLower) {
+                    val claim = tx.get(newUsernameRef)
+                    val owner = claim.getString("uid")
+                    if (claim.exists() && owner != uid) throw IllegalStateException("Ce nom d'utilisateur est déjà pris")
+                    tx.set(newUsernameRef, mapOf("uid" to uid, "updatedAt" to Timestamp.now()))
+                    if (!oldLower.isNullOrBlank()) {
+                        oldUsernameRefHolder[0] = firestore.collection("usernames").document(oldLower).get().await()
                     }
                 }
-                authUser.updateProfile(profileUpdates).await()
+                val updates = mutableMapOf<String, Any?>(
+                    "displayName" to cleanName,
+                    "username" to cleanUsername,
+                    "usernameLower" to newLower,
+                    "bio" to bio?.trim()?.take(400),
+                    "birthdate" to birthdate?.trim()
+                )
+                if (photoUrl != null) updates["photoUrl"] = photoUrl
+                tx.set(userDocument, updates, SetOptions.merge())
+            }.await()
+            val oldSnapshot = oldUsernameRefHolder[0]
+            if (oldSnapshot != null && oldSnapshot.exists() && oldSnapshot.getString("uid") == uid) {
+                oldSnapshot.reference.delete().await()
             }
 
-            // Update local DataStore
+            auth.currentUser?.let { user ->
+                user.updateProfile(userProfileChangeRequest {
+                    displayName = cleanName
+                    if (photoUrl != null) photoUri = Uri.parse(photoUrl)
+                }).await()
+            }
             dataStoreManager.saveLastUser(
                 email = auth.currentUser?.email ?: "",
                 username = cleanUsername,
-                name = displayName.trim(),
+                name = cleanName,
                 photoUrl = photoUrl
             )
-
-            // Update shared in-memory UserCacheRepository immediately
-            com.thehub.hb.data.repository.UserCacheRepository.getInstance().putUser(
-                com.thehub.hb.data.model.UserInfo(
-                    uid = uid,
-                    displayName = displayName.trim(),
-                    username = cleanUsername,
-                    photoUrl = photoUrl
-                )
+            UserCacheRepository.getInstance().putUser(
+                com.thehub.hb.data.model.UserInfo(uid, cleanName, cleanUsername, photoUrl)
             )
-
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error updating profile: ${e.message}", e)
+            Log.e("UserRepository", "Erreur mise à jour profil", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Check if current user is following target user in real-time.
-     */
     fun isFollowing(targetUid: String): Flow<Boolean> = callbackFlow {
         val uid = currentUserId
-        if (uid == null || uid == targetUid) {
+        if (uid.isNullOrBlank() || uid == targetUid) {
             trySend(false)
             close()
             return@callbackFlow
         }
-
-        val listener = firestore.collection("users").document(uid)
-            .collection("following").document(targetUid)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(false)
-                    return@addSnapshotListener
-                }
-                trySend(snapshot?.exists() == true)
-            }
-
+        val listener = userRef(uid).collection("following").document(targetUid)
+            .addSnapshotListener { snapshot, _ -> trySend(snapshot?.exists() == true) }
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
 
-    /**
-     * Check if current user is following target user once.
-     */
     suspend fun checkIsFollowing(targetUid: String): Result<Boolean> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.success(false)
         if (uid == targetUid) return@withContext Result.success(false)
         try {
-            val doc = firestore.collection("users").document(uid)
-                .collection("following").document(targetUid)
-                .get()
-                .await()
-            Result.success(doc.exists())
+            Result.success(userRef(uid).collection("following").document(targetUid).get().await().exists())
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Follow a user atomically using Firestore transaction.
-     * Updates followers/following subcollections, denormalized counters,
-     * and reciprocal friends subcollections (users/{uid}/friends/{targetUid} and
-     * users/{targetUid}/friends/{uid}) when the follow creates a mutual relationship.
-     */
     suspend fun followUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         if (uid == targetUid) return@withContext Result.failure(Exception("Impossible de se suivre soi-même"))
-
         try {
-            val currentUserRef = firestore.collection("users").document(uid)
-            val targetUserRef = firestore.collection("users").document(targetUid)
-            val followingRef = currentUserRef.collection("following").document(targetUid)
-            val followerRef = targetUserRef.collection("followers").document(uid)
-            val targetFollowingRef = targetUserRef.collection("following").document(uid)
-            val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
-            val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
-
+            val me = userRef(uid)
+            val target = userRef(targetUid)
+            val following = me.collection("following").document(targetUid)
+            val follower = target.collection("followers").document(uid)
             val now = Timestamp.now()
-
-            // Check if target user already follows current user (reciprocal relationship)
-            val isMutual = try {
-                val targetFollowsCurrentDoc = targetFollowingRef.get().await()
-                targetFollowsCurrentDoc.exists()
-            } catch (_: Exception) {
-                false
-            }
-
-            // 1. Record following for current user (own document, guaranteed allowed)
-            followingRef.set(
-                mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid),
-                SetOptions.merge()
-            ).await()
-
-            // 2. Increment followingCount for current user
-            try {
-                currentUserRef.set(
-                    mapOf("followingCount" to FieldValue.increment(1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not increment followingCount: ${e.message}")
-            }
-
-            // 3. Record follower on target user's followers subcollection
-            try {
-                followerRef.set(
-                    mapOf("followedAt" to now, "followerId" to uid, "uid" to uid),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not set follower doc on target user: ${e.message}")
-            }
-
-            // 4. Try incrementing target user followersCount if allowed by security rules
-            try {
-                targetUserRef.set(
-                    mapOf("followersCount" to FieldValue.increment(1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not increment target followersCount: ${e.message}")
-            }
-
-            // 5. If reciprocal relationship established, maintain friends subcollections
-            if (isMutual) {
-                try {
-                    currentUserFriendRef.set(
-                        mapOf("friendedAt" to now, "uid" to targetUid),
-                        SetOptions.merge()
-                    ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Could not write to currentUser friends: ${e.message}")
+            var created = false
+            firestore.runTransaction { tx ->
+                val meDoc = tx.get(me)
+                val targetDoc = tx.get(target)
+                if (!meDoc.exists() || !targetDoc.exists() || meDoc.getBoolean("isDeleted") == true || targetDoc.getBoolean("isDeleted") == true) {
+                    throw IllegalStateException("Compte indisponible")
                 }
-                try {
-                    targetUserFriendRef.set(
-                        mapOf("friendedAt" to now, "uid" to uid),
-                        SetOptions.merge()
-                    ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Could not write to targetUser friends: ${e.message}")
+                val blockedByMe = tx.get(me.collection("blockedUsers").document(targetUid)).exists()
+                val blockedByTarget = tx.get(target.collection("blockedUsers").document(uid)).exists()
+                if (blockedByMe || blockedByTarget) throw IllegalStateException("Action impossible entre comptes bloqués")
+                if (!tx.get(following).exists()) {
+                    tx.set(following, mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid))
+                    tx.set(follower, mapOf("followedAt" to now, "followerId" to uid, "uid" to uid))
+                    tx.update(me, "followingCount", FieldValue.increment(1))
+                    tx.update(target, "followersCount", FieldValue.increment(1))
+                    created = true
                 }
+            }.await()
+            if (created) {
+                notificationRepository.createNotification(targetUid, NotificationItem.TYPE_FOLLOW)
             }
-
-            // 6. Send notification to target user
-            try {
-                notificationRepository.createNotification(
-                    recipientId = targetUid,
-                    type = NotificationItem.TYPE_FOLLOW
-                )
-            } catch (_: Exception) {}
-
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error following user $targetUid: ${e.message}", e)
+            Log.e("UserRepository", "Erreur follow $targetUid", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Unfollow a user safely.
-     * Removes following/followers records and mutual friend records.
-     */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         if (uid == targetUid) return@withContext Result.failure(Exception("Action non permise"))
-
         try {
-            val currentUserRef = firestore.collection("users").document(uid)
-            val targetUserRef = firestore.collection("users").document(targetUid)
-            val followingRef = currentUserRef.collection("following").document(targetUid)
-            val followerRef = targetUserRef.collection("followers").document(uid)
-            val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
-            val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
-
-            // 1. Delete following record from current user's following subcollection (guaranteed authorized)
-            followingRef.delete().await()
-
-            // 2. Decrement current user's following count (current user's document)
-            try {
-                currentUserRef.set(
-                    mapOf("followingCount" to FieldValue.increment(-1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not decrement followingCount: ${e.message}")
-            }
-
-            // 3. Delete follower record from target user's followers subcollection
-            try {
-                followerRef.delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not delete follower doc on target user: ${e.message}")
-            }
-
-            // 4. Try decrementing followersCount on target user if permitted
-            try {
-                targetUserRef.set(
-                    mapOf("followersCount" to FieldValue.increment(-1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not decrement target followersCount: ${e.message}")
-            }
-
-            // 5. Remove friend relationship from both users' friends subcollections if it existed
-            try {
-                currentUserFriendRef.delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not delete from currentUser friends: ${e.message}")
-            }
-            try {
-                targetUserFriendRef.delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not delete from targetUser friends: ${e.message}")
-            }
-
+            val me = userRef(uid)
+            val target = userRef(targetUid)
+            val following = me.collection("following").document(targetUid)
+            val follower = target.collection("followers").document(uid)
+            firestore.runTransaction { tx ->
+                if (tx.get(following).exists()) {
+                    tx.delete(following)
+                    tx.delete(follower)
+                    tx.update(me, "followingCount", FieldValue.increment(-1))
+                    tx.update(target, "followersCount", FieldValue.increment(-1))
+                }
+            }.await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error unfollowing user $targetUid: ${e.message}", e)
+            Log.e("UserRepository", "Erreur unfollow $targetUid", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Real-time listener to check if target user is a friend (mutual relationship).
-     */
-    fun isFriend(targetUid: String): Flow<Boolean> = callbackFlow {
-        val uid = currentUserId
-        if (uid == null || uid == targetUid) {
-            trySend(false)
-            close()
-            return@callbackFlow
-        }
-
-        var listener: ListenerRegistration? = null
-        try {
-            listener = firestore.collection("users").document(uid)
-                .collection("friends").document(targetUid)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        return@addSnapshotListener
-                    }
-                    if (snapshot != null) {
-                        trySend(snapshot.exists())
-                    }
-                }
-        } catch (_: Exception) {}
-
-        launch {
-            val result = checkIsFriend(targetUid).getOrDefault(false)
-            trySend(result)
-        }
-
-        awaitClose { listener?.remove() }
-    }.flowOn(Dispatchers.IO)
-
-    /**
-     * Check if target user is in current user's friends subcollection once.
-     * Falls back to checking mutual follow state if subcollection is restricted.
-     */
     suspend fun checkIsFriend(targetUid: String): Result<Boolean> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.success(false)
         if (uid == targetUid) return@withContext Result.success(false)
         try {
-            val doc = firestore.collection("users").document(uid)
-                .collection("friends").document(targetUid)
-                .get()
-                .await()
-            Result.success(doc.exists())
-        } catch (_: Exception) {
-            // Fallback: check mutual follows directly
-            try {
-                val followsTarget = checkIsFollowing(targetUid).getOrDefault(false)
-                if (!followsTarget) return@withContext Result.success(false)
-                val targetDoc = firestore.collection("users").document(targetUid)
-                    .collection("following").document(uid)
-                    .get()
-                    .await()
-                Result.success(targetDoc.exists())
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            val following = userRef(uid).collection("following").document(targetUid).get().await().exists()
+            if (!following) return@withContext Result.success(false)
+            Result.success(userRef(targetUid).collection("following").document(uid).get().await().exists())
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    /**
-     * Get list of mutual friends (users who follow each other) for a user.
-     * Reads from users/{uid}/friends subcollection. If the subcollection is empty
-     * or inaccessible, checks mutual follows and backfills them automatically.
-     */
+    fun isFriend(targetUid: String): Flow<Boolean> = callbackFlow {
+        val uid = currentUserId
+        if (uid.isNullOrBlank() || uid == targetUid) {
+            trySend(false)
+            close()
+            return@callbackFlow
+        }
+        val listener = userRef(uid).collection("following").document(targetUid)
+            .addSnapshotListener { _, _ ->
+                launch {
+                    trySend(checkIsFriend(targetUid).getOrDefault(false))
+                }
+            }
+        trySend(checkIsFriend(targetUid).getOrDefault(false))
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
     suspend fun getFriends(uid: String): Result<List<User>> = withContext(Dispatchers.IO) {
         try {
-            val friendIds = mutableListOf<String>()
-
-            // 1. Try reading directly from users/{uid}/friends subcollection
-            try {
-                val snapshot = firestore.collection("users").document(uid)
-                    .collection("friends")
-                    .limit(100)
-                    .get()
-                    .await()
-                for (doc in snapshot.documents) {
-                    friendIds.add(doc.id)
-                }
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Direct friends subcollection read failed (${e.message}), checking mutual follows fallback")
+            val following = userRef(uid).collection("following").limit(200).get().await().documents.map { it.id }.toSet()
+            val followers = userRef(uid).collection("followers").limit(200).get().await().documents.map { it.id }.toSet()
+            val ids = following.intersect(followers)
+            val users = coroutineScope {
+                ids.map { id -> async {
+                    userRef(id).get().await().takeIf { it.exists() }?.let { User.fromMap(it.data ?: emptyMap()) }
+                }}.awaitAll().filterNotNull()
             }
-
-            // 2. If subcollection is empty or read was denied by security rules,
-            // compute mutual follows from following & followers
-            if (friendIds.isEmpty()) {
-                try {
-                    val followingSnap = firestore.collection("users").document(uid)
-                        .collection("following")
-                        .limit(100)
-                        .get()
-                        .await()
-                    val followingIds = followingSnap.documents.map { it.id }.toSet()
-
-                    if (followingIds.isNotEmpty()) {
-                        val followersSnap = firestore.collection("users").document(uid)
-                            .collection("followers")
-                            .limit(100)
-                            .get()
-                            .await()
-                        val followerIds = followersSnap.documents.map { it.id }.toSet()
-
-                        val mutualIds = followingIds.intersect(followerIds).toList()
-                        friendIds.addAll(mutualIds)
-
-                        // Attempt to populate friends subcollection for future direct queries
-                        if (mutualIds.isNotEmpty()) {
-                            try {
-                                val now = Timestamp.now()
-                                val batch = firestore.batch()
-                                for (mId in mutualIds) {
-                                    val ref1 = firestore.collection("users").document(uid).collection("friends").document(mId)
-                                    val ref2 = firestore.collection("users").document(mId).collection("friends").document(uid)
-                                    batch.set(ref1, mapOf("friendedAt" to now, "uid" to mId))
-                                    batch.set(ref2, mapOf("friendedAt" to now, "uid" to uid))
-                                }
-                                batch.commit().await()
-                            } catch (e: Exception) {
-                                Log.w("UserRepository", "Friends cache backfill skipped: ${e.message}")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Mutual follows computation error: ${e.message}")
-                }
-            }
-
-            // 3. Fetch User profile documents for each friend ID
-            val users = mutableListOf<User>()
-            for (friendId in friendIds.distinct()) {
-                try {
-                    val userDoc = firestore.collection("users").document(friendId).get().await()
-                    if (userDoc.exists()) {
-                        users.add(User.fromMap(userDoc.data ?: emptyMap()))
-                    }
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Could not fetch user $friendId: ${e.message}")
-                }
-            }
-            Result.success(users)
+            Result.success(users.filterNot { it.isDeleted })
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error getting friends for $uid: ${e.message}", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Get list of followers for a user.
-     */
-    suspend fun getFollowers(uid: String): Result<List<User>> = withContext(Dispatchers.IO) {
+    suspend fun getFollowers(uid: String): Result<List<User>> = getUserListFromRelationship(uid, "followers")
+    suspend fun getFollowing(uid: String): Result<List<User>> = getUserListFromRelationship(uid, "following")
+
+    private suspend fun getUserListFromRelationship(uid: String, relation: String): Result<List<User>> = withContext(Dispatchers.IO) {
         try {
-            val snapshot = firestore.collection("users").document(uid)
-                .collection("followers")
-                .orderBy("followedAt", Query.Direction.DESCENDING)
-                .limit(100)
-                .get()
-                .await()
-
-            val users = mutableListOf<User>()
-            for (doc in snapshot.documents) {
-                val followerId = doc.id
-                val userDoc = firestore.collection("users").document(followerId).get().await()
-                if (userDoc.exists()) {
-                    users.add(User.fromMap(userDoc.data ?: emptyMap()))
-                }
+            val docs = userRef(uid).collection(relation).orderBy("followedAt", Query.Direction.DESCENDING).limit(100).get().await()
+            val users = coroutineScope {
+                docs.documents.map { doc ->
+                    val id = doc.id
+                    async {
+                        userRef(id).get().await().takeIf { it.exists() }?.let { User.fromMap(it.data ?: emptyMap()) }
+                    }
+                }.awaitAll().filterNotNull().filterNot { it.isDeleted }
             }
             Result.success(users)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error getting followers for $uid: ${e.message}", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Get list of users followed by a user.
-     */
-    suspend fun getFollowing(uid: String): Result<List<User>> = withContext(Dispatchers.IO) {
-        try {
-            val snapshot = firestore.collection("users").document(uid)
-                .collection("following")
-                .orderBy("followedAt", Query.Direction.DESCENDING)
-                .limit(100)
-                .get()
-                .await()
-
-            val users = mutableListOf<User>()
-            for (doc in snapshot.documents) {
-                val followingId = doc.id
-                val userDoc = firestore.collection("users").document(followingId).get().await()
-                if (userDoc.exists()) {
-                    users.add(User.fromMap(userDoc.data ?: emptyMap()))
-                }
-            }
-            Result.success(users)
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error getting following for $uid: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Block a user.
-     */
     suspend fun blockUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         if (uid == targetUid) return@withContext Result.failure(Exception("Impossible de se bloquer soi-même"))
-
         try {
-            // Write to users/{uid}/blockedUsers/{targetUid}
-            firestore.collection("users").document(uid)
-                .collection("blockedUsers").document(targetUid)
-                .set(mapOf("blockedAt" to Timestamp.now()))
-                .await()
-
-            // Also unfollow if currently following
-            try {
-                unfollowUser(targetUid)
-            } catch (_: Exception) {}
-
+            val me = userRef(uid)
+            val target = userRef(targetUid)
+            val following = me.collection("following").document(targetUid)
+            val follower = target.collection("followers").document(uid)
+            firestore.runTransaction { tx ->
+                tx.set(me.collection("blockedUsers").document(targetUid), mapOf("blockedAt" to Timestamp.now()))
+                if (tx.get(following).exists()) {
+                    tx.delete(following)
+                    tx.delete(follower)
+                    tx.update(me, "followingCount", FieldValue.increment(-1))
+                    tx.update(target, "followersCount", FieldValue.increment(-1))
+                }
+            }.await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error blocking user $targetUid: ${e.message}", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Unblock a user.
-     */
     suspend fun unblockUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-
         try {
-            firestore.collection("users").document(uid)
-                .collection("blockedUsers").document(targetUid)
-                .delete()
-                .await()
-
+            userRef(uid).collection("blockedUsers").document(targetUid).delete().await()
             Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error unblocking user $targetUid: ${e.message}", e)
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    /**
-     * Get list of blocked users for the current user.
-     */
     suspend fun getBlockedUsers(): Result<List<BlockedUser>> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.success(emptyList())
-
         try {
-            val snapshot = firestore.collection("users").document(uid)
-                .collection("blockedUsers")
-                .orderBy("blockedAt", Query.Direction.DESCENDING)
-                .get()
-                .await()
-
-            val blockedList = mutableListOf<BlockedUser>()
-            for (doc in snapshot.documents) {
-                val blockedUid = doc.id
-                val blockedAt = doc.getTimestamp("blockedAt") ?: Timestamp.now()
-                var username = "thehub_user"
-                var displayName: String? = null
-                var photoUrl: String? = null
-
-                try {
-                    val userDoc = firestore.collection("users").document(blockedUid).get().await()
-                    if (userDoc.exists()) {
-                        username = userDoc.getString("username") ?: username
-                        displayName = userDoc.getString("displayName")
-                        photoUrl = userDoc.getString("photoUrl")
+            val docs = userRef(uid).collection("blockedUsers").orderBy("blockedAt", Query.Direction.DESCENDING).get().await()
+            val result = coroutineScope {
+                docs.documents.map { doc ->
+                    async {
+                        val id = doc.id
+                        val at = doc.getTimestamp("blockedAt") ?: Timestamp.now()
+                        val user = userRef(id).get().await()
+                        BlockedUser(
+                            uid = id,
+                            username = user.getString("username") ?: "thehub_user",
+                            displayName = user.getString("displayName"),
+                            photoUrl = user.getString("photoUrl"),
+                            blockedAt = at
+                        )
                     }
-                } catch (_: Exception) {}
-
-                blockedList.add(
-                    BlockedUser(
-                        uid = blockedUid,
-                        username = username,
-                        displayName = displayName,
-                        photoUrl = photoUrl,
-                        blockedAt = blockedAt
-                    )
-                )
+                }.awaitAll()
             }
-
-            Result.success(blockedList)
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error fetching blocked users: ${e.message}", e)
-            Result.failure(e)
-        }
+            Result.success(result)
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    /**
-     * Get IDs of users blocked by current user.
-     */
     suspend fun getBlockedUserIds(): Set<String> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext emptySet()
-        try {
-            val snapshot = firestore.collection("users").document(uid)
-                .collection("blockedUsers")
-                .get()
-                .await()
-            snapshot.documents.map { it.id }.toSet()
-        } catch (e: Exception) {
-            emptySet()
-        }
+        runCatching { userRef(uid).collection("blockedUsers").get().await().documents.map { it.id }.toSet() }.getOrDefault(emptySet())
     }
 
-    /**
-     * Check two-way blocking between current user and target user.
-     * Returns true if either user blocked the other.
-     */
     suspend fun isBlocked(targetUid: String): Result<Boolean> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.success(false)
-        if (uid == targetUid) return@withContext Result.success(false)
-
         try {
-            // Check if current user blocked target
-            val blockedByMe = firestore.collection("users").document(uid)
-                .collection("blockedUsers").document(targetUid)
-                .get()
-                .await()
-                .exists()
-
-            if (blockedByMe) return@withContext Result.success(true)
-
-            // Check if target user blocked current user
-            val blockedByTarget = try {
-                firestore.collection("users").document(targetUid)
-                    .collection("blockedUsers").document(uid)
-                    .get()
-                    .await()
-                    .exists()
-            } catch (_: Exception) {
-                false
-            }
-
-            Result.success(blockedByTarget)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+            val mine = userRef(uid).collection("blockedUsers").document(targetUid).get().await().exists()
+            val theirs = userRef(targetUid).collection("blockedUsers").document(uid).get().await().exists()
+            Result.success(mine || theirs)
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    /**
-     * Check specifically if current user blocked target.
-     */
     suspend fun isBlockedByMe(targetUid: String): Boolean = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext false
-        try {
-            firestore.collection("users").document(uid)
-                .collection("blockedUsers").document(targetUid)
-                .get()
-                .await()
-                .exists()
-        } catch (_: Exception) {
-            false
-        }
+        runCatching { userRef(uid).collection("blockedUsers").document(targetUid).get().await().exists() }.getOrDefault(false)
     }
 
-    /**
-     * Report content (user or post).
-     */
-    suspend fun reportContent(
-        targetType: String,
-        targetId: String,
-        reason: String,
-        details: String? = null
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun reportContent(targetType: String, targetId: String, reason: String, details: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-
         try {
-            val reportDoc = firestore.collection("reports").document()
-            val report = Report(
-                id = reportDoc.id,
-                reporterId = uid,
-                targetType = targetType,
-                targetId = targetId,
-                reason = reason,
-                details = details?.trim()?.takeIf { it.isNotBlank() },
-                createdAt = Timestamp.now(),
-                status = "pending"
-            )
-
-            reportDoc.set(report.toMap()).await()
+            val ref = firestore.collection("reports").document()
+            ref.set(Report(ref.id, uid, targetType, targetId.trim(), reason.trim(), details?.trim()?.takeIf { it.isNotBlank() }, Timestamp.now(), "pending").toMap()).await()
             Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error reporting content: ${e.message}", e)
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    /**
-     * Fetch posts by a specific user.
-     * To avoid requiring a composite index on (authorId, createdAt) in Firestore,
-     * we query by authorId and sort in-memory.
-     */
     suspend fun getUserPosts(userId: String): Result<List<Post>> = withContext(Dispatchers.IO) {
-        if (userId.isBlank()) {
-            return@withContext Result.success(emptyList())
-        }
+        if (userId.isBlank()) return@withContext Result.success(emptyList())
         try {
             val currentUid = currentUserId
-
-            // Query posts by authorId without composite order to prevent FAILED_PRECONDITION
-            val snapshot = firestore.collection("posts")
-                .whereEqualTo("authorId", userId)
-                .limit(100)
-                .get()
-                .await()
-
-            // Fetch bookmarks to hydrate bookmark status (remote + local cache)
-            val localBookmarks = dataStoreManager.getLocalBookmarkedIds()
-            val remoteBookmarks = if (currentUid != null) {
-                try {
-                    firestore.collection("users").document(currentUid)
-                        .collection("bookmarks").get().await()
-                        .documents.map { it.id }.toSet()
-                } catch (_: Exception) {
-                    emptySet()
-                }
-            } else emptySet()
-            val bookmarkedIds = remoteBookmarks + localBookmarks
-
+            val bookmarked = currentUid?.let { runCatching { userRef(it).collection("bookmarks").get().await().documents.map { d -> d.id }.toSet() }.getOrDefault(emptySet()) } ?: emptySet()
+            val snap = firestore.collection("posts").whereEqualTo("authorId", userId).limit(100).get().await()
             val posts = coroutineScope {
-                snapshot.documents.map { doc ->
+                snap.documents.map { doc ->
                     async {
-                        try {
-                            val post = Post.fromSnapshot(doc, currentUid)
-                            var isLiked = post.isLikedByCurrentUser
-                            if (currentUid != null && !isLiked) {
-                                try {
-                                    val likeDoc = firestore.collection("posts").document(post.id)
-                                        .collection("likes").document(currentUid)
-                                        .get().await()
-                                    isLiked = likeDoc.exists()
-                                } catch (_: Exception) {}
-                            }
-                            post.copy(
-                                isLikedByCurrentUser = isLiked,
-                                isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
-                            )
-                        } catch (e: Exception) {
-                            Log.e("UserRepository", "Error parsing post in getUserPosts: ${e.message}")
-                            null
-                        }
+                        val post = Post.fromSnapshot(doc, currentUid)
+                        val liked = currentUid?.let { runCatching { doc.reference.collection("likes").document(it).get().await().exists() }.getOrDefault(false) } ?: false
+                        post.copy(isLikedByCurrentUser = liked, isBookmarkedByCurrentUser = bookmarked.contains(post.id))
                     }
-                }.awaitAll().filterNotNull()
+                }.awaitAll()
             }.sortedByDescending { it.createdAt.toDate().time }
-
             Result.success(posts)
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error fetching user posts for $userId: ${e.message}", e)
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    /**
-     * Real-time listener for user posts.
-     * Emits immediately whenever a user's post is added, deleted or modified in Firestore.
-     */
     fun observeUserPosts(userId: String): Flow<List<Post>> = callbackFlow {
         if (userId.isBlank()) {
             trySend(emptyList())
             close()
             return@callbackFlow
         }
-        val query = firestore.collection("posts")
-            .whereEqualTo("authorId", userId)
-            .limit(100)
-
-        val listener = query.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.w("UserRepository", "observeUserPosts error: ${error.message}")
+        val listener = firestore.collection("posts").whereEqualTo("authorId", userId).limit(100)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) {
+                    return@addSnapshotListener
+                }
                 launch(Dispatchers.IO) {
-                    val result = getUserPosts(userId)
-                    result.onSuccess { posts -> trySend(posts) }
-                }
-                return@addSnapshotListener
-            }
-            if (snapshot == null) return@addSnapshotListener
-
-            val docs = snapshot.documents
-            launch(Dispatchers.IO) {
-                val uid = currentUserId
-                try {
-                    val localBookmarks = dataStoreManager.getLocalBookmarkedIds()
-                    val remoteBookmarks = if (uid != null) {
-                        try {
-                            firestore.collection("users").document(uid)
-                                .collection("bookmarks").get().await()
-                                .documents.map { it.id }.toSet()
-                        } catch (_: Exception) {
-                            emptySet()
-                        }
-                    } else emptySet()
-                    val bookmarkedIds = remoteBookmarks + localBookmarks
-
-                    val basePosts = docs.map { doc ->
-                        Post.fromSnapshot(doc, uid).copy(
-                            isBookmarkedByCurrentUser = bookmarkedIds.contains(doc.id)
-                        )
-                    }.sortedByDescending { it.createdAt.toDate().time }
-                    // Immediate emission for instant reactivity
-                    trySend(basePosts)
-
-                    val hydrated = coroutineScope {
-                        basePosts.map { post ->
-                            async {
-                                var isLiked = post.isLikedByCurrentUser
-                                if (uid != null && !isLiked) {
-                                    try {
-                                        val likeDoc = firestore.collection("posts").document(post.id)
-                                            .collection("likes").document(uid).get().await()
-                                        isLiked = likeDoc.exists()
-                                    } catch (_: Exception) {}
-                                }
-                                post.copy(isLikedByCurrentUser = isLiked)
-                            }
-                        }.awaitAll()
-                    }
-                    trySend(hydrated)
-                } catch (e: Exception) {
-                    val fallback = docs.map { Post.fromSnapshot(it, uid) }
-                        .sortedByDescending { it.createdAt.toDate().time }
-                    trySend(fallback)
+                    getUserPosts(userId).onSuccess { trySend(it) }
                 }
             }
-        }
-
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
 
-    /**
-     * Delete a post authored by the current user.
-     */
     suspend fun deletePost(postId: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-
         try {
-            val postRef = firestore.collection("posts").document(postId)
-            val postDoc = postRef.get().await()
-            if (!postDoc.exists()) {
-                return@withContext Result.failure(Exception("Publication introuvable"))
+            val ref = firestore.collection("posts").document(postId)
+            val post = ref.get().await()
+            if (!post.exists() || post.getString("authorId") != uid) return@withContext Result.failure(Exception("Publication introuvable ou non autorisée"))
+            val likes = ref.collection("likes").get().await().documents
+            likes.chunked(400).forEach { chunk ->
+                val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
             }
-
-            val authorId = postDoc.getString("authorId")
-            if (authorId != uid) {
-                return@withContext Result.failure(Exception("Non autorisé à supprimer cette publication"))
-            }
-
-            // 1. Delete likes subcollection
-            try {
-                val likesDocs = postRef.collection("likes").get().await()
-                if (!likesDocs.isEmpty) {
-                    val batch = firestore.batch()
-                    likesDocs.documents.forEach { doc ->
-                        batch.delete(doc.reference)
-                    }
-                    batch.commit().await()
+            val comments = ref.collection("comments").get().await().documents
+            comments.forEach { comment ->
+                val commentLikes = comment.reference.collection("likes").get().await().documents
+                commentLikes.chunked(200).forEach { chunk ->
+                    val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
                 }
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Failed deleting likes subcollection: ${e.message}")
             }
-
-            // 2. Delete comments subcollection
-            try {
-                val commentsDocs = postRef.collection("comments").get().await()
-                if (!commentsDocs.isEmpty) {
-                    val batch = firestore.batch()
-                    commentsDocs.documents.forEach { doc ->
-                        batch.delete(doc.reference)
-                    }
-                    batch.commit().await()
+            comments.chunked(300).forEach { chunk ->
+                val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
+            }
+            firestore.runTransaction { tx ->
+                if (tx.get(ref).exists()) {
+                    tx.delete(ref)
+                    tx.update(userRef(uid), "postsCount", FieldValue.increment(-1))
                 }
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Failed deleting comments subcollection: ${e.message}")
-            }
-
-            // 3. Delete the post document itself
-            postRef.delete().await()
-
-            // 4. Decrement postsCount on user doc
-            try {
-                firestore.collection("users").document(uid)
-                    .update("postsCount", FieldValue.increment(-1))
-                    .await()
-            } catch (_: Exception) {}
-
+            }.await()
             Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error deleting post $postId: ${e.message}", e)
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
-    /**
-     * Delete user account completely.
-     * Deletes Firestore users/{uid} document and then deletes the Firebase Auth user.
-     */
     suspend fun deleteAccount(): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         val authUser = auth.currentUser ?: return@withContext Result.failure(Exception("Utilisateur introuvable"))
-
         try {
-            // Retrieve old username to release from usernames collection
-            try {
-                val userDoc = firestore.collection("users").document(uid).get().await()
-                val lower = userDoc.getString("usernameLower") ?: userDoc.getString("username")?.lowercase()
-                if (!lower.isNullOrBlank()) {
-                    firestore.collection("usernames").document(lower).delete().await()
+            val me = userRef(uid)
+            val current = me.get().await()
+            val oldLower = current.getString("usernameLower") ?: current.getString("username")?.lowercase()
+
+            // Remove the user's own references and authored content where client security permits it.
+            val followingDocs = me.collection("following").limit(400).get().await().documents
+            for (doc in followingDocs) {
+                val targetId = doc.id
+                val target = userRef(targetId)
+                val followerRef = target.collection("followers").document(uid)
+                runCatching {
+                    firestore.runTransaction { tx ->
+                        tx.delete(doc.reference)
+                        if (tx.get(followerRef).exists()) tx.delete(followerRef)
+                        if (tx.get(target).exists()) tx.update(target, "followersCount", FieldValue.increment(-1))
+                    }.await()
                 }
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not remove username claim: ${e.message}")
             }
 
-            // 1. Mark user document as deleted in Firestore so no further messages/posts can be sent
-            try {
-                firestore.collection("users").document(uid)
-                    .set(mapOf("isDeleted" to true), com.google.firebase.firestore.SetOptions.merge())
-                    .await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Failed to set isDeleted flag: ${e.message}")
+            val blocked = me.collection("blockedUsers").get().await().documents
+            blocked.chunked(400).forEach { chunk ->
+                val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
+            }
+            val bookmarks = me.collection("bookmarks").get().await().documents
+            bookmarks.chunked(400).forEach { chunk ->
+                val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
             }
 
-            // 2. Delete user document in Firestore
-            try {
-                firestore.collection("users").document(uid).delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Failed to delete user document: ${e.message}")
+            val authoredPosts = firestore.collection("posts").whereEqualTo("authorId", uid).limit(100).get().await().documents
+            for (post in authoredPosts) {
+                runCatching { deletePost(post.id) }
             }
 
-            // 3. Clear local DataStore and in-memory caches
-            try {
-                dataStoreManager.clearAll()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Failed to clear DataStore: ${e.message}")
+            if (!oldLower.isNullOrBlank()) {
+                val claimRef = firestore.collection("usernames").document(oldLower)
+                runCatching {
+                    firestore.runTransaction { tx ->
+                        val claim = tx.get(claimRef)
+                        if (claim.getString("uid") == uid) tx.delete(claimRef)
+                        tx.set(me, mapOf(
+                            "isDeleted" to true,
+                            "displayName" to "Compte supprimé",
+                            "username" to "compte_supprime_${uid.take(8)}",
+                            "usernameLower" to "compte_supprime_${uid.take(8)}",
+                            "bio" to null,
+                            "birthdate" to null,
+                            "photoUrl" to null,
+                            "email" to null
+                        ), SetOptions.merge())
+                    }.await()
+                }
+            } else {
+                me.set(mapOf("isDeleted" to true, "displayName" to "Compte supprimé", "photoUrl" to null, "email" to null), SetOptions.merge()).await()
             }
-            try {
-                com.thehub.hb.data.repository.UserCacheRepository.getInstance().clear()
-            } catch (_: Exception) {}
 
-            // 4. Delete Firebase Auth account
-            try {
-                authUser.delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Failed to delete Firebase Auth user: ${e.message}")
-                // In case Firebase requires re-authentication, we sign out immediately so the session terminates
-                auth.signOut()
-            }
-
-            // Ensure auth sign out is called
+            runCatching { dataStoreManager.clearAll() }
+            UserCacheRepository.getInstance().clear()
+            runCatching { authUser.delete().await() }
             auth.signOut()
-
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error deleting account: ${e.message}", e)
-            try {
-                auth.signOut()
-                dataStoreManager.clearAll()
-            } catch (_: Exception) {}
+            Log.e("UserRepository", "Erreur suppression compte", e)
+            auth.signOut()
+            runCatching { dataStoreManager.clearAll() }
             Result.failure(e)
         }
     }
