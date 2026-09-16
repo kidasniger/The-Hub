@@ -44,47 +44,74 @@ jobs:
             chmod +x gradlew
           fi
 
-      # 4. Firebase Configuration
+      # 4. Firebase & Local Environment Setup
       - name: Prepare Firebase & Local Environment
         run: |
           # Ensure .env exists for the secrets gradle plugin
           touch .env
 
-          # Ensure app/google-services.json exists
-          if [ ! -f app/google-services.json ]; then
-            echo "Restoring app/google-services.json..."
-            cat << 'EOF' > app/google-services.json
-          {
-            "project_info": {
-              "project_number": "183373607979",
-              "project_id": "the-hub-f95f4",
-              "storage_bucket": "the-hub-f95f4.firebasestorage.app"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
-                  "android_client_info": {
-                    "package_name": "com.thehub.hb"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
-              }
-            ],
-            "configuration_version": "1"
-          }
-          EOF
+          # If GOOGLE_SERVICES_JSON secret is provided, restore it; otherwise use repository file
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "Restoring app/google-services.json from secret..."
+            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
           fi
+
+      # 4b. Verify Firebase Configuration (google-services.json)
+      - name: Validate Firebase Configuration Integrity
+        run: |
+          python3 -c '
+          import json, sys, os
+
+          path = "app/google-services.json"
+          if not os.path.exists(path):
+              print(f"ERROR: {path} is missing!")
+              sys.exit(1)
+
+          try:
+              with open(path, "r", encoding="utf-8") as f:
+                  data = json.load(f)
+          except Exception as e:
+              print(f"ERROR: Failed to parse {path} as JSON: {e}")
+              sys.exit(1)
+
+          project_id = data.get("project_info", {}).get("project_id")
+          if project_id != "the-hub-f95f4":
+              print(f"ERROR: Invalid project_id: \"{project_id}\" (expected \"the-hub-f95f4\")")
+              sys.exit(1)
+
+          clients = data.get("client", [])
+          matching_client = None
+          for c in clients:
+              pkg = c.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              if pkg == "com.thehub.hb":
+                  matching_client = c
+                  break
+
+          if not matching_client:
+              print("ERROR: No client entry found for package_name \"com.thehub.hb\"")
+              sys.exit(1)
+
+          oauth_clients = matching_client.get("oauth_client", [])
+          has_android_client = any(
+              oc.get("client_type") == 1 and
+              oc.get("android_info", {}).get("package_name") == "com.thehub.hb"
+              for oc in oauth_clients
+          )
+          if not has_android_client:
+              print("ERROR: Missing Android OAuth client (client_type 1) for com.thehub.hb")
+              sys.exit(1)
+
+          web_client_id = "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com"
+          has_web_client = any(
+              oc.get("client_type") == 3 and oc.get("client_id") == web_client_id
+              for oc in oauth_clients
+          )
+          if not has_web_client:
+              print(f"ERROR: Missing Web OAuth client (client_type 3 with ID {web_client_id})")
+              sys.exit(1)
+
+          print("SUCCESS: google-services.json verified! (project: the-hub-f95f4, package: com.thehub.hb, Android OAuth type 1 and Web OAuth type 3 present)")
+          '
 
       # 5. Versioning
       - name: Determine Tag & Version
