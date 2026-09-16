@@ -458,6 +458,7 @@ private fun FeedSkeletonList() {
 private fun FeedEmptyState(
     onCreatePost: () -> Unit
 ) {
+    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -486,7 +487,7 @@ private fun FeedEmptyState(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Aucune publication",
+                text = strings.noPostsYet,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = HubWhite
@@ -495,7 +496,10 @@ private fun FeedEmptyState(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Soyez le premier à partager une pensée ou une photo avec la communauté !",
+                text = if (strings == com.thehub.hb.ui.theme.EnHubStrings)
+                    "Be the first to share a thought or a photo with the community!"
+                else
+                    "Soyez le premier à partager une pensée ou une photo avec la communauté !",
                 fontSize = 14.sp,
                 color = HubSecondary,
                 textAlign = TextAlign.Center,
@@ -505,7 +509,7 @@ private fun FeedEmptyState(
             Spacer(modifier = Modifier.height(24.dp))
 
             HubButton(
-                text = "Créer une publication",
+                text = strings.tabCreate,
                 onClick = onCreatePost,
                 modifier = Modifier.width(220.dp),
                 testTag = "feed_empty_create_post"

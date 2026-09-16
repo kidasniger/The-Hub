@@ -54,7 +54,8 @@ class GitHubUpdateService(
             val json = JSONObject(responseBody)
             val tagName = json.optString("tag_name", "").trim()
             val releaseName = json.optString("name", tagName).trim()
-            val releaseNotes = json.optString("body", "").trim()
+            val rawReleaseNotes = json.optString("body", "").trim()
+            val cleanNotes = sanitizeReleaseNotes(rawReleaseNotes)
             val publishedAt = json.optString("published_at", "")
 
             // Look for APK in assets
@@ -87,8 +88,8 @@ class GitHubUpdateService(
                 val updateInfo = AppUpdateInfo(
                     latestVersion = tagName,
                     currentVersion = currentVersion,
-                    releaseTitle = releaseName,
-                    releaseNotes = releaseNotes,
+                    releaseTitle = releaseName.takeIf { !it.contains("http") } ?: "Mise à jour $tagName",
+                    releaseNotes = cleanNotes,
                     apkDownloadUrl = apkDownloadUrl,
                     apkFileName = apkFileName.ifBlank { "TheHub-$tagName.apk" },
                     apkSizeInBytes = apkSize,
@@ -136,5 +137,64 @@ class GitHubUpdateService(
             .removePrefix("V")
             .substringBefore("-") // Ignore build metadata / qualifiers
             .filter { it.isDigit() || it == '.' }
+    }
+
+    /**
+     * Nettoie les notes de version GitHub pour supprimer tous les liens URL,
+     * les mentions de PR/commits et formater proprement la liste des modifications.
+     */
+    fun sanitizeReleaseNotes(raw: String): String {
+        if (raw.isBlank()) {
+            return "• Améliorations générales des performances et de la fluidité\n• Corrections de bugs et renforcement de la stabilité"
+        }
+
+        val lines = raw.lines()
+        val cleanedLines = mutableListOf<String>()
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            // Ignorer les titres markdown "What's Changed" ou "Changelog"
+            if (trimmed.startsWith("#") || trimmed.equals("What's Changed", ignoreCase = true)) {
+                continue
+            }
+            // Ignorer les liens complets de comparaison GitHub "Full Changelog", "Compare"
+            if (trimmed.contains("Full Changelog", ignoreCase = true) ||
+                trimmed.contains("compare/", ignoreCase = true) ||
+                trimmed.contains("/compare", ignoreCase = true)
+            ) {
+                continue
+            }
+
+            // Nettoyer les liens Markdown [texte](url) -> texte
+            var cleaned = trimmed.replace(Regex("""\[(.*?)\]\(.*?\)"""), "$1")
+            // Supprimer les suffixes de PR GitHub "by @user in https://..." ou "in https://..."
+            cleaned = cleaned.replace(Regex("""by\s+@[\w-]+\s+in\s+https?://\S+"""), "")
+            cleaned = cleaned.replace(Regex("""in\s+https?://\S+"""), "")
+            // Supprimer toute URL résiduelle http/https
+            cleaned = cleaned.replace(Regex("""https?://\S+"""), "")
+            // Supprimer les références de commit (ex: (#123))
+            cleaned = cleaned.replace(Regex("""\(\s*#\d+\s*\)"""), "")
+            cleaned = cleaned.trim()
+
+            if (cleaned.isBlank()) continue
+
+            // Formater en puce élégante
+            val bulletText = when {
+                cleaned.startsWith("* ") -> "• " + cleaned.removePrefix("* ").trim()
+                cleaned.startsWith("- ") -> "• " + cleaned.removePrefix("- ").trim()
+                cleaned.startsWith("• ") -> cleaned
+                else -> "• $cleaned"
+            }
+
+            if (bulletText.length > 2) {
+                cleanedLines.add(bulletText)
+            }
+        }
+
+        return if (cleanedLines.isNotEmpty()) {
+            cleanedLines.joinToString("\n")
+        } else {
+            "• Améliorations générales des performances et de la fluidité\n• Corrections de bugs et renforcement de la stabilité"
+        }
     }
 }

@@ -243,6 +243,19 @@ class MessageRepository(
         val currentUid = currentUserId
             ?: return@withContext Result.failure(Exception("Utilisateur non connecté."))
 
+        // Verify that current user account still exists and is not deleted
+        try {
+            val userDoc = firestore.collection("users").document(currentUid).get().await()
+            if (!userDoc.exists() || userDoc.getBoolean("isDeleted") == true) {
+                auth.signOut()
+                return@withContext Result.failure(Exception("Ce compte a été supprimé."))
+            }
+        } catch (e: Exception) {
+            if (e.message?.contains("supprimé", ignoreCase = true) == true) {
+                return@withContext Result.failure(e)
+            }
+        }
+
         val trimmedText = text?.trim()
         if (trimmedText.isNullOrBlank() && imageUrl.isNullOrBlank()) {
             return@withContext Result.failure(Exception("Le message ne peut pas être vide."))

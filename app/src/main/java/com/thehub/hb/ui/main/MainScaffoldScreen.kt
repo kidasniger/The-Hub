@@ -338,6 +338,15 @@ fun HubBottomNavigationBar(
                     label = "tab_label_scale_${tab.name}"
                 )
 
+                val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
+                val tabTitle = when (tab) {
+                    MainTab.FEED -> strings.tabFeed
+                    MainTab.SEARCH -> strings.tabSearch
+                    MainTab.CREATE -> strings.tabCreate
+                    MainTab.NOTIFICATIONS -> strings.tabNotifications
+                    MainTab.PROFILE -> strings.tabProfile
+                }
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -367,7 +376,7 @@ fun HubBottomNavigationBar(
                             ) {
                                 Icon(
                                     imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.title,
+                                    contentDescription = tabTitle,
                                     tint = if (isSelected) HubBlack else HubWhite,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -390,7 +399,7 @@ fun HubBottomNavigationBar(
                             ) {
                                 Icon(
                                     imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.title,
+                                    contentDescription = tabTitle,
                                     tint = if (isSelected) HubWhite else HubMuted,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -398,7 +407,7 @@ fun HubBottomNavigationBar(
                         } else {
                             Icon(
                                 imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.title,
+                                contentDescription = tabTitle,
                                 tint = if (isSelected) HubWhite else HubMuted,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -408,7 +417,7 @@ fun HubBottomNavigationBar(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = tab.title,
+                        text = tabTitle,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) HubWhite else HubMuted,

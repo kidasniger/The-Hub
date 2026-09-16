@@ -152,22 +152,27 @@ class AuthRepository(
             val authResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
             val user = authResult.user ?: throw Exception("Connexion impossible.")
 
-            // Fetch firestore user profile to update cached name/username/photo
-            try {
-                val doc = firestore.collection("users").document(user.uid).get().await()
-                if (doc.exists()) {
-                    val userData = User.fromMap(doc.data ?: emptyMap())
-                    dataStoreManager.saveLastUser(
-                        email = user.email ?: email.trim(),
-                        name = userData.displayName,
-                        username = userData.username,
-                        photoUrl = userData.photoUrl
-                    )
-                } else {
-                    dataStoreManager.saveLastUser(email = user.email ?: email.trim())
+            // Fetch firestore user profile and verify account is not deleted
+            val doc = firestore.collection("users").document(user.uid).get().await()
+            if (doc.exists()) {
+                val isDeleted = doc.getBoolean("isDeleted") == true
+                if (isDeleted) {
+                    auth.signOut()
+                    dataStoreManager.clearAll()
+                    return Result.failure(Exception("Ce compte a été supprimé."))
                 }
-            } catch (_: Exception) {
-                dataStoreManager.saveLastUser(email = user.email ?: email.trim())
+                val userData = User.fromMap(doc.data ?: emptyMap())
+                dataStoreManager.saveLastUser(
+                    email = user.email ?: email.trim(),
+                    name = userData.displayName,
+                    username = userData.username,
+                    photoUrl = userData.photoUrl
+                )
+            } else {
+                // User document doesn't exist in Firestore (deleted)
+                auth.signOut()
+                dataStoreManager.clearAll()
+                return Result.failure(Exception("Ce compte n'existe pas ou a été supprimé."))
             }
 
             Result.success(user)
@@ -362,6 +367,11 @@ class AuthRepository(
 
                     shouldCompleteProfile = true
                 } else {
+                    if (userDoc.getBoolean("isDeleted") == true) {
+                        auth.signOut()
+                        dataStoreManager.clearAll()
+                        return GoogleSignInResult.Error("Ce compte a été supprimé.")
+                    }
                     val userData = User.fromMap(userDoc.data ?: emptyMap())
                     dataStoreManager.saveLastUser(
                         email = firebaseUser.email ?: userData.email,

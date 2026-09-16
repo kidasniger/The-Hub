@@ -10,12 +10,14 @@ package com.thehub.hb.ui.theme
 enum class AppThemeMode(
     val key: String,
     val titleFr: String,
-    val descriptionFr: String
+    val descriptionFr: String,
+    val titleEn: String = titleFr,
+    val descriptionEn: String = descriptionFr
 ) {
-    DARK("dark", "Mode Sombre", "Design épuré et reposant pour les yeux"),
-    LIGHT("light", "Mode Clair", "Design épuré, lumineux et contrasté"),
-    GLASS("glass", "Effet Glass", "Verre dépoli aéro avec reflets translucides modernes"),
-    SYSTEM("system", "Système (Automatique)", "S'adapte au mode clair ou sombre de l'appareil");
+    DARK("dark", "Mode Sombre", "Design épuré et reposant pour les yeux", "Dark Mode", "Clean design, easy on the eyes"),
+    LIGHT("light", "Mode Clair", "Design épuré, lumineux et contrasté", "Light Mode", "Bright, high-contrast clean design"),
+    GLASS("glass", "Effet Glass", "Verre dépoli aéro avec reflets translucides modernes", "Glass Effect", "Aero frosted glass with modern translucent reflections"),
+    SYSTEM("system", "Système (Automatique)", "S'adapte au mode clair ou sombre de l'appareil", "System (Automatic)", "Follows your device dark/light setting");
 
     companion object {
         fun fromKey(key: String?): AppThemeMode {
@@ -25,7 +27,7 @@ enum class AppThemeMode(
 }
 
 /**
- * Langues prises en charge dans The Hub.
+ * Langues prises en charge dans The Hub (Français et Anglais).
  */
 enum class AppLanguage(
     val code: String,
@@ -33,9 +35,7 @@ enum class AppLanguage(
     val flagEmoji: String
 ) {
     FR("fr", "Français", "🇫🇷"),
-    EN("en", "English", "🇬🇧"),
-    ES("es", "Español", "🇪🇸"),
-    AR("ar", "العربية", "🇸🇦");
+    EN("en", "English", "🇬🇧");
 
     companion object {
         fun fromCode(code: String?): AppLanguage {

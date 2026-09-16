@@ -360,6 +360,13 @@ class PostRepository(
                 return@withContext Result.failure(Exception("Utilisateur non connecté"))
             }
 
+            // Verify that current user account still exists and is not deleted
+            val userDoc = firestore.collection("users").document(uid).get().await()
+            if (!userDoc.exists() || userDoc.getBoolean("isDeleted") == true) {
+                auth.signOut()
+                return@withContext Result.failure(Exception("Ce compte a été supprimé."))
+            }
+
             val docRef = firestore.collection("posts").document()
             val now = Timestamp.now()
             val hashtags = extractHashtags(text)

@@ -1050,22 +1050,48 @@ class UserRepository(
         val authUser = auth.currentUser ?: return@withContext Result.failure(Exception("Utilisateur introuvable"))
 
         try {
-            // Delete user document in Firestore
+            // 1. Mark user document as deleted in Firestore so no further messages/posts can be sent
+            try {
+                firestore.collection("users").document(uid)
+                    .set(mapOf("isDeleted" to true), com.google.firebase.firestore.SetOptions.merge())
+                    .await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Failed to set isDeleted flag: ${e.message}")
+            }
+
+            // 2. Delete user document in Firestore
             try {
                 firestore.collection("users").document(uid).delete().await()
             } catch (e: Exception) {
                 Log.w("UserRepository", "Failed to delete user document: ${e.message}")
             }
 
-            // Clear local DataStore
-            dataStoreManager.clearAll()
+            // 3. Clear local DataStore
+            try {
+                dataStoreManager.clearAll()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Failed to clear DataStore: ${e.message}")
+            }
 
-            // Delete Firebase Auth account
-            authUser.delete().await()
+            // 4. Delete Firebase Auth account
+            try {
+                authUser.delete().await()
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Failed to delete Firebase Auth user: ${e.message}")
+                // In case Firebase requires re-authentication, we sign out immediately so the session terminates
+                auth.signOut()
+            }
+
+            // Ensure auth sign out is called
+            auth.signOut()
 
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error deleting account: ${e.message}", e)
+            try {
+                auth.signOut()
+                dataStoreManager.clearAll()
+            } catch (_: Exception) {}
             Result.failure(e)
         }
     }

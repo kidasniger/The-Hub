@@ -229,7 +229,7 @@ fun UpdateContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (info.releaseTitle.isNotBlank()) info.releaseTitle else "Nouveautés",
+                        text = "Modifications apportées",
                         color = HubWhite,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -252,14 +252,11 @@ fun UpdateContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
+                        .height(120.dp)
                         .verticalScroll(scrollState)
                 ) {
-                    val notesText = if (info.releaseNotes.isNotBlank()) {
-                        info.releaseNotes
-                    } else {
-                        "Cette version apporte des améliorations de performance, des corrections de bugs et une meilleure stabilité."
-                    }
+                    val notesText = com.thehub.hb.data.remote.GitHubUpdateService()
+                        .sanitizeReleaseNotes(info.releaseNotes)
                     Text(
                         text = notesText,
                         color = HubLightGray,

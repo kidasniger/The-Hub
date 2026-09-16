@@ -36,6 +36,9 @@ import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+
 @Composable
 fun SplashScreen(
     authRepository: AuthRepository,
@@ -46,9 +49,43 @@ fun SplashScreen(
     onNavigateToWelcomeBack: () -> Unit
 ) {
     LaunchedEffect(Unit) {
-        delay(1800)
+        val startTime = System.currentTimeMillis()
         val currentUser = authRepository.currentFirebaseUser
-        if (currentUser != null && currentUser.isEmailVerified) {
+        var isSessionValid = false
+
+        if (currentUser != null) {
+            try {
+                // Check if account still exists in Firebase Auth
+                currentUser.reload().await()
+                if (currentUser.isEmailVerified) {
+                    // Check if user document still exists in Firestore and is not deleted
+                    val userDoc = FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(currentUser.uid)
+                        .get()
+                        .await()
+
+                    if (userDoc.exists() && userDoc.getBoolean("isDeleted") != true) {
+                        isSessionValid = true
+                    } else {
+                        // User was deleted on Firestore or marked deleted
+                        authRepository.signOut()
+                        dataStoreManager.clearAll()
+                    }
+                }
+            } catch (e: Exception) {
+                // e.g. FirebaseAuthInvalidUserException -> account deleted on Firebase
+                authRepository.signOut()
+                dataStoreManager.clearAll()
+            }
+        }
+
+        val elapsed = System.currentTimeMillis() - startTime
+        if (elapsed < 1600) {
+            delay(1600 - elapsed)
+        }
+
+        if (isSessionValid) {
             onNavigateToFeed()
         } else {
             val isOnboardingCompleted = dataStoreManager.isOnboardingCompleted.first()

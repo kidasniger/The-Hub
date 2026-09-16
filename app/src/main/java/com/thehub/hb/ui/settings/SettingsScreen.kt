@@ -98,6 +98,7 @@ fun SettingsScreen(
     val currentThemeMode by viewModel.currentThemeMode.collectAsState()
     val currentLanguage by viewModel.currentLanguage.collectAsState()
 
+    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
 
@@ -141,13 +142,13 @@ fun SettingsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Retour",
+                        contentDescription = strings.dialogClose,
                         tint = HubWhite
                     )
                 }
 
                 Text(
-                    text = "Paramètres",
+                    text = strings.settingsTitle,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite,
@@ -162,7 +163,7 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 // Section 1: Compte
-                SettingsSectionTitle(title = "Compte")
+                SettingsSectionTitle(title = strings.accountSection)
 
                 Column(
                     modifier = Modifier
@@ -172,8 +173,8 @@ fun SettingsScreen(
                 ) {
                     SettingsActionRow(
                         icon = Icons.Default.Person,
-                        title = "Adresse email",
-                        subtitle = uiState.userEmail.takeIf { it.isNotBlank() } ?: "Non définie",
+                        title = strings.emailPlaceholder,
+                        subtitle = uiState.userEmail.takeIf { it.isNotBlank() } ?: "—",
                         onClick = null,
                         showArrow = false,
                         testTag = "settings_row_email"
@@ -183,8 +184,8 @@ fun SettingsScreen(
 
                     SettingsActionRow(
                         icon = Icons.Default.LockReset,
-                        title = "Changer le mot de passe",
-                        subtitle = "Recevoir un lien de réinitialisation",
+                        title = strings.changePassword,
+                        subtitle = strings.changePasswordSubtitle,
                         onClick = onNavigateToResetPassword,
                         showArrow = true,
                         testTag = "settings_row_change_password"
@@ -194,7 +195,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Section 2: Confidentialité
-                SettingsSectionTitle(title = "Confidentialité")
+                SettingsSectionTitle(title = strings.privacySection)
 
                 Column(
                     modifier = Modifier
@@ -204,8 +205,8 @@ fun SettingsScreen(
                 ) {
                     SettingsActionRow(
                         icon = Icons.Default.Block,
-                        title = "Utilisateurs bloqués",
-                        subtitle = "Gérer les profils que vous avez bloqués",
+                        title = strings.blockedUsers,
+                        subtitle = strings.blockedUsersSubtitle,
                         onClick = onNavigateToBlockedUsers,
                         showArrow = true,
                         testTag = "settings_row_blocked_users"
@@ -215,7 +216,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Section 3: Apparence & Langue
-                SettingsSectionTitle(title = "Apparence & Langue")
+                SettingsSectionTitle(title = strings.appearanceAndLanguageSection)
 
                 Column(
                     modifier = Modifier
@@ -225,13 +226,8 @@ fun SettingsScreen(
                 ) {
                     SettingsActionRow(
                         icon = Icons.Default.Palette,
-                        title = "Mode d'affichage (Thème)",
-                        subtitle = when (currentThemeMode) {
-                            AppThemeMode.DARK -> "Mode Sombre"
-                            AppThemeMode.LIGHT -> "Mode Clair"
-                            AppThemeMode.GLASS -> "Effet Glass"
-                            AppThemeMode.SYSTEM -> "Système (Automatique)"
-                        },
+                        title = strings.themeModeTitle,
+                        subtitle = if (currentLanguage == AppLanguage.EN) currentThemeMode.titleEn else currentThemeMode.titleFr,
                         onClick = { showThemeDialog = true },
                         showArrow = true,
                         testTag = "settings_row_theme"
@@ -241,7 +237,7 @@ fun SettingsScreen(
 
                     SettingsActionRow(
                         icon = Icons.Default.Language,
-                        title = "Langue de l'application",
+                        title = strings.appLanguageTitle,
                         subtitle = "${currentLanguage.flagEmoji} ${currentLanguage.displayName}",
                         onClick = { showLanguageDialog = true },
                         showArrow = true,
@@ -252,7 +248,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Section 4: Notifications
-                SettingsSectionTitle(title = "Notifications")
+                SettingsSectionTitle(title = strings.notificationsSection)
 
                 Column(
                     modifier = Modifier
@@ -261,8 +257,8 @@ fun SettingsScreen(
                         .background(HubCard)
                 ) {
                     SettingsToggleRow(
-                        title = "Mentions \"J'aime\"",
-                        subtitle = "Lorsqu'un utilisateur aime vos publications",
+                        title = strings.notifLikes,
+                        subtitle = strings.notifLikesSubtitle,
                         checked = notifLikes,
                         onCheckedChange = { viewModel.setNotifLikes(it) },
                         testTag = "settings_switch_likes"
@@ -271,8 +267,8 @@ fun SettingsScreen(
                     HorizontalDivider(color = HubBorder, thickness = 1.dp)
 
                     SettingsToggleRow(
-                        title = "Commentaires",
-                        subtitle = "Lorsqu'un utilisateur commente vos posts",
+                        title = strings.notifComments,
+                        subtitle = strings.notifCommentsSubtitle,
                         checked = notifComments,
                         onCheckedChange = { viewModel.setNotifComments(it) },
                         testTag = "settings_switch_comments"
@@ -281,8 +277,8 @@ fun SettingsScreen(
                     HorizontalDivider(color = HubBorder, thickness = 1.dp)
 
                     SettingsToggleRow(
-                        title = "Nouveaux abonnés",
-                        subtitle = "Lorsqu'un utilisateur commence à vous suivre",
+                        title = strings.notifFollows,
+                        subtitle = strings.notifFollowsSubtitle,
                         checked = notifFollows,
                         onCheckedChange = { viewModel.setNotifFollows(it) },
                         testTag = "settings_switch_follows"
@@ -291,8 +287,8 @@ fun SettingsScreen(
                     HorizontalDivider(color = HubBorder, thickness = 1.dp)
 
                     SettingsToggleRow(
-                        title = "Messages directs",
-                        subtitle = "À la réception d'un nouveau message privé",
+                        title = strings.notifMessages,
+                        subtitle = strings.notifMessagesSubtitle,
                         checked = notifMessages,
                         onCheckedChange = { viewModel.setNotifMessages(it) },
                         testTag = "settings_switch_messages"
@@ -302,7 +298,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Section 4: À propos
-                SettingsSectionTitle(title = "À propos")
+                SettingsSectionTitle(title = strings.aboutSection)
 
                 Column(
                     modifier = Modifier
@@ -312,8 +308,8 @@ fun SettingsScreen(
                 ) {
                     SettingsActionRow(
                         icon = Icons.Default.Description,
-                        title = "Conditions d'utilisation & Confidentialité",
-                        subtitle = "Consulter les règles d'utilisation",
+                        title = strings.termsTitle,
+                        subtitle = strings.termsSubtitle,
                         onClick = onNavigateToTerms,
                         showArrow = true,
                         testTag = "settings_row_terms"
@@ -323,7 +319,7 @@ fun SettingsScreen(
 
                     SettingsActionRow(
                         icon = Icons.Default.Info,
-                        title = "Version de l'application",
+                        title = strings.appVersionTitle,
                         subtitle = "v${BuildConfig.VERSION_NAME} (The Hub)",
                         onClick = null,
                         showArrow = false,
@@ -335,8 +331,8 @@ fun SettingsScreen(
 
                         SettingsActionRow(
                             icon = Icons.Default.SystemUpdate,
-                            title = "Vérifier les mises à jour",
-                            subtitle = "Rechercher la dernière version GitHub",
+                            title = strings.checkForUpdatesTitle,
+                            subtitle = strings.checkForUpdatesSubtitle,
                             onClick = onCheckForUpdates,
                             showArrow = true,
                             testTag = "settings_row_check_update"
@@ -355,7 +351,7 @@ fun SettingsScreen(
                 ) {
                     SettingsActionRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
-                        title = "Se déconnecter",
+                        title = strings.signOutTitle,
                         titleColor = HubWhite,
                         onClick = { showSignOutDialog = true },
                         showArrow = false,
@@ -366,8 +362,8 @@ fun SettingsScreen(
 
                     SettingsActionRow(
                         icon = Icons.Default.DeleteForever,
-                        title = "Supprimer le compte",
-                        subtitle = "Action irréversible — supprime toutes vos données",
+                        title = strings.deleteAccountTitle,
+                        subtitle = strings.deleteAccountSubtitle,
                         titleColor = HubError,
                         onClick = { showDeleteStep1Dialog = true },
                         showArrow = true,
@@ -387,7 +383,7 @@ fun SettingsScreen(
             containerColor = HubCard,
             title = {
                 Text(
-                    text = "Mode d'affichage",
+                    text = strings.dialogThemeTitle,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite
@@ -414,13 +410,13 @@ fun SettingsScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = mode.titleFr,
+                                    text = if (currentLanguage == AppLanguage.EN) mode.titleEn else mode.titleFr,
                                     fontSize = 15.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) HubWhite else HubSecondary
                                 )
                                 Text(
-                                    text = mode.descriptionFr,
+                                    text = if (currentLanguage == AppLanguage.EN) mode.descriptionEn else mode.descriptionFr,
                                     fontSize = 12.sp,
                                     color = HubMuted
                                 )
@@ -440,7 +436,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Fermer", color = HubWhite)
+                    Text(strings.dialogClose, color = HubWhite)
                 }
             }
         )
@@ -453,7 +449,7 @@ fun SettingsScreen(
             containerColor = HubCard,
             title = {
                 Text(
-                    text = "Langue de l'application",
+                    text = strings.dialogLanguageTitle,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite
@@ -504,7 +500,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showLanguageDialog = false }) {
-                    Text("Fermer", color = HubWhite)
+                    Text(strings.dialogClose, color = HubWhite)
                 }
             }
         )
@@ -516,7 +512,7 @@ fun SettingsScreen(
             onDismissRequest = { showSignOutDialog = false },
             title = {
                 Text(
-                    text = "Se déconnecter ?",
+                    text = strings.dialogSignOutTitle,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite
@@ -524,7 +520,7 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    text = "Vous devrez saisir vos identifiants pour vous reconnecter à The Hub.",
+                    text = strings.dialogSignOutMessage,
                     fontSize = 14.sp,
                     color = HubSecondary
                 )
@@ -537,12 +533,12 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.testTag("confirm_sign_out_button")
                 ) {
-                    Text("Déconnexion", color = HubWhite, fontWeight = FontWeight.Bold)
+                    Text(strings.signOutTitle, color = HubWhite, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) {
-                    Text("Annuler", color = HubSecondary)
+                    Text(strings.dialogCancel, color = HubSecondary)
                 }
             },
             containerColor = HubCard,
@@ -565,7 +561,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Supprimer votre compte ?",
+                        text = strings.dialogDeleteAccountTitle,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = HubWhite
@@ -574,7 +570,7 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    text = "Attention : cette action est définitive et irréversible. Votre profil, vos publications, vos messages et vos abonnements seront définitivement effacés.",
+                    text = strings.dialogDeleteAccountMessage,
                     fontSize = 14.sp,
                     color = HubSecondary,
                     lineHeight = 20.sp
@@ -589,12 +585,12 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.testTag("confirm_delete_step1_button")
                 ) {
-                    Text("Continuer", color = HubError, fontWeight = FontWeight.Bold)
+                    Text(strings.dialogConfirm, color = HubError, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteStep1Dialog = false }) {
-                    Text("Annuler", color = HubSecondary)
+                    Text(strings.dialogCancel, color = HubSecondary)
                 }
             },
             containerColor = HubCard,
@@ -605,13 +601,18 @@ fun SettingsScreen(
 
     // Delete Step 2 Dialog (Text Confirmation)
     if (showDeleteStep2Dialog) {
+        val requiredWord = if (currentLanguage == AppLanguage.EN) "DELETE" else "SUPPRIMER"
+        val isInputMatching = deleteConfirmInput.trim().equals(requiredWord, ignoreCase = false) ||
+                deleteConfirmInput.trim().equals("SUPPRIMER", ignoreCase = false) ||
+                deleteConfirmInput.trim().equals("DELETE", ignoreCase = false)
+
         AlertDialog(
             onDismissRequest = {
                 if (!uiState.isDeletingAccount) showDeleteStep2Dialog = false
             },
             title = {
                 Text(
-                    text = "Confirmation finale",
+                    text = strings.dialogDeleteAccountTitle,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = HubWhite
@@ -620,7 +621,10 @@ fun SettingsScreen(
             text = {
                 Column {
                     Text(
-                        text = "Veuillez taper \"SUPPRIMER\" en majuscules pour confirmer la suppression définitive :",
+                        text = if (currentLanguage == AppLanguage.EN)
+                            "Please type \"DELETE\" in uppercase to confirm permanent deletion:"
+                        else
+                            "Veuillez taper \"SUPPRIMER\" en majuscules pour confirmer la suppression définitive :",
                         fontSize = 14.sp,
                         color = HubSecondary
                     )
@@ -628,7 +632,7 @@ fun SettingsScreen(
                     HubTextField(
                         value = deleteConfirmInput,
                         onValueChange = { deleteConfirmInput = it },
-                        placeholder = "SUPPRIMER",
+                        placeholder = requiredWord,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("delete_account_confirm_input")
@@ -643,7 +647,7 @@ fun SettingsScreen(
                             onAccountDeleted()
                         }
                     },
-                    enabled = deleteConfirmInput == "SUPPRIMER" && !uiState.isDeletingAccount,
+                    enabled = isInputMatching && !uiState.isDeletingAccount,
                     modifier = Modifier.testTag("confirm_delete_step2_button")
                 ) {
                     if (uiState.isDeletingAccount) {
@@ -654,8 +658,8 @@ fun SettingsScreen(
                         )
                     } else {
                         Text(
-                            text = "Supprimer définitivement",
-                            color = if (deleteConfirmInput == "SUPPRIMER") HubError else HubMuted,
+                            text = strings.deleteAccountTitle,
+                            color = if (isInputMatching) HubError else HubMuted,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -666,7 +670,7 @@ fun SettingsScreen(
                     onClick = { showDeleteStep2Dialog = false },
                     enabled = !uiState.isDeletingAccount
                 ) {
-                    Text("Annuler", color = HubSecondary)
+                    Text(strings.dialogCancel, color = HubSecondary)
                 }
             },
             containerColor = HubCard,
