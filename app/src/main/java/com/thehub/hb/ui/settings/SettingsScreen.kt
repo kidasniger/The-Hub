@@ -26,6 +26,10 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import com.thehub.hb.BuildConfig
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.Notifications
@@ -78,6 +82,7 @@ fun SettingsScreen(
     onNavigateToTerms: () -> Unit,
     onSignedOut: () -> Unit,
     onAccountDeleted: () -> Unit,
+    onCheckForUpdates: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -273,11 +278,24 @@ fun SettingsScreen(
                     SettingsActionRow(
                         icon = Icons.Default.Info,
                         title = "Version de l'application",
-                        subtitle = "1.0.0 (The Hub)",
+                        subtitle = "v${BuildConfig.VERSION_NAME} (The Hub)",
                         onClick = null,
                         showArrow = false,
                         testTag = "settings_row_version"
                     )
+
+                    if (onCheckForUpdates != null) {
+                        HorizontalDivider(color = HubBorder, thickness = 1.dp)
+
+                        SettingsActionRow(
+                            icon = Icons.Default.SystemUpdate,
+                            title = "Vérifier les mises à jour",
+                            subtitle = "Rechercher la dernière version GitHub",
+                            onClick = onCheckForUpdates,
+                            showArrow = true,
+                            testTag = "settings_row_check_update"
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))

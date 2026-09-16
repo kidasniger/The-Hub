@@ -65,6 +65,8 @@ import com.thehub.hb.ui.splash.SplashScreen
 import com.thehub.hb.ui.terms.TermsScreen
 import com.thehub.hb.ui.verifyemail.VerifyEmailScreen
 import com.thehub.hb.ui.verifyemail.VerifyEmailViewModel
+import com.thehub.hb.ui.update.UpdateBottomSheet
+import com.thehub.hb.ui.update.UpdateViewModel
 import com.thehub.hb.ui.welcome.WelcomeScreen
 import com.thehub.hb.ui.welcomeback.WelcomeBackScreen
 
@@ -76,6 +78,16 @@ fun HubNavGraph(
     val authRepository = appContainer.authRepository
     val dataStoreManager = appContainer.dataStoreManager
     val lastUserEmail by dataStoreManager.lastUserEmail.collectAsState(initial = "")
+
+    val updateViewModel: UpdateViewModel = viewModel(
+        factory = UpdateViewModel.Factory(
+            updateRepository = appContainer.updateRepository,
+            downloadManager = appContainer.updateDownloadManager
+        )
+    )
+
+    // Global in-app update bottom sheet
+    UpdateBottomSheet(viewModel = updateViewModel)
 
     NavHost(
         navController = navController,
@@ -882,6 +894,9 @@ fun HubNavGraph(
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onCheckForUpdates = {
+                    updateViewModel.checkForUpdates(silent = false)
                 }
             )
         }

@@ -101,11 +101,14 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             TAG="${{ github.ref_name }}"
           else
-            VERSION_NAME=$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2 || echo "1.0")
-            TAG="v${VERSION_NAME}.${{ github.run_number }}"
+            TAG="v1.0.${{ github.run_number }}"
           fi
-          echo "Computed Release Tag: $TAG"
+          CLEAN_VER="${TAG#v}"
+          echo "Computed Release Tag: $TAG (version: $CLEAN_VER)"
           echo "TAG=$TAG" >> $GITHUB_ENV
+          # Inject real versionName and versionCode into app/build.gradle.kts so Android OS Settings displays the real version
+          sed -i "s/versionName = .*/versionName = \"$CLEAN_VER\"/" app/build.gradle.kts
+          sed -i "s/versionCode = .*/versionCode = ${{ github.run_number }}/" app/build.gradle.kts
 
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks

@@ -2,12 +2,14 @@ package com.thehub.hb.di
 
 import android.content.Context
 import com.thehub.hb.data.local.DataStoreManager
+import com.thehub.hb.data.remote.AppUpdateDownloadManager
 import com.thehub.hb.data.remote.ImgbbService
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.NotificationRepository
 import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.SearchRepository
+import com.thehub.hb.data.repository.UpdateRepository
 import com.thehub.hb.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -20,6 +22,8 @@ interface AppContainer {
     val notificationRepository: NotificationRepository
     val searchRepository: SearchRepository
     val userRepository: UserRepository
+    val updateRepository: UpdateRepository
+    val updateDownloadManager: AppUpdateDownloadManager
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -88,5 +92,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             imgbbService = imgbbServiceInstance,
             notificationRepository = notificationRepository
         )
+    }
+
+    override val updateRepository: UpdateRepository by lazy {
+        UpdateRepository()
+    }
+
+    override val updateDownloadManager: AppUpdateDownloadManager by lazy {
+        AppUpdateDownloadManager(context)
     }
 }
