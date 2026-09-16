@@ -12,7 +12,8 @@ data class User(
     val createdAt: Long = System.currentTimeMillis(),
     val postsCount: Int = 0,
     val followersCount: Int = 0,
-    val followingCount: Int = 0
+    val followingCount: Int = 0,
+    val isDeleted: Boolean = false
 ) {
     fun toMap(): Map<String, Any?> {
         val lower = if (usernameLower.isNotBlank()) usernameLower else username.lowercase()
@@ -28,7 +29,8 @@ data class User(
             "createdAt" to createdAt,
             "postsCount" to postsCount,
             "followersCount" to followersCount,
-            "followingCount" to followingCount
+            "followingCount" to followingCount,
+            "isDeleted" to isDeleted
         )
     }
 
@@ -48,7 +50,8 @@ data class User(
                 createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                 postsCount = (map["postsCount"] as? Number)?.toInt() ?: 0,
                 followersCount = (map["followersCount"] as? Number)?.toInt() ?: 0,
-                followingCount = (map["followingCount"] as? Number)?.toInt() ?: 0
+                followingCount = (map["followingCount"] as? Number)?.toInt() ?: 0,
+                isDeleted = map["isDeleted"] as? Boolean ?: false
             )
         }
     }
