@@ -6,10 +6,8 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.AggregateSource
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.thehub.hb.data.local.DataStoreManager
@@ -110,19 +108,19 @@ class UserRepository(
         }
         try {
             val userDocument = userRef(uid)
-            val newUsernameRef = firestore.collection("usernames").document(newLower)
-            val oldUsernameRefHolder = arrayOf<DocumentSnapshot?>(null)
+            var oldLower: String? = null
             firestore.runTransaction { tx ->
                 val current = tx.get(userDocument)
                 if (!current.exists() || current.getBoolean("isDeleted") == true) throw IllegalStateException("Compte supprimé")
-                val oldLower = current.getString("usernameLower") ?: current.getString("username")?.lowercase()
+                oldLower = current.getString("usernameLower") ?: current.getString("username")?.lowercase()
                 if (oldLower != newLower) {
-                    val claim = tx.get(newUsernameRef)
+                    val claimRef = firestore.collection("usernames").document(newLower)
+                    val claim = tx.get(claimRef)
                     val owner = claim.getString("uid")
                     if (claim.exists() && owner != uid) throw IllegalStateException("Ce nom d'utilisateur est déjà pris")
-                    tx.set(newUsernameRef, mapOf("uid" to uid, "updatedAt" to Timestamp.now()))
+                    tx.set(claimRef, mapOf("uid" to uid, "updatedAt" to Timestamp.now()))
                     if (!oldLower.isNullOrBlank()) {
-                        oldUsernameRefHolder[0] = firestore.collection("usernames").document(oldLower).get().await()
+                        tx.delete(firestore.collection("usernames").document(oldLower!!))
                     }
                 }
                 val updates = mutableMapOf<String, Any?>(
@@ -135,10 +133,6 @@ class UserRepository(
                 if (photoUrl != null) updates["photoUrl"] = photoUrl
                 tx.set(userDocument, updates, SetOptions.merge())
             }.await()
-            val oldSnapshot = oldUsernameRefHolder[0]
-            if (oldSnapshot != null && oldSnapshot.exists() && oldSnapshot.getString("uid") == uid) {
-                oldSnapshot.reference.delete().await()
-            }
 
             auth.currentUser?.let { user ->
                 user.updateProfile(userProfileChangeRequest {
@@ -211,9 +205,7 @@ class UserRepository(
                     created = true
                 }
             }.await()
-            if (created) {
-                notificationRepository.createNotification(targetUid, NotificationItem.TYPE_FOLLOW)
-            }
+            if (created) notificationRepository.createNotification(targetUid, NotificationItem.TYPE_FOLLOW)
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("UserRepository", "Erreur follow $targetUid", e)
@@ -264,11 +256,7 @@ class UserRepository(
             return@callbackFlow
         }
         val listener = userRef(uid).collection("following").document(targetUid)
-            .addSnapshotListener { _, _ ->
-                launch {
-                    trySend(checkIsFriend(targetUid).getOrDefault(false))
-                }
-            }
+            .addSnapshotListener { _, _ -> launch { trySend(checkIsFriend(targetUid).getOrDefault(false)) } }
         trySend(checkIsFriend(targetUid).getOrDefault(false))
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
@@ -298,15 +286,11 @@ class UserRepository(
             val users = coroutineScope {
                 docs.documents.map { doc ->
                     val id = doc.id
-                    async {
-                        userRef(id).get().await().takeIf { it.exists() }?.let { User.fromMap(it.data ?: emptyMap()) }
-                    }
+                    async { userRef(id).get().await().takeIf { it.exists() }?.let { User.fromMap(it.data ?: emptyMap()) } }
                 }.awaitAll().filterNotNull().filterNot { it.isDeleted }
             }
             Result.success(users)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun blockUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -327,9 +311,7 @@ class UserRepository(
                 }
             }.await()
             Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun unblockUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -350,13 +332,7 @@ class UserRepository(
                         val id = doc.id
                         val at = doc.getTimestamp("blockedAt") ?: Timestamp.now()
                         val user = userRef(id).get().await()
-                        BlockedUser(
-                            uid = id,
-                            username = user.getString("username") ?: "thehub_user",
-                            displayName = user.getString("displayName"),
-                            photoUrl = user.getString("photoUrl"),
-                            blockedAt = at
-                        )
+                        BlockedUser(id, user.getString("username") ?: "thehub_user", user.getString("displayName"), user.getString("photoUrl"), at)
                     }
                 }.awaitAll()
             }
@@ -413,18 +389,12 @@ class UserRepository(
 
     fun observeUserPosts(userId: String): Flow<List<Post>> = callbackFlow {
         if (userId.isBlank()) {
-            trySend(emptyList())
-            close()
-            return@callbackFlow
+            trySend(emptyList()); close(); return@callbackFlow
         }
         val listener = firestore.collection("posts").whereEqualTo("authorId", userId).limit(100)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null) {
-                    return@addSnapshotListener
-                }
-                launch(Dispatchers.IO) {
-                    getUserPosts(userId).onSuccess { trySend(it) }
-                }
+            .addSnapshotListener { _, error ->
+                if (error != null) return@addSnapshotListener
+                launch(Dispatchers.IO) { getUserPosts(userId).onSuccess { trySend(it) } }
             }
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
@@ -466,8 +436,6 @@ class UserRepository(
             val me = userRef(uid)
             val current = me.get().await()
             val oldLower = current.getString("usernameLower") ?: current.getString("username")?.lowercase()
-
-            // Remove the user's own references and authored content where client security permits it.
             val followingDocs = me.collection("following").limit(400).get().await().documents
             for (doc in followingDocs) {
                 val targetId = doc.id
@@ -481,42 +449,34 @@ class UserRepository(
                     }.await()
                 }
             }
-
-            val blocked = me.collection("blockedUsers").get().await().documents
-            blocked.chunked(400).forEach { chunk ->
+            me.collection("blockedUsers").get().await().documents.chunked(400).forEach { chunk ->
                 val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
             }
-            val bookmarks = me.collection("bookmarks").get().await().documents
-            bookmarks.chunked(400).forEach { chunk ->
+            me.collection("bookmarks").get().await().documents.chunked(400).forEach { chunk ->
                 val batch = firestore.batch(); chunk.forEach { batch.delete(it.reference) }; batch.commit().await()
             }
-
-            val authoredPosts = firestore.collection("posts").whereEqualTo("authorId", uid).limit(100).get().await().documents
-            for (post in authoredPosts) {
+            firestore.collection("posts").whereEqualTo("authorId", uid).limit(100).get().await().documents.forEach { post ->
                 runCatching { deletePost(post.id) }
             }
 
-            if (!oldLower.isNullOrBlank()) {
-                val claimRef = firestore.collection("usernames").document(oldLower)
-                runCatching {
-                    firestore.runTransaction { tx ->
-                        val claim = tx.get(claimRef)
-                        if (claim.getString("uid") == uid) tx.delete(claimRef)
-                        tx.set(me, mapOf(
-                            "isDeleted" to true,
-                            "displayName" to "Compte supprimé",
-                            "username" to "compte_supprime_${uid.take(8)}",
-                            "usernameLower" to "compte_supprime_${uid.take(8)}",
-                            "bio" to null,
-                            "birthdate" to null,
-                            "photoUrl" to null,
-                            "email" to null
-                        ), SetOptions.merge())
-                    }.await()
+            firestore.runTransaction { tx ->
+                if (!oldLower.isNullOrBlank()) {
+                    val claimRef = firestore.collection("usernames").document(oldLower!!)
+                    val claim = tx.get(claimRef)
+                    if (claim.getString("uid") == uid) tx.delete(claimRef)
                 }
-            } else {
-                me.set(mapOf("isDeleted" to true, "displayName" to "Compte supprimé", "photoUrl" to null, "email" to null), SetOptions.merge()).await()
-            }
+                val tombstone = "compte_supprime_${uid.take(8)}"
+                tx.set(me, mapOf(
+                    "isDeleted" to true,
+                    "displayName" to "Compte supprimé",
+                    "username" to tombstone,
+                    "usernameLower" to tombstone,
+                    "bio" to null,
+                    "birthdate" to null,
+                    "photoUrl" to null,
+                    "email" to null
+                ), SetOptions.merge())
+            }.await()
 
             runCatching { dataStoreManager.clearAll() }
             UserCacheRepository.getInstance().clear()
