@@ -54,36 +54,36 @@ jobs:
           if [ ! -f app/google-services.json ]; then
             echo "Restoring app/google-services.json..."
             cat << 'EOF' > app/google-services.json
-{
-  "project_info": {
-    "project_number": "183373607979",
-    "project_id": "the-hub-f95f4",
-    "storage_bucket": "the-hub-f95f4.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
-        "android_client_info": {
-          "package_name": "com.thehub.hb"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
+          {
+            "project_info": {
+              "project_number": "183373607979",
+              "project_id": "the-hub-f95f4",
+              "storage_bucket": "the-hub-f95f4.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
+                  "android_client_info": {
+                    "package_name": "com.thehub.hb"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
           fi
 
       # 5. Versioning
@@ -123,10 +123,10 @@ EOF
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "Decoding release keystore from secrets..."
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
-            echo "USE_RELEASE_KEYSTORE=true" >> $GITHUB_ENV
+            echo "KEYSTORE_PATH=keystore.jks" >> $GITHUB_ENV
           else
-            echo "Release keystore secret not provided, will sign with debug keystore."
-            echo "USE_RELEASE_KEYSTORE=false" >> $GITHUB_ENV
+            echo "Release keystore secret not provided, will sign with debug keystore fallback."
+            echo "KEYSTORE_PATH=" >> $GITHUB_ENV
           fi
 
       # 7. Unit Tests
@@ -136,7 +136,6 @@ EOF
       # 8. Build Release APK
       - name: Build Release APK
         env:
-          KEYSTORE_PATH: ${{ env.USE_RELEASE_KEYSTORE == 'true' && 'keystore.jks' || '' }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -145,7 +144,6 @@ EOF
       # 9. Build Release AAB
       - name: Build Release AAB (Android App Bundle)
         env:
-          KEYSTORE_PATH: ${{ env.USE_RELEASE_KEYSTORE == 'true' && 'keystore.jks' || '' }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
