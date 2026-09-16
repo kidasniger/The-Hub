@@ -1,18 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isUser(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function currentUserDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
+    function isAuthenticated() { return request.auth != null; }
+    function isUser(uid) { return isAuthenticated() && request.auth.uid == uid; }
     function validNotificationType(type) {
       return type in ['like', 'comment', 'follow', 'message', 'like_comment', 'reply_comment'];
     }
@@ -33,43 +23,44 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isUser(userId)
-        && request.resource.data.uid == userId;
-
-      // Profile owner may update their own profile while preserving uid.
-      // A follow/unfollow transaction may also update the target's follower counter.
+      allow create: if isUser(userId) && request.resource.data.uid == userId;
       allow update: if isAuthenticated() && (
         (
           isUser(userId)
           && request.resource.data.uid == userId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'uid', 'email', 'username', 'usernameLower', 'displayName', 'photoUrl',
-            'bio', 'birthdate', 'createdAt', 'postsCount', 'followersCount',
-            'followingCount', 'isDeleted'
+            'bio', 'birthdate', 'createdAt', 'isDeleted'
           ])
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
+          && request.resource.data.followersCount >= 0
           && (
-            (
-              request.resource.data.followersCount == resource.data.followersCount + 1
-              && !get(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
-              && getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
-            )
-            || (
-              request.resource.data.followersCount == resource.data.followersCount - 1
-              && get(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
-              && !getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
-            )
-            || (
-              resource.data.followersCount == null
-              && request.resource.data.followersCount == 1
-              && getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists()
-            )
+            request.resource.data.followersCount == resource.data.followersCount + 1
+            || request.resource.data.followersCount == resource.data.followersCount - 1
+            || (resource.data.followersCount == null && request.resource.data.followersCount == 1)
+          )
+        )
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount'])
+          && request.resource.data.followingCount >= 0
+          && (
+            request.resource.data.followingCount == resource.data.followingCount + 1
+            || request.resource.data.followingCount == resource.data.followingCount - 1
+            || (resource.data.followingCount == null && request.resource.data.followingCount == 1)
+          )
+        )
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['postsCount'])
+          && request.resource.data.postsCount >= 0
+          && (
+            request.resource.data.postsCount == resource.data.postsCount + 1
+            || request.resource.data.postsCount == resource.data.postsCount - 1
+            || (resource.data.postsCount == null && request.resource.data.postsCount == 1)
           )
         )
       );
-
       allow delete: if isUser(userId);
 
       match /blockedUsers/{blockedId} {
@@ -107,8 +98,6 @@ service cloud.firestore {
         allow delete: if isUser(userId);
       }
 
-      // Friendship is derived from mutual follow state. Client writes are disabled
-      // so a third party cannot forge reciprocal friendships.
       match /friends/{friendId} {
         allow read: if isAuthenticated();
         allow write: if false;
@@ -124,10 +113,8 @@ service cloud.firestore {
         && request.resource.data.reporterId == request.auth.uid
         && request.resource.data.targetId is string
         && request.resource.data.targetId.size() > 0
-        && request.resource.data.targetType in ['user', 'post']
         && request.resource.data.reason is string
         && request.resource.data.reason.size() > 0
-        && request.resource.data.status == 'pending'
         && request.resource.data.createdAt is timestamp;
       allow read, update, delete: if false;
     }
@@ -138,7 +125,6 @@ service cloud.firestore {
         && request.resource.data.authorId == request.auth.uid
         && request.resource.data.text is string
         && request.resource.data.createdAt is timestamp;
-
       allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
 
       allow update: if isAuthenticated() && (
@@ -152,17 +138,10 @@ service cloud.firestore {
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
+          && request.resource.data.likesCount >= 0
           && (
-            (
-              request.resource.data.likesCount == resource.data.likesCount + 1
-              && !get(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
-              && getAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
-            )
-            || (
-              request.resource.data.likesCount == resource.data.likesCount - 1
-              && get(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
-              && !getAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
-            )
+            request.resource.data.likesCount == resource.data.likesCount + 1
+            || request.resource.data.likesCount == resource.data.likesCount - 1
           )
         )
         || (
@@ -187,14 +166,9 @@ service cloud.firestore {
         allow read: if isAuthenticated();
         allow create: if isUser(userId)
           && request.resource.data.keys().hasOnly(['likedAt'])
-          && request.resource.data.likedAt is timestamp
-          && !resource.exists()
-          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.likesCount
-               == get(/databases/$(database)/documents/posts/$(postId)).data.likesCount + 1;
+          && request.resource.data.likedAt is timestamp;
         allow update: if false;
-        allow delete: if isUser(userId)
-          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.likesCount
-               == get(/databases/$(database)/documents/posts/$(postId)).data.likesCount - 1;
+        allow delete: if isUser(userId);
       }
 
       match /comments/{commentId} {
@@ -204,22 +178,11 @@ service cloud.firestore {
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.createdAt is timestamp
-          && request.resource.data.likesCount == 0
-          && (
-            !('parentCommentId' in request.resource.data)
-            || request.resource.data.parentCommentId == null
-            || exists(/databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.parentCommentId))
-          )
-          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.commentsCount
-               == get(/databases/$(database)/documents/posts/$(postId)).data.commentsCount + 1;
-
+          && request.resource.data.likesCount == 0;
         allow delete: if isAuthenticated() && (
           resource.data.authorId == request.auth.uid
           || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
-        )
-        && getAfter(/databases/$(database)/documents/posts/$(postId)).data.commentsCount
-             == get(/databases/$(database)/documents/posts/$(postId)).data.commentsCount - 1;
-
+        );
         allow update: if isAuthenticated() && (
           (
             resource.data.authorId == request.auth.uid
@@ -227,19 +190,27 @@ service cloud.firestore {
             && request.resource.data.createdAt == resource.data.createdAt
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited', 'editedAt'])
           )
+          || (
+            get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHidden'])
+          )
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
+            && request.resource.data.likesCount >= 0
+            && (
+              request.resource.data.likesCount == resource.data.likesCount + 1
+              || request.resource.data.likesCount == resource.data.likesCount - 1
+            )
+          )
         );
 
         match /likes/{userId} {
           allow read: if isAuthenticated();
           allow create: if isUser(userId)
             && request.resource.data.keys().hasOnly(['likedAt'])
-            && request.resource.data.likedAt is timestamp
-            && getAfter(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.likesCount
-                 == get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.likesCount + 1;
+            && request.resource.data.likedAt is timestamp;
           allow update: if false;
-          allow delete: if isUser(userId)
-            && getAfter(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.likesCount
-                 == get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.likesCount - 1;
+          allow delete: if isUser(userId);
         }
       }
     }
@@ -257,13 +228,12 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
 
       match /messages/{messageId} {
-        function conversationAllowsUser() {
+        function canAccess() {
           return isAuthenticated()
             && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
         }
-
-        allow read: if conversationAllowsUser();
-        allow create: if conversationAllowsUser()
+        allow read: if canAccess();
+        allow create: if canAccess()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.createdAt is timestamp;
         allow update: if isAuthenticated() && (
@@ -273,7 +243,7 @@ service cloud.firestore {
             && request.resource.data.createdAt == resource.data.createdAt
           )
           || (
-            conversationAllowsUser()
+            canAccess()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
             && request.resource.data.status in ['sent', 'delivered', 'read']
           )
