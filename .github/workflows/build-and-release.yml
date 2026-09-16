@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - audit-hardening-fr-only
   workflow_dispatch:
     inputs:
       tag_name:
@@ -21,13 +22,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      # 2. Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -35,83 +34,53 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # 3. Prepare Environment & Permissions
       - name: Grant execute permission for gradlew
-        run: |
-          if [ -f gradlew ]; then
-            chmod +x gradlew
-          fi
+        run: chmod +x gradlew
 
-      # 4. Firebase & Local Environment Setup
       - name: Prepare Firebase & Local Environment
         run: |
-          # Ensure .env exists for the secrets gradle plugin
           touch .env
-
-          # If GOOGLE_SERVICES_JSON secret is provided, restore it; otherwise use repository file
           if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
             echo "Restoring app/google-services.json from secret..."
             echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
           fi
+          if [ -n "${{ secrets.IMGBB_API_KEY }}" ]; then
+            echo "IMGBB_API_KEY=${{ secrets.IMGBB_API_KEY }}" >> .env
+          fi
 
-      # 4b. Verify Firebase Configuration (google-services.json)
       - name: Validate Firebase Configuration Integrity
         run: |
           python3 -c '
           import json, sys, os
-
           path = "app/google-services.json"
           if not os.path.exists(path):
               print(f"ERROR: {path} is missing!")
               sys.exit(1)
-
           try:
               with open(path, "r", encoding="utf-8") as f:
                   data = json.load(f)
           except Exception as e:
               print(f"ERROR: Failed to parse {path} as JSON: {e}")
               sys.exit(1)
-
           project_id = data.get("project_info", {}).get("project_id")
           if project_id != "the-hub-f95f4":
-              print(f"ERROR: Invalid project_id: \"{project_id}\" (expected \"the-hub-f95f4\")")
+              print(f"ERROR: Invalid project_id: {project_id}")
               sys.exit(1)
-
-          clients = data.get("client", [])
-          matching_client = None
-          for c in clients:
-              pkg = c.get("client_info", {}).get("android_client_info", {}).get("package_name")
-              if pkg == "com.thehub.hb":
-                  matching_client = c
-                  break
-
+          matching_client = next((c for c in data.get("client", []) if c.get("client_info", {}).get("android_client_info", {}).get("package_name") == "com.thehub.hb"), None)
           if not matching_client:
-              print("ERROR: No client entry found for package_name \"com.thehub.hb\"")
+              print("ERROR: No client entry for com.thehub.hb")
               sys.exit(1)
-
-          oauth_clients = matching_client.get("oauth_client", [])
-          has_android_client = any(
-              oc.get("client_type") == 1 and
-              oc.get("android_info", {}).get("package_name") == "com.thehub.hb"
-              for oc in oauth_clients
-          )
-          if not has_android_client:
-              print("ERROR: Missing Android OAuth client (client_type 1) for com.thehub.hb")
+          oauth = matching_client.get("oauth_client", [])
+          if not any(c.get("client_type") == 1 and c.get("android_info", {}).get("package_name") == "com.thehub.hb" for c in oauth):
+              print("ERROR: Missing Android OAuth client")
               sys.exit(1)
-
-          web_client_id = "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com"
-          has_web_client = any(
-              oc.get("client_type") == 3 and oc.get("client_id") == web_client_id
-              for oc in oauth_clients
-          )
-          if not has_web_client:
-              print(f"ERROR: Missing Web OAuth client (client_type 3 with ID {web_client_id})")
+          web_id = "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com"
+          if not any(c.get("client_type") == 3 and c.get("client_id") == web_id for c in oauth):
+              print("ERROR: Missing Web OAuth client")
               sys.exit(1)
-
-          print("SUCCESS: google-services.json verified! (project: the-hub-f95f4, package: com.thehub.hb, Android OAuth type 1 and Web OAuth type 3 present)")
+          print("SUCCESS: Firebase configuration verified")
           '
 
-      # 5. Versioning
       - name: Determine Tag & Version
         id: version_step
         run: |
@@ -123,115 +92,75 @@ jobs:
             TAG="v1.0.${{ github.run_number }}"
           fi
           CLEAN_VER="${TAG#v}"
-          echo "Release Tag: $TAG (versionName: $CLEAN_VER, versionCode: ${{ github.run_number }})"
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "CLEAN_VER=$CLEAN_VER" >> $GITHUB_ENV
+          echo "Release Tag: $TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "CLEAN_VER=$CLEAN_VER" >> "$GITHUB_ENV"
 
-          # Inject real versionName and versionCode into app/build.gradle.kts
-          sed -i "s/versionName = .*/versionName = \"$CLEAN_VER\"/" app/build.gradle.kts
-          sed -i "s/versionCode = .*/versionCode = ${{ github.run_number }}/" app/build.gradle.kts
-
-      # 6. Keystore setup
       - name: Configure Keystores
         run: |
-          # 1. Ensure debug.keystore ALWAYS exists for debug builds and fallback
           if [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
-
           if [ ! -f debug.keystore ]; then
-            echo "Generating debug.keystore with keytool..."
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
-
-          # 2. If release keystore secret is provided, decode it to app/keystore.jks
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding release keystore from secrets..."
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
-            echo "KEYSTORE_PATH=keystore.jks" >> $GITHUB_ENV
+            echo "KEYSTORE_PATH=keystore.jks" >> "$GITHUB_ENV"
           else
-            echo "Release keystore secret not provided, will sign with debug keystore fallback."
-            echo "KEYSTORE_PATH=" >> $GITHUB_ENV
+            echo "WARNING: release keystore secret absent; local/debug fallback will be used."
+            echo "KEYSTORE_PATH=" >> "$GITHUB_ENV"
           fi
 
-      # 7. Unit Tests
       - name: Run Unit Tests
         run: ./gradlew test
 
-      # 8. Build Release APK
+      - name: Run Instrumented Android Tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          script: ./gradlew connectedDebugAndroidTest --stacktrace
+
       - name: Build Release APK
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease -PreleaseVersion="$CLEAN_VER" -PreleaseVersionCode="${{ github.run_number }}"
 
-      # 9. Build Release AAB
       - name: Build Release AAB (Android App Bundle)
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleRelease
+        run: ./gradlew bundleRelease -PreleaseVersion="$CLEAN_VER" -PreleaseVersionCode="${{ github.run_number }}"
 
-      # 10. Verify Artifacts exist and are non-empty
       - name: Verify Artifacts Integrity
         run: |
           mkdir -p release-artifacts
-
           APK_FILE="app/build/outputs/apk/release/app-release.apk"
           AAB_FILE="app/build/outputs/bundle/release/app-release.aab"
-
-          echo "=== Verifying Artifacts ==="
-
-          if [ ! -f "$APK_FILE" ]; then
-            echo "ERROR: Release APK was not found at $APK_FILE"
-            exit 1
-          fi
-
-          if [ ! -s "$APK_FILE" ]; then
-            echo "ERROR: Release APK at $APK_FILE is empty"
-            exit 1
-          fi
-
-          if [ ! -f "$AAB_FILE" ]; then
-            echo "ERROR: Release AAB was not found at $AAB_FILE"
-            exit 1
-          fi
-
-          if [ ! -s "$AAB_FILE" ]; then
-            echo "ERROR: Release AAB at $AAB_FILE is empty"
-            exit 1
-          fi
-
-          # Prepare named release artifacts
-          TARGET_APK="release-artifacts/TheHub-${TAG}.apk"
-          TARGET_AAB="release-artifacts/TheHub-${TAG}.aab"
-
-          cp "$APK_FILE" "$TARGET_APK"
-          cp "$AAB_FILE" "$TARGET_AAB"
-
-          echo "Artifacts successfully created and verified:"
-          ls -lh release-artifacts/
+          test -s "$APK_FILE" || { echo "ERROR: APK missing or empty"; exit 1; }
+          test -s "$AAB_FILE" || { echo "ERROR: AAB missing or empty"; exit 1; }
+          cp "$APK_FILE" "release-artifacts/TheHub-${TAG}.apk"
+          cp "$AAB_FILE" "release-artifacts/TheHub-${TAG}.aab"
           sha256sum release-artifacts/*
 
-      # 11. Create Git Tag (if not existing)
       - name: Create Git Tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Creating and pushing tag $TAG..."
             git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"
           else
             echo "Tag $TAG already exists."
           fi
 
-      # 12. Publish GitHub Release with APK & AAB attached
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           name: "The Hub ${{ env.TAG }}"
