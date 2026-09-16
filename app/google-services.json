@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "183373607979",
+    "project_id": "the-hub-f95f4",
+    "storage_bucket": "the-hub-f95f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183373607979:android:ab8055f86cb765a66de66e",
+        "android_client_info": {
+          "package_name": "com.thehub.hb"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "183373607979-h69qedd416ttg9fmg72enl749m1cgoos.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.thehub.hb",
+            "certificate_hash": "f5cd8c88c4c85fd59184215706da52c62c57d037"
+          }
+        },
+        {
+          "client_id": "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEhYwtXx6PejTL2RbJcjpzCBKkJPYLAtg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
