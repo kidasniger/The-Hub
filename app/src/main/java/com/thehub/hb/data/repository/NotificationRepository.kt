@@ -24,125 +24,84 @@ class NotificationRepository(
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
+    private fun userRef(uid: String) = firestore.collection("users").document(uid)
+
     private suspend fun getCurrentActorInfo(): Triple<String, String, String?> {
         val user = auth.currentUser
         val uid = user?.uid ?: ""
         var username = user?.displayName ?: ""
         var photoUrl = user?.photoUrl?.toString()
-
         if (uid.isNotEmpty()) {
-            try {
-                val doc = firestore.collection("users").document(uid).get().await()
+            runCatching {
+                val doc = userRef(uid).get().await()
                 if (doc.exists()) {
-                    val dbUsername = doc.getString("username")
-                    val dbDisplayName = doc.getString("displayName")
-                    val dbPhoto = doc.getString("photoUrl")
-                    if (!dbUsername.isNullOrBlank()) username = dbUsername
-                    else if (!dbDisplayName.isNullOrBlank()) username = dbDisplayName
-                    if (!dbPhoto.isNullOrBlank()) photoUrl = dbPhoto
+                    username = doc.getString("username")?.takeIf { it.isNotBlank() } ?: username
+                    if (username.isBlank()) username = doc.getString("displayName") ?: username
+                    photoUrl = doc.getString("photoUrl") ?: photoUrl
                 }
-            } catch (_: Exception) {}
+            }
         }
-
-        if (username.isBlank()) {
-            val email = user?.email ?: ""
-            username = if (email.contains("@")) email.substringBefore("@") else "utilisateur"
-        }
-
-        return Triple(uid, username, photoUrl)
+        if (username.isBlank()) username = user?.email?.substringBefore("@")?.takeIf { it.isNotBlank() } ?: "utilisateur"
+        return Triple(uid, username.take(64), photoUrl)
     }
 
-    /**
-     * Real-time stream of notifications for the current user.
-     * Filtered by recipientId and sorted in Kotlin to avoid requiring a composite index in Firestore.
-     */
     fun getNotifications(): Flow<List<NotificationItem>> = callbackFlow {
         val uid = currentUserId
-        if (uid == null) {
+        if (uid.isNullOrBlank()) {
             trySend(emptyList())
             close()
             return@callbackFlow
         }
-
         val listener = firestore.collection("notifications")
             .whereEqualTo("recipientId", uid)
             .limit(100)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e("NotificationRepository", "Error observing notifications: ${error.message}", error)
+                    Log.e("NotificationRepository", "Erreur notifications", error)
                     return@addSnapshotListener
                 }
-
-                if (snapshot != null) {
-                    val list = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            NotificationItem.fromSnapshot(doc)
-                        } catch (e: Exception) {
-                            Log.w("NotificationRepository", "Error parsing notification ${doc.id}: ${e.message}")
-                            null
-                        }
-                    }.sortedByDescending { it.createdAt.toDate().time }
-
-                    trySend(list)
-                }
+                val items = snapshot?.documents.orEmpty().mapNotNull { doc ->
+                    runCatching { NotificationItem.fromSnapshot(doc) }.getOrNull()
+                }.sortedByDescending { it.createdAt.toDate().time }
+                trySend(items)
             }
-
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
 
-    /**
-     * Real-time stream of unread notification count.
-     * Derived from getNotifications() to avoid requiring composite Firestore indexes
-     * and guarantee 100% synchronization with the real-time notification list.
-     */
-    fun getUnreadCount(): Flow<Int> = getNotifications().map { list ->
-        list.count { !it.isRead }
-    }.flowOn(Dispatchers.IO)
+    fun getUnreadCount(): Flow<Int> = getNotifications().map { list -> list.count { !it.isRead } }
 
-    /**
-     * Mark a single notification as read.
-     */
     suspend fun markAsRead(notificationId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         try {
-            firestore.collection("notifications").document(notificationId)
-                .update("isRead", true).await()
+            val ref = firestore.collection("notifications").document(notificationId)
+            val doc = ref.get().await()
+            if (!doc.exists() || doc.getString("recipientId") != uid) return@withContext Result.failure(Exception("Notification introuvable"))
+            ref.update("isRead", true).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("NotificationRepository", "Error marking notification as read: ${e.message}", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Mark all notifications for current user as read.
-     */
     suspend fun markAllAsRead(): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
         try {
             val snapshot = firestore.collection("notifications")
                 .whereEqualTo("recipientId", uid)
-                .whereEqualTo("isRead", false)
-                .get()
-                .await()
-
-            if (!snapshot.isEmpty) {
+                .limit(100)
+                .get().await()
+            val unread = snapshot.documents.filter { it.getBoolean("isRead") != true }
+            unread.chunked(450).forEach { chunk ->
                 val batch = firestore.batch()
-                for (doc in snapshot.documents) {
-                    batch.update(doc.reference, "isRead", true)
-                }
+                chunk.forEach { batch.update(it.reference, "isRead", true) }
                 batch.commit().await()
             }
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("NotificationRepository", "Error marking all as read: ${e.message}", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Create a notification in Firestore.
-     * Prevents notifications when actor == recipient (self-actions).
-     */
     suspend fun createNotification(
         recipientId: String,
         type: String,
@@ -150,122 +109,110 @@ class NotificationRepository(
         commentText: String? = null,
         commentId: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
+        if (recipientId.isBlank()) return@withContext Result.failure(Exception("Destinataire invalide"))
+        if (type !in setOf(
+                NotificationItem.TYPE_LIKE,
+                NotificationItem.TYPE_COMMENT,
+                NotificationItem.TYPE_FOLLOW,
+                NotificationItem.TYPE_MESSAGE,
+                NotificationItem.TYPE_LIKE_COMMENT,
+                NotificationItem.TYPE_REPLY_COMMENT
+            )) return@withContext Result.failure(Exception("Type de notification invalide"))
         try {
-            val (actorUid, actorUsername, actorPhotoUrl) = getCurrentActorInfo()
-            if (actorUid.isBlank() || recipientId.isBlank() || actorUid == recipientId) {
-                // Ignore self-notification
-                return@withContext Result.success(Unit)
-            }
-
-            val docRef = firestore.collection("notifications").document()
-            val notification = NotificationItem(
-                id = docRef.id,
+            val (actorUid, username, photoUrl) = getCurrentActorInfo()
+            if (actorUid.isBlank() || actorUid == recipientId) return@withContext Result.success(Unit)
+            val ref = firestore.collection("notifications").document()
+            val item = NotificationItem(
+                id = ref.id,
                 recipientId = recipientId,
                 actorId = actorUid,
-                actorUsername = actorUsername,
-                actorPhotoUrl = actorPhotoUrl,
+                actorUsername = username,
+                actorPhotoUrl = photoUrl,
                 type = type,
                 postId = postId,
-                commentText = commentText,
+                commentText = commentText?.take(500),
                 commentId = commentId,
                 createdAt = Timestamp.now(),
                 isRead = false
             )
-
-            docRef.set(notification.toMap()).await()
-            Log.d("NotificationRepository", "Created notification ${docRef.id} for recipient $recipientId (type=$type)")
+            ref.set(item.toMap()).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("NotificationRepository", "Failed to create notification: ${e.message}", e)
+            Log.e("NotificationRepository", "Erreur création notification", e)
             Result.failure(e)
         }
     }
 
     /**
-     * Follow a user: creates records in users/{targetUid}/followers/{currentUid}
-     * and users/{currentUid}/following/{targetUid}, and triggers a "follow" notification.
+     * Transactional follow used by search/profile surfaces that historically called this repository.
      */
     suspend fun followUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
-        val currentUid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-        if (currentUid == targetUid) return@withContext Result.failure(Exception("Impossible de se suivre soi-même"))
-
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        if (uid == targetUid) return@withContext Result.failure(Exception("Impossible de se suivre soi-même"))
         try {
-            val now = Timestamp.now()
-            val batch = firestore.batch()
-
-            val followerDoc = firestore.collection("users").document(targetUid)
-                .collection("followers").document(currentUid)
-            batch.set(followerDoc, mapOf("followedAt" to now, "followerId" to currentUid), SetOptions.merge())
-
-            val followingDoc = firestore.collection("users").document(currentUid)
-                .collection("following").document(targetUid)
-            batch.set(followingDoc, mapOf("followedAt" to now, "followingId" to targetUid), SetOptions.merge())
-
-            batch.commit().await()
-
-            // Trigger notification
-            createNotification(
-                recipientId = targetUid,
-                type = NotificationItem.TYPE_FOLLOW
-            )
-
+            val me = userRef(uid)
+            val target = userRef(targetUid)
+            val following = me.collection("following").document(targetUid)
+            val follower = target.collection("followers").document(uid)
+            var created = false
+            firestore.runTransaction { tx ->
+                val meDoc = tx.get(me)
+                val targetDoc = tx.get(target)
+                if (!meDoc.exists() || !targetDoc.exists() || meDoc.getBoolean("isDeleted") == true || targetDoc.getBoolean("isDeleted") == true) {
+                    throw IllegalStateException("Compte indisponible")
+                }
+                if (tx.get(me.collection("blockedUsers").document(targetUid)).exists() || tx.get(target.collection("blockedUsers").document(uid)).exists()) {
+                    throw IllegalStateException("Action impossible entre comptes bloqués")
+                }
+                if (!tx.get(following).exists()) {
+                    val now = Timestamp.now()
+                    tx.set(following, mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid))
+                    tx.set(follower, mapOf("followedAt" to now, "followerId" to uid, "uid" to uid))
+                    tx.update(me, "followingCount", FieldValue.increment(1))
+                    tx.update(target, "followersCount", FieldValue.increment(1))
+                    created = true
+                }
+            }.await()
+            if (created) createNotification(targetUid, NotificationItem.TYPE_FOLLOW)
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("NotificationRepository", "Error following user: ${e.message}", e)
+            Log.e("NotificationRepository", "Erreur follow", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Unfollow a user: removes records from both subcollections.
-     */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
-        val currentUid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        if (uid == targetUid) return@withContext Result.failure(Exception("Action non permise"))
         try {
-            val followingDoc = firestore.collection("users").document(currentUid)
-                .collection("following").document(targetUid)
-            followingDoc.delete().await()
-
-            try {
-                val followerDoc = firestore.collection("users").document(targetUid)
-                    .collection("followers").document(currentUid)
-                followerDoc.delete().await()
-            } catch (_: Exception) {}
-
-            try {
-                firestore.collection("users").document(currentUid)
-                    .collection("friends").document(targetUid).delete().await()
-            } catch (_: Exception) {}
-
-            try {
-                firestore.collection("users").document(targetUid)
-                    .collection("friends").document(currentUid).delete().await()
-            } catch (_: Exception) {}
-
+            val me = userRef(uid)
+            val target = userRef(targetUid)
+            val following = me.collection("following").document(targetUid)
+            val follower = target.collection("followers").document(uid)
+            firestore.runTransaction { tx ->
+                if (tx.get(following).exists()) {
+                    tx.delete(following)
+                    tx.delete(follower)
+                    tx.update(me, "followingCount", FieldValue.increment(-1))
+                    tx.update(target, "followersCount", FieldValue.increment(-1))
+                }
+            }.await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("NotificationRepository", "Error unfollowing user: ${e.message}", e)
+            Log.e("NotificationRepository", "Erreur unfollow", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Check if current user is following target user.
-     */
     fun isFollowing(targetUid: String): Flow<Boolean> = callbackFlow {
-        val currentUid = currentUserId
-        if (currentUid == null || currentUid == targetUid) {
+        val uid = currentUserId
+        if (uid.isNullOrBlank() || uid == targetUid) {
             trySend(false)
             close()
             return@callbackFlow
         }
-
-        val listener = firestore.collection("users").document(targetUid)
-            .collection("followers").document(currentUid)
-            .addSnapshotListener { snapshot, _ ->
-                trySend(snapshot?.exists() == true)
-            }
-
+        val listener = userRef(uid).collection("following").document(targetUid)
+            .addSnapshotListener { snapshot, _ -> trySend(snapshot?.exists() == true) }
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
 }
