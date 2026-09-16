@@ -1,8 +1,6 @@
 package com.thehub.hb.ui.feed
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,22 +52,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.ui.components.AppLogo
+import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
-import com.thehub.hb.ui.feed.components.PostCard
-import com.thehub.hb.ui.feed.components.SharePostBottomSheet
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.copyPostLinkToClipboard
+import com.thehub.hb.ui.feed.components.PostCard
+import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubError
-import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
@@ -99,7 +95,6 @@ fun FeedScreen(
     var isSubmittingReport by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
-    // Pagination detection
     val shouldLoadMore by remember {
         derivedStateOf {
             val totalItems = listState.layoutInfo.totalItemsCount
@@ -109,9 +104,7 @@ fun FeedScreen(
     }
 
     LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) {
-            viewModel.loadMore()
-        }
+        if (shouldLoadMore) viewModel.loadMore()
     }
 
     val isRefreshing = (uiState as? FeedUiState.Success)?.isRefreshing == true
@@ -123,8 +116,7 @@ fun FeedScreen(
             .background(HubBlack)
             .testTag("feed_screen")
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header Top Bar
+        Column(Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -134,11 +126,8 @@ fun FeedScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppLogo(
-                        size = 32.dp,
-                        animated = false
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    AppLogo(size = 32.dp, animated = false)
+                    Spacer(Modifier.width(10.dp))
                     Text(
                         text = "The Hub",
                         fontSize = 20.sp,
@@ -157,15 +146,10 @@ fun FeedScreen(
                             .background(HubSurfaceElevated)
                             .testTag("feed_refresh_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Actualiser",
-                            tint = HubWhite,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Default.Refresh, "Actualiser", tint = HubWhite, modifier = Modifier.size(20.dp))
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(Modifier.width(10.dp))
 
                     IconButton(
                         onClick = onOpenFriends,
@@ -175,15 +159,10 @@ fun FeedScreen(
                             .background(HubSurfaceElevated)
                             .testTag("feed_friends_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.People,
-                            contentDescription = "Amis",
-                            tint = HubWhite,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Outlined.People, "Amis", tint = HubWhite, modifier = Modifier.size(20.dp))
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(Modifier.width(10.dp))
 
                     Box(contentAlignment = Alignment.TopEnd) {
                         IconButton(
@@ -194,14 +173,8 @@ fun FeedScreen(
                                 .background(HubSurfaceElevated)
                                 .testTag("feed_messenger_button")
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Email,
-                                contentDescription = "Messagerie",
-                                tint = HubWhite,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.Outlined.Email, "Messagerie", tint = HubWhite, modifier = Modifier.size(20.dp))
                         }
-
                         if (unreadConversationsCount > 0) {
                             Box(
                                 modifier = Modifier
@@ -222,7 +195,6 @@ fun FeedScreen(
                 }
             }
 
-            // Main Content
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = { viewModel.refresh() },
@@ -232,21 +204,9 @@ fun FeedScreen(
                     .weight(1f)
             ) {
                 when (val state = uiState) {
-                    is FeedUiState.Loading -> {
-                        FeedSkeletonList()
-                    }
-
-                    is FeedUiState.Empty -> {
-                        FeedEmptyState(onCreatePost = onCreatePost)
-                    }
-
-                    is FeedUiState.Error -> {
-                        FeedErrorState(
-                            message = state.message,
-                            onRetry = { viewModel.loadFeed(isRefresh = false) }
-                        )
-                    }
-
+                    is FeedUiState.Loading -> FeedSkeletonList()
+                    is FeedUiState.Empty -> FeedEmptyState(onCreatePost)
+                    is FeedUiState.Error -> FeedErrorState(state.message) { viewModel.loadFeed(isRefresh = false) }
                     is FeedUiState.Success -> {
                         LazyColumn(
                             state = listState,
@@ -254,10 +214,7 @@ fun FeedScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(
-                                items = state.posts,
-                                key = { it.id }
-                            ) { post ->
+                            items(state.posts, key = { it.id }) { post ->
                                 PostCard(
                                     post = post,
                                     onPostClick = onPostClick,
@@ -271,66 +228,45 @@ fun FeedScreen(
                                     onMoreOptionsClick = { postForOptions = it }
                                 )
                             }
-
                             if (state.isLoadingMore) {
                                 item {
                                     Box(
-                                        modifier = Modifier
+                                        Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(
-                                            color = HubWhite,
-                                            modifier = Modifier.size(24.dp)
-                                        )
+                                        CircularProgressIndicator(color = HubWhite, modifier = Modifier.size(24.dp))
                                     }
                                 }
                             }
-
-                            // Extra bottom spacer so last post isn't hidden under bottom bar
-                            item {
-                                Spacer(modifier = Modifier.height(72.dp))
-                            }
+                            item { Spacer(Modifier.height(72.dp)) }
                         }
                     }
                 }
             }
         }
 
-        // Share Post Bottom Sheet
         postToShare?.let { post ->
             SharePostBottomSheet(
                 post = post,
                 onDismiss = { postToShare = null },
-                onRepost = { p ->
-                    viewModel.repost(p)
-                }
+                onRepost = { viewModel.repost(it) }
             )
         }
 
-        // Post Options Bottom Sheet ("⋮")
         postForOptions?.let { post ->
             PostOptionsBottomSheet(
                 post = post,
                 currentUserId = viewModel.currentUserId,
                 onDismiss = { postForOptions = null },
-                onEdit = {
-                    onEditPost(it)
-                },
-                onDelete = {
-                    postToDelete = it
-                },
-                onReport = {
-                    postToReport = it
-                },
-                onCopyLink = {
-                    copyPostLinkToClipboard(context, it.id)
-                }
+                onEdit = onEditPost,
+                onDelete = { postToDelete = it },
+                onReport = { postToReport = it },
+                onCopyLink = { copyPostLinkToClipboard(context, it.id) }
             )
         }
 
-        // Delete Post Confirmation Dialog
         DeletePostConfirmationDialog(
             isOpen = postToDelete != null,
             isDeleting = isDeletingPost,
@@ -340,21 +276,16 @@ fun FeedScreen(
                 viewModel.deletePost(targetPost.id) { success, errorMsg ->
                     isDeletingPost = false
                     postToDelete = null
-                    if (success) {
-                        Toast.makeText(context, "Publication supprimée", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, errorMsg ?: "Erreur de suppression", Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(
+                        context,
+                        if (success) "Publication supprimée" else (errorMsg ?: "Erreur de suppression"),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             },
-            onDismiss = {
-                if (!isDeletingPost) {
-                    postToDelete = null
-                }
-            }
+            onDismiss = { if (!isDeletingPost) postToDelete = null }
         )
 
-        // Report Post Bottom Sheet
         postToReport?.let { post ->
             ReportBottomSheet(
                 targetType = "post",
@@ -366,19 +297,12 @@ fun FeedScreen(
                     viewModel.reportPost(post.id, reason, details) { success, errorMsg ->
                         isSubmittingReport = false
                         postToReport = null
-                        if (success) {
-                            Toast.makeText(
-                                context,
-                                "Signalement envoyé. Merci de nous aider à garder The Hub sûr.",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                errorMsg ?: "Erreur lors du signalement",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                        Toast.makeText(
+                            context,
+                            if (success) "Signalement envoyé. Merci de nous aider à garder The Hub sûr."
+                            else (errorMsg ?: "Erreur lors du signalement"),
+                            if (success) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+                        ).show()
                     }
                 },
                 isSubmitting = isSubmittingReport
@@ -407,47 +331,18 @@ private fun FeedSkeletonList() {
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(HubDarkGray)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Box(Modifier.size(40.dp).clip(CircleShape).background(HubDarkGray))
+                        Spacer(Modifier.width(12.dp))
                         Column {
-                            Box(
-                                modifier = Modifier
-                                    .width(100.dp)
-                                    .height(14.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(HubDarkGray)
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .width(60.dp)
-                                    .height(10.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(HubBorder)
-                            )
+                            Box(Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                            Spacer(Modifier.height(6.dp))
+                            Box(Modifier.width(60.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(HubBorder))
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(HubDarkGray)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.6f)
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(HubDarkGray)
-                    )
+                    Spacer(Modifier.height(16.dp))
+                    Box(Modifier.fillMaxWidth(0.9f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth(0.6f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
                 }
             }
         }
@@ -455,59 +350,33 @@ private fun FeedSkeletonList() {
 }
 
 @Composable
-private fun FeedEmptyState(
-    onCreatePost: () -> Unit
-) {
+private fun FeedEmptyState(onCreatePost: () -> Unit) {
     val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                modifier = Modifier
+                Modifier
                     .size(80.dp)
                     .clip(CircleShape)
                     .background(HubSurfaceElevated),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.DynamicFeed,
-                    contentDescription = null,
-                    tint = HubSecondary,
-                    modifier = Modifier.size(40.dp)
-                )
+                Icon(Icons.Outlined.DynamicFeed, null, tint = HubSecondary, modifier = Modifier.size(40.dp))
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
+            Spacer(Modifier.height(20.dp))
+            Text(strings.noPostsYet, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = HubWhite)
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = strings.noPostsYet,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = if (strings == com.thehub.hb.ui.theme.EnHubStrings)
-                    "Be the first to share a thought or a photo with the community!"
-                else
-                    "Soyez le premier à partager une pensée ou une photo avec la communauté !",
+                strings.noPostsDescription,
                 fontSize = 14.sp,
                 color = HubSecondary,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
+            Spacer(Modifier.height(24.dp))
             HubButton(
                 text = strings.tabCreate,
                 onClick = onCreatePost,
@@ -519,34 +388,13 @@ private fun FeedEmptyState(
 }
 
 @Composable
-private fun FeedErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Oups !",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubError
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                fontSize = 14.sp,
-                color = HubSecondary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(20.dp))
+private fun FeedErrorState(message: String, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Oups !", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = HubError)
+            Spacer(Modifier.height(8.dp))
+            Text(message, fontSize = 14.sp, color = HubSecondary, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(20.dp))
             HubButton(
                 text = "Réessayer",
                 onClick = onRetry,
