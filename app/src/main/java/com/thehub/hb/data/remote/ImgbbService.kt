@@ -14,6 +14,10 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/**
+ * The Hub image transport.
+ * All image bytes are sent directly to ImgBB. Firebase Storage is intentionally not used.
+ */
 class ImgbbService(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(45, TimeUnit.SECONDS)
@@ -23,56 +27,68 @@ class ImgbbService(
 ) {
     companion object {
         private const val DEFAULT_KEY = "f5cf2a4a5280b1e58ae04cea77b5607d"
-        private val API_KEY: String
-            get() = if (BuildConfig.IMGBB_API_KEY.isNotBlank() && BuildConfig.IMGBB_API_KEY != "YOUR_IMGBB_API_KEY") {
-                BuildConfig.IMGBB_API_KEY
-            } else {
-                DEFAULT_KEY
-            }
         private const val UPLOAD_URL = "https://api.imgbb.com/1/upload"
+        private const val MAX_IMAGE_BYTES = 8 * 1024 * 1024
         private const val TAG = "ImgbbService"
+
+        private val API_KEY: String
+            get() = BuildConfig.IMGBB_API_KEY
+                .trim()
+                .takeIf { it.isNotBlank() && it != "YOUR_IMGBB_API_KEY" }
+                ?: DEFAULT_KEY
     }
 
     suspend fun uploadImage(imageBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val key = API_KEY.trim()
-            val mediaType = "image/jpeg".toMediaTypeOrNull()
+        if (imageBytes.isEmpty()) {
+            return@withContext Result.failure(IllegalArgumentException("Image vide"))
+        }
+        if (imageBytes.size > MAX_IMAGE_BYTES) {
+            return@withContext Result.failure(IllegalArgumentException("Image trop volumineuse (8 Mo maximum)"))
+        }
 
-            // ImgBB accepts either multipart file or base64 string
+        try {
+            val key = API_KEY
             val requestBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("key", key)
-                .addFormDataPart("image", "upload.jpg", imageBytes.toRequestBody(mediaType))
+                .addFormDataPart(
+                    "image",
+                    "upload.jpg",
+                    imageBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                )
                 .build()
 
             val request = Request.Builder()
                 .url("$UPLOAD_URL?key=$key")
                 .post(requestBody)
+                .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string().orEmpty()
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string().orEmpty()
+                Log.d(TAG, "ImgBB upload response code: ${response.code}")
 
-            Log.d(TAG, "ImgBB upload response code: ${response.code}")
-
-            if (!response.isSuccessful) {
-                val errorMsg = try {
-                    val json = JSONObject(responseBody)
-                    json.optJSONObject("error")?.optString("message") ?: "Erreur ${response.code}: $responseBody"
-                } catch (_: Exception) {
-                    "Échec de l'envoi de l'image (code ${response.code})"
+                if (!response.isSuccessful) {
+                    val message = try {
+                        JSONObject(responseBody)
+                            .optJSONObject("error")
+                            ?.optString("message")
+                            ?.takeIf { it.isNotBlank() }
+                    } catch (_: Exception) {
+                        null
+                    } ?: "Échec de l'envoi de l'image (code ${response.code})"
+                    return@withContext Result.failure(IOException(message))
                 }
-                return@withContext Result.failure(IOException(errorMsg))
-            }
 
-            val json = JSONObject(responseBody)
-            if (json.optBoolean("success")) {
-                val data = json.getJSONObject("data")
-                val url = data.getString("url")
+                val json = JSONObject(responseBody)
+                if (!json.optBoolean("success")) {
+                    val message = json.optJSONObject("error")?.optString("message")
+                        ?.takeIf { it.isNotBlank() } ?: "Erreur d'upload ImgBB"
+                    return@withContext Result.failure(IOException(message))
+                }
+
+                val url = json.optJSONObject("data")?.optString("url")?.takeIf { it.isNotBlank() }
+                    ?: return@withContext Result.failure(IOException("ImgBB n'a pas renvoyé d'URL d'image"))
                 Result.success(url)
-            } else {
-                val errorMsg = json.optJSONObject("error")?.optString("message") ?: "Erreur d'upload ImgBB"
-                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Log.e(TAG, "ImgBB upload exception: ${e.message}", e)
@@ -80,4 +96,3 @@ class ImgbbService(
         }
     }
 }
-
