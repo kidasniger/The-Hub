@@ -1,42 +1,60 @@
 ---
-name: "À renseigner"
-slug: "À renseigner"
-version: "À renseigner"
+name: "The Hub"
+slug: "the-hub"
+version: "1.0.22"
 status: "À renseigner"
 category: "À renseigner"
 author: "À renseigner"
 license: "À renseigner"
-platforms: []
-technologies: []
+platforms:
+  - "Android"
+technologies:
+  - "Kotlin"
+  - "Jetpack Compose"
+  - "Material Design 3"
+  - "Coroutines/Flow"
+  - "Room"
+  - "Firebase"
 featured: false
-github: ""
-demo: ""
-website: ""
-documentation: ""
-download: ""
+github: "https://github.com/kidasniger/The-Hub"
+demo: "À renseigner"
+website: "À renseigner"
+documentation: "À renseigner"
+download: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
 icon: "À renseigner"
 cover: "À renseigner"
 ---
 
 # Description
 
-À renseigner
+The Hub est une application mobile Android moderne développée avec Kotlin et Jetpack Compose. Le projet utilise Material Design 3, Coroutines/Flow, Room et Firebase.
 
 # Description courte
 
-À renseigner
+Application mobile Android The Hub, développée avec Kotlin, Jetpack Compose, Room et Firebase.
 
 # Fonctionnalités
 
-- À renseigner
+- Authentification et gestion de compte
+- Profils utilisateurs, abonnements, amis et blocage
+- Publications, commentaires, réponses, likes et favoris
+- Recherche et fil d'actualité
+- Messagerie et notifications
+- Gestion du thème et des langues FR/EN
+- Mise à jour de l'application depuis les releases
 
 # Technologies
 
-- À renseigner
+- Kotlin
+- Jetpack Compose
+- Material Design 3
+- Coroutines/Flow
+- Room
+- Firebase
 
 # Plateformes
 
-- À renseigner
+- Android
 
 # Captures d'écran
 
@@ -50,65 +68,74 @@ cover: "À renseigner"
 
 ## Android
 
-- URL: ""
-- Version: ""
-- Architecture: ""
-- Taille: ""
+- URL: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
+- Version: "1.0.22"
+- Architecture: "À renseigner"
+- Taille: "21.0 MB"
 
 ## Windows
 
-- URL: ""
-- Version: ""
-- Architecture: ""
-- Taille: ""
+- URL: "À renseigner"
+- Version: "À renseigner"
+- Architecture: "À renseigner"
+- Taille: "À renseigner"
 
 ## Linux
 
-- URL: ""
-- Version: ""
-- Architecture: ""
-- Taille: ""
+- URL: "À renseigner"
+- Version: "À renseigner"
+- Architecture: "À renseigner"
+- Taille: "À renseigner"
 
 ## macOS
 
-- URL: ""
-- Version: ""
-- Architecture: ""
-- Taille: ""
+- URL: "À renseigner"
+- Version: "À renseigner"
+- Architecture: "À renseigner"
+- Taille: "À renseigner"
 
 # Liens
 
-- GitHub: ""
-- Démo: ""
-- Site web: ""
-- Documentation: ""
-- Téléchargement: ""
-- YouTube: ""
-- Vidéo de présentation: ""
+- GitHub: "https://github.com/kidasniger/The-Hub"
+- Démo: "À renseigner"
+- Site web: "À renseigner"
+- Documentation: "À renseigner"
+- Téléchargement: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
+- YouTube: "À renseigner"
+- Vidéo de présentation: "À renseigner"
 
 # Nouveautés
 
-- À renseigner
+- Ajout de la localisation FR/EN et du support du choix de langue
+- Ajout de vérifications du statut des comptes pour empêcher les actions depuis des comptes supprimés
+- Nettoyage des notes de version affichées par le système de mise à jour
 
 # Changelog
 
-## [À renseigner]
+## 1.0.22
 
-- À renseigner
+- Ajout de la localisation FR/EN
+- Ajout de la vérification du statut des comptes supprimés
+- Amélioration du traitement des notes de version pour les mises à jour
 
 # SEO
 
 ## Title
 
-À renseigner
+The Hub - Application mobile Android
 
 ## Description
 
-À renseigner
+The Hub est une application mobile Android développée avec Kotlin, Jetpack Compose, Material Design 3, Room et Firebase.
 
 ## Keywords
 
-- À renseigner
+- The Hub
+- application Android
+- réseau social
+- Kotlin
+- Jetpack Compose
+- Firebase
 
 ## Open Graph Image
 
@@ -120,4 +147,6 @@ cover: "À renseigner"
 
 # Informations supplémentaires
 
-À renseigner
+Identifiant d'application Android : com.thehub.hb
+
+Projet Firebase : the-hub-f95f4
