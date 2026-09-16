@@ -26,16 +26,12 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isUser(userId) && request.resource.data.uid == userId;
       allow update: if isAuthenticated() && (
-        (
-          isUser(userId)
-          && request.resource.data.uid == userId
+        (isUser(userId) && request.resource.data.uid == userId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'uid', 'email', 'username', 'usernameLower', 'displayName', 'photoUrl',
-            'bio', 'birthdate', 'createdAt', 'isDeleted'
-          ])
-        )
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
+            'uid', 'email', 'username', 'usernameLower', 'displayName', 'photoUrl', 'bio',
+            'birthdate', 'createdAt', 'isDeleted'
+          ]))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
           && request.resource.data.followersCount >= 0
           && (
             (request.resource.data.followersCount == resource.data.followersCount + 1
@@ -46,28 +42,23 @@ service cloud.firestore {
               && !getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists())
             || (resource.data.followersCount == null && request.resource.data.followersCount == 1
               && getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).exists())
-          )
-        )
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount'])
+          ))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount'])
           && request.resource.data.followingCount >= 0
           && (
             (request.resource.data.followingCount == resource.data.followingCount + 1
-              && !get(/databases/$(database)/documents/users/$(userId)/following/{request.auth.uid}).exists())
+              && !get(/databases/$(database)/documents/users/$(userId)/following/$(request.resource.data.uid)).exists())
             || (request.resource.data.followingCount == resource.data.followingCount - 1
-              && get(/databases/$(database)/documents/users/$(userId)/following/{request.auth.uid}).exists())
+              && get(/databases/$(database)/documents/users/$(userId)/following/$(request.resource.data.uid)).exists())
             || (resource.data.followingCount == null && request.resource.data.followingCount == 1)
-          )
-        )
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['postsCount'])
+          ))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['postsCount'])
           && request.resource.data.postsCount >= 0
           && (
             request.resource.data.postsCount == resource.data.postsCount + 1
             || request.resource.data.postsCount == resource.data.postsCount - 1
             || (resource.data.postsCount == null && request.resource.data.postsCount == 1)
-          )
-        )
+          ))
       );
       allow delete: if isUser(userId);
 
@@ -113,16 +104,12 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid
         && request.resource.data.createdAt is timestamp
         && (
-          (request.resource.data.targetType in ['user', 'post']
-            && request.resource.data.targetId is string
-            && request.resource.data.targetId.size() > 0
-            && request.resource.data.reason is string
+          (request.resource.data.targetType in ['user', 'post'] && request.resource.data.targetId is string
+            && request.resource.data.targetId.size() > 0 && request.resource.data.reason is string
             && request.resource.data.reason.size() > 0)
-          ||
-          (request.resource.data.type == 'comment'
-            && request.resource.data.postId is string
-            && request.resource.data.commentId is string
-            && request.resource.data.reason is string
+          || (request.resource.data.type == 'comment' && request.resource.data.postId is string
+            && request.resource.data.postId.size() > 0 && request.resource.data.commentId is string
+            && request.resource.data.commentId.size() > 0 && request.resource.data.reason is string
             && request.resource.data.reason.size() > 0)
         );
       allow read, update, delete: if false;
@@ -134,34 +121,23 @@ service cloud.firestore {
         && request.resource.data.text is string && request.resource.data.createdAt is timestamp;
       allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
       allow update: if isAuthenticated() && (
-        (
-          resource.data.authorId == request.auth.uid
-          && request.resource.data.authorId == resource.data.authorId
+        (resource.data.authorId == request.auth.uid && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'hashtags', 'updatedAt', 'imageUrl', 'authorUsername', 'authorPhotoUrl'])
-        )
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'text', 'hashtags', 'updatedAt', 'imageUrl', 'authorUsername', 'authorPhotoUrl'
+          ]))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
           && request.resource.data.likesCount >= 0
-          && (
-            (request.resource.data.likesCount == resource.data.likesCount + 1
-              && !get(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
-              && getAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists())
-            || (request.resource.data.likesCount == resource.data.likesCount - 1
-              && get(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists()
-              && !getAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)).exists())
-          )
-        )
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
+          && ((request.resource.data.likesCount == resource.data.likesCount + 1)
+            || (request.resource.data.likesCount == resource.data.likesCount - 1)))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
           && request.resource.data.commentsCount >= 0
-          && (request.resource.data.commentsCount == resource.data.commentsCount + 1 || request.resource.data.commentsCount == resource.data.commentsCount - 1)
-        )
-        || (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount'])
+          && ((request.resource.data.commentsCount == resource.data.commentsCount + 1)
+            || (request.resource.data.commentsCount == resource.data.commentsCount - 1)))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount'])
           && request.resource.data.repostsCount >= 0
-          && (request.resource.data.repostsCount == resource.data.repostsCount + 1 || request.resource.data.repostsCount == resource.data.repostsCount - 1)
-        )
+          && ((request.resource.data.repostsCount == resource.data.repostsCount + 1)
+            || (request.resource.data.repostsCount == resource.data.repostsCount - 1)))
       );
 
       match /likes/{userId} {
@@ -181,15 +157,15 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
         );
         allow update: if isAuthenticated() && (
-          (resource.data.authorId == request.auth.uid
-            && request.resource.data.authorId == resource.data.authorId
+          (resource.data.authorId == request.auth.uid && request.resource.data.authorId == resource.data.authorId
             && request.resource.data.createdAt == resource.data.createdAt
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited', 'editedAt']))
           || (get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHidden']))
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
             && request.resource.data.likesCount >= 0
-            && (request.resource.data.likesCount == resource.data.likesCount + 1 || request.resource.data.likesCount == resource.data.likesCount - 1))
+            && ((request.resource.data.likesCount == resource.data.likesCount + 1)
+              || (request.resource.data.likesCount == resource.data.likesCount - 1)))
         );
 
         match /likes/{userId} {
@@ -216,13 +192,12 @@ service cloud.firestore {
           return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
         }
         allow read: if canAccess();
-        allow create: if canAccess() && request.resource.data.senderId == request.auth.uid && request.resource.data.createdAt is timestamp;
+        allow create: if canAccess() && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.createdAt is timestamp;
         allow update: if isAuthenticated() && (
-          (resource.data.senderId == request.auth.uid
-            && request.resource.data.senderId == resource.data.senderId
+          (resource.data.senderId == request.auth.uid && request.resource.data.senderId == resource.data.senderId
             && request.resource.data.createdAt == resource.data.createdAt)
-          || (canAccess()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          || (canAccess() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
             && request.resource.data.status in ['sent', 'delivered', 'read'])
         );
         allow delete: if isAuthenticated() && resource.data.senderId == request.auth.uid;
@@ -238,8 +213,7 @@ service cloud.firestore {
         && validNotificationType(request.resource.data.type)
         && request.resource.data.createdAt is timestamp
         && request.resource.data.isRead == false
-        && ((!('actorPhotoUrl' in request.resource.data))
-          || request.resource.data.actorPhotoUrl == null
+        && ((!('actorPhotoUrl' in request.resource.data)) || request.resource.data.actorPhotoUrl == null
           || request.resource.data.actorPhotoUrl is string);
     }
   }
