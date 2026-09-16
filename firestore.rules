@@ -11,13 +11,21 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'updatedAt'])
-        && request.resource.data.updatedAt is timestamp;
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt', 'updatedAt'])
+        && (
+          ('createdAt' in request.resource.data && request.resource.data.createdAt is timestamp)
+          || ('updatedAt' in request.resource.data && request.resource.data.updatedAt is timestamp)
+        );
       allow update: if isAuthenticated()
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'updatedAt'])
-        && request.resource.data.updatedAt is timestamp;
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt', 'updatedAt'])
+        && (
+          !('createdAt' in request.resource.data) || request.resource.data.createdAt is timestamp
+        )
+        && (
+          !('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp
+        );
       allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
     }
 
