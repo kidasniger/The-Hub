@@ -186,7 +186,13 @@ jobs:
           test -s "$AAB_FILE" || { echo "ERROR: AAB missing or empty"; exit 1; }
 
           EXPECTED_CERT_SHA1="F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
-          apksigner verify --verbose --print-certs "$APK_FILE" > apk-cert.txt
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
+          if [ -z "$APKSIGNER" ]; then
+            echo "ERROR: apksigner not found in Android SDK build-tools."
+            find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner -print || true
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose --print-certs "$APK_FILE" > apk-cert.txt
           cat apk-cert.txt
           grep -qi "$EXPECTED_CERT_SHA1" apk-cert.txt || {
             echo "ERROR: APK signing certificate changed. Release signing continuity would be broken."
