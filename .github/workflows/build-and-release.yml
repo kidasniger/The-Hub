@@ -195,7 +195,7 @@ jobs:
           fi
           "$APKSIGNER" verify --verbose --print-certs "$APK_FILE" > apk-cert.txt
           cat apk-cert.txt
-          ACTUAL_CERT_SHA1_NORMALIZED="$(awk -F': ' '/certificate SHA-1 digest:/ {print $2; exit}' apk-cert.txt | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          ACTUAL_CERT_SHA1_NORMALIZED="$(sed -n 's/.*certificate SHA-1 digest:[[:space:]]*//p' apk-cert.txt | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           if [ -z "$ACTUAL_CERT_SHA1_NORMALIZED" ]; then
             echo "ERROR: Could not extract APK signing certificate SHA-1 fingerprint."
             exit 1
