@@ -73,15 +73,21 @@ android {
   }
 }
 
+val keystorePathProvider = providers.environmentVariable("KEYSTORE_PATH").map { it.trim() }
+val storePasswordProvider = providers.environmentVariable("STORE_PASSWORD").map { it.trim() }
+val keyAliasProvider = providers.environmentVariable("KEY_ALIAS").map { it.trim() }
+val keyPasswordProvider = providers.environmentVariable("KEY_PASSWORD").map { it.trim() }
+val keystoreFileProvider = keystorePathProvider.map { layout.projectDirectory.file(it).asFile }
+
 val validateReleaseSigning = tasks.register("validateReleaseSigning") {
   group = "verification"
   description = "Fails when the production release keystore or credentials are missing/invalid."
 
   doLast {
-    val keystorePath = System.getenv("KEYSTORE_PATH")?.trim().orEmpty()
-    val storePassword = System.getenv("STORE_PASSWORD")?.trim().orEmpty()
-    val keyAlias = System.getenv("KEY_ALIAS")?.trim().orEmpty()
-    val keyPassword = System.getenv("KEY_PASSWORD")?.trim().orEmpty()
+    val keystorePath = keystorePathProvider.orNull.orEmpty()
+    val storePassword = storePasswordProvider.orNull.orEmpty()
+    val keyAlias = keyAliasProvider.orNull.orEmpty()
+    val keyPassword = keyPasswordProvider.orNull.orEmpty()
 
     require(keystorePath.isNotEmpty()) {
       "RELEASE SIGNING ERROR: KEYSTORE_PATH is required for release builds."
@@ -96,9 +102,9 @@ val validateReleaseSigning = tasks.register("validateReleaseSigning") {
       "RELEASE SIGNING ERROR: KEY_PASSWORD is required for release builds."
     }
 
-    val keystoreFile = project.file(keystorePath)
-    require(keystoreFile.isFile) {
-      "RELEASE SIGNING ERROR: Production keystore not found: ${keystoreFile.absolutePath}"
+    val keystoreFile = keystoreFileProvider.orNull
+    require(keystoreFile?.isFile == true) {
+      "RELEASE SIGNING ERROR: Production keystore not found: ${keystoreFile?.absolutePath ?: keystorePath}"
     }
 
     logger.lifecycle("Production release signing configuration detected: ${keystoreFile.absolutePath}")
