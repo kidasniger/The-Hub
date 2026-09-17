@@ -186,6 +186,7 @@ jobs:
           test -s "$AAB_FILE" || { echo "ERROR: AAB missing or empty"; exit 1; }
 
           EXPECTED_CERT_SHA1="F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
+          EXPECTED_CERT_SHA1_NORMALIZED="$(printf '%s' "$EXPECTED_CERT_SHA1" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
           if [ -z "$APKSIGNER" ]; then
             echo "ERROR: apksigner not found in Android SDK build-tools."
@@ -194,10 +195,18 @@ jobs:
           fi
           "$APKSIGNER" verify --verbose --print-certs "$APK_FILE" > apk-cert.txt
           cat apk-cert.txt
-          grep -qi "$EXPECTED_CERT_SHA1" apk-cert.txt || {
-            echo "ERROR: APK signing certificate changed. Release signing continuity would be broken."
+          ACTUAL_CERT_SHA1_NORMALIZED="$(awk -F': ' '/certificate SHA-1 digest:/ {print $2; exit}' apk-cert.txt | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          if [ -z "$ACTUAL_CERT_SHA1_NORMALIZED" ]; then
+            echo "ERROR: Could not extract APK signing certificate SHA-1 fingerprint."
             exit 1
-          }
+          fi
+          if [ "$ACTUAL_CERT_SHA1_NORMALIZED" != "$EXPECTED_CERT_SHA1_NORMALIZED" ]; then
+            echo "ERROR: APK signing certificate changed. Release signing continuity would be broken."
+            echo "Expected: $EXPECTED_CERT_SHA1_NORMALIZED"
+            echo "Actual:   $ACTUAL_CERT_SHA1_NORMALIZED"
+            exit 1
+          fi
+          echo "APK signing certificate fingerprint verified: $ACTUAL_CERT_SHA1_NORMALIZED"
 
           jarsigner -verify -verbose -certs "$AAB_FILE" >/tmp/aab-signature.txt 2>&1 || {
             cat /tmp/aab-signature.txt
