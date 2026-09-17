@@ -25,21 +25,19 @@ android {
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH")
-      val keystoreFile = keystorePath?.let { file(it) }
-      if (keystoreFile != null && keystoreFile.exists()) {
-        storeFile = keystoreFile
-        storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = System.getenv("KEY_ALIAS")
-        keyPassword = System.getenv("KEY_PASSWORD")
-      } else if (file("${rootDir}/debug.keystore").exists()) {
-        // Fallback to debug.keystore when release keystore is not provided (e.g. local / CI build)
-        storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
+      val keystorePath = System.getenv("KEYSTORE_PATH")?.trim()
+      val storePassword = System.getenv("STORE_PASSWORD")
+      val keyAlias = System.getenv("KEY_ALIAS")
+      val keyPassword = System.getenv("KEY_PASSWORD")
+
+      if (!keystorePath.isNullOrEmpty()) {
+        storeFile = file(keystorePath)
       }
+      this.storePassword = storePassword
+      this.keyAlias = keyAlias
+      this.keyPassword = keyPassword
     }
+
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
       storePassword = "android"
@@ -57,14 +55,17 @@ android {
     }
     debug { signingConfig = signingConfigs.getByName("debugConfig") }
   }
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
+
   buildFeatures {
     compose = true
     buildConfig = true
   }
+
   testOptions { unitTests { isIncludeAndroidResources = true } }
   dependenciesInfo {
     includeInApk = false
@@ -72,8 +73,41 @@ android {
   }
 }
 
-// Configure the Secrets Gradle Plugin to use .env and .env.example files
-// to match the convention used in Web projects.
+val validateReleaseSigning = tasks.register("validateReleaseSigning") {
+  group = "verification"
+  description = "Fails when the production release keystore or credentials are missing/invalid."
+
+  doLast {
+    val keystorePath = System.getenv("KEYSTORE_PATH")?.trim().orEmpty()
+    val storePassword = System.getenv("STORE_PASSWORD")?.trim().orEmpty()
+    val keyAlias = System.getenv("KEY_ALIAS")?.trim().orEmpty()
+    val keyPassword = System.getenv("KEY_PASSWORD")?.trim().orEmpty()
+
+    require(keystorePath.isNotEmpty()) {
+      "RELEASE SIGNING ERROR: KEYSTORE_PATH is required for release builds."
+    }
+    require(storePassword.isNotEmpty()) {
+      "RELEASE SIGNING ERROR: STORE_PASSWORD is required for release builds."
+    }
+    require(keyAlias.isNotEmpty()) {
+      "RELEASE SIGNING ERROR: KEY_ALIAS is required for release builds."
+    }
+    require(keyPassword.isNotEmpty()) {
+      "RELEASE SIGNING ERROR: KEY_PASSWORD is required for release builds."
+    }
+
+    val keystoreFile = project.file(keystorePath)
+    require(keystoreFile.isFile) {
+      "RELEASE SIGNING ERROR: Production keystore not found: ${keystoreFile.absolutePath}"
+    }
+
+    logger.lifecycle("Production release signing configuration detected: ${keystoreFile.absolutePath}")
+  }
+}
+
+tasks.named("assembleRelease") { dependsOn(validateReleaseSigning) }
+tasks.named("bundleRelease") { dependsOn(validateReleaseSigning) }
+
 secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
@@ -82,17 +116,10 @@ secrets {
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
 
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
-  // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
-  // implementation(libs.androidx.camera.camera2)
-  // implementation(libs.androidx.camera.core)
-  // implementation(libs.androidx.camera.lifecycle)
-  // implementation(libs.androidx.camera.view)
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
@@ -122,8 +149,8 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
@@ -140,6 +167,4 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
-  // "ksp"(libs.androidx.room.compiler)
-  // "ksp"(libs.moshi.kotlin.codegen)
 }
