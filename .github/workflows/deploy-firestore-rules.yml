@@ -1,0 +1,83 @@
+name: Deploy Firestore Security Rules
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "firestore.rules"
+      - "firebase.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: the-hub-firestore-rules-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Firestore Security Rules to production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: security-tests/package.json
+
+      - name: Validate Firebase deployment credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: GitHub secret FIREBASE_SERVICE_ACCOUNT is required."
+            echo "Create a Firebase/Google service-account JSON key with permission to deploy Firestore Security Rules."
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json, os, sys
+
+          raw = os.environ["FIREBASE_SERVICE_ACCOUNT"]
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as exc:
+              print(f"ERROR: FIREBASE_SERVICE_ACCOUNT is not valid JSON: {exc}")
+              sys.exit(1)
+
+          if data.get("type") != "service_account":
+              print('ERROR: FIREBASE_SERVICE_ACCOUNT must be a service-account JSON key.')
+              sys.exit(1)
+
+          project_id = data.get("project_id")
+          if project_id != "the-hub-f95f4":
+              print(f'ERROR: service-account project_id="{project_id}" (expected "the-hub-f95f4")')
+              sys.exit(1)
+
+          print("SUCCESS: Firebase deployment credentials validated.")
+          PY
+
+      - name: Deploy Firestore Security Rules
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+
+          npx --yes firebase-tools@latest deploy             --only firestore             --project the-hub-f95f4             --non-interactive
+
+          rm -f "$RUNNER_TEMP/firebase-service-account.json"
+
+      - name: Verify Firebase project target
+        run: |
+          set -euo pipefail
+          echo "Firestore Security Rules deployment completed for project the-hub-f95f4."
