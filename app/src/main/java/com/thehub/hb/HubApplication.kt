@@ -2,7 +2,9 @@ package com.thehub.hb
 
 import android.app.Application
 import android.content.Context
+import android.os.Environment
 import android.util.Log
+import androidx.core.content.FileProvider
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -12,6 +14,7 @@ import com.google.firebase.FirebaseOptions
 import com.thehub.hb.di.AppContainer
 import com.thehub.hb.di.DefaultAppContainer
 import okhttp3.OkHttpClient
+import java.io.File
 
 class HubApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -24,6 +27,7 @@ class HubApplication : Application(), ImageLoaderFactory {
         instance = this
         ensureFirebaseInitialized(this)
         container = DefaultAppContainer(this)
+        cleanupDownloadedUpdateApks(this)
     }
 
     override fun newImageLoader(): ImageLoader {
@@ -72,6 +76,91 @@ class HubApplication : Application(), ImageLoaderFactory {
 
         fun clearImageCache(context: Context? = null) {
             instance?.clearInternalImageCache()
+        }
+
+        /**
+         * Removes completed update APKs that are no longer useful because the
+         * installed application is already at the same or a newer version.
+         * Future-version APKs are preserved so they can still be installed.
+         */
+        fun cleanupDownloadedUpdateApks(context: Context) {
+            val downloadDir =
+                context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return
+            val installedVersion = BuildConfig.VERSION_NAME
+
+            downloadDir.listFiles()
+                ?.filter { it.isFile && it.extension.equals("apk", ignoreCase = true) }
+                ?.forEach { apkFile ->
+                    val packageInfo = try {
+                        @Suppress("DEPRECATION")
+                        context.packageManager.getPackageArchiveInfo(
+                            apkFile.absolutePath,
+                            0
+                        )
+                    } catch (e: Exception) {
+                        Log.w(
+                            "HubApplication",
+                            "Could not inspect cached APK: ${apkFile.absolutePath}",
+                            e
+                        )
+                        null
+                    }
+
+                    if (packageInfo?.packageName != context.packageName) {
+                        return@forEach
+                    }
+
+                    val cachedVersion = packageInfo.versionName?.trim().orEmpty()
+                    if (cachedVersion.isNotEmpty() &&
+                        isVersionAtLeast(
+                            installedVersion = installedVersion,
+                            candidateVersion = cachedVersion
+                        )
+                    ) {
+                        try {
+                            if (apkFile.delete()) {
+                                Log.i(
+                                    "HubApplication",
+                                    "Removed obsolete update APK ${apkFile.name} "                                            + "(installed=$installedVersion, cached=$cachedVersion)"
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.w(
+                                "HubApplication",
+                                "Could not delete obsolete update APK: ${apkFile.absolutePath}",
+                                e
+                            )
+                        }
+                    }
+                }
+        }
+
+        private fun isVersionAtLeast(
+            installedVersion: String,
+            candidateVersion: String
+        ): Boolean {
+            val installed = versionParts(installedVersion)
+            val candidate = versionParts(candidateVersion)
+            val maxSize = maxOf(installed.size, candidate.size)
+
+            for (index in 0 until maxSize) {
+                val installedPart = installed.getOrElse(index) { 0 }
+                val candidatePart = candidate.getOrElse(index) { 0 }
+
+                if (installedPart > candidatePart) return true
+                if (installedPart < candidatePart) return false
+            }
+
+            return true
+        }
+
+        private fun versionParts(raw: String): List<Int> {
+            return raw.trim()
+                .removePrefix("v")
+                .removePrefix("V")
+                .substringBefore("-")
+                .split(".")
+                .map { it.toIntOrNull() ?: 0 }
         }
 
         fun ensureFirebaseInitialized(context: Context) {
