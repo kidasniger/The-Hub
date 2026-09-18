@@ -322,7 +322,7 @@ async function testMessageAccessIsLimitedToParticipants() {
 
 async function testMessageDeletionMustBeAtomicWithConversationDeletion() {
   const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
-  await assertFails(updateDoc(messageRef, { status: "read" }));
+  await assertFails(updateDoc(messageRef, { status: "delivered" }));
 
   const deleteOnlyMessage = writeBatch(alice());
   deleteOnlyMessage.delete(messageRef);
