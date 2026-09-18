@@ -45,6 +45,7 @@ import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.PostMediaImage
+import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -202,6 +203,10 @@ fun PostCard(
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
                     color = HubWhite
+                )
+                LinkPreviewCard(
+                    text = post.text,
+                    modifier = Modifier.padding(top = 10.dp)
                 )
             }
 
