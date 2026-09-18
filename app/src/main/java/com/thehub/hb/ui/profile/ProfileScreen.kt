@@ -795,7 +795,8 @@ private fun PostGridThumbnail(
                             )
                         }
                     }
-                )
+                }
+            )
             } else {
                 Box(
                     modifier = Modifier
