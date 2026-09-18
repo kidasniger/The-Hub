@@ -1,3 +1,4 @@
+import java.util.Properties
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
 plugins {
@@ -9,6 +10,35 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
+
+val versionFile = rootProject.file("gradle/version.properties")
+require(versionFile.isFile) {
+  "VERSIONING ERROR: " + versionFile.path + " is missing."
+}
+
+val versionProperties = Properties().apply {
+  versionFile.inputStream().use { load(it) }
+}
+
+val appVersionName = versionProperties.getProperty("versionName")?.trim()
+  ?: error("VERSIONING ERROR: versionName is missing from " + versionFile.path)
+
+val appVersionCode = versionProperties.getProperty("versionCode")?.trim()?.toIntOrNull()
+  ?: error("VERSIONING ERROR: versionCode must be an integer in " + versionFile.path)
+
+val versionMatch = Regex("""^(\d+)\.(\d+)\.(\d+)$""").matchEntire(appVersionName)
+  ?: error("VERSIONING ERROR: versionName must use MAJOR.MINOR.PATCH format: " + appVersionName)
+
+val major = versionMatch.groupValues[1].toInt()
+val minor = versionMatch.groupValues[2].toInt()
+val patch = versionMatch.groupValues[3].toInt()
+val expectedVersionCode = major * 1_000_000 + minor * 1_000 + patch
+
+require(appVersionCode == expectedVersionCode) {
+  "VERSIONING ERROR: versionCode=" + appVersionCode + " does not match versionName=" + appVersionName + " (expected " + expectedVersionCode + ")."
+}
+
+
 android {
   namespace = "com.thehub.hb"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
@@ -17,8 +47,8 @@ android {
     applicationId = "com.thehub.hb"
     minSdk = 24
     targetSdk = 36
-    versionCode = 21
-    versionName = "1.0.21"
+    versionCode = appVersionCode
+    versionName = appVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -39,7 +69,7 @@ android {
     }
 
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
+      storeFile = rootProject.file("debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
@@ -104,10 +134,10 @@ val validateReleaseSigning = tasks.register("validateReleaseSigning") {
 
     val keystoreFile = keystoreFileProvider.orNull
     require(keystoreFile?.isFile == true) {
-      "RELEASE SIGNING ERROR: Production keystore not found: ${keystoreFile?.absolutePath ?: keystorePath}"
+      "RELEASE SIGNING ERROR: Production keystore not found: " + (keystoreFile?.absolutePath ?: keystorePath)
     }
 
-    logger.lifecycle("Production release signing configuration detected: ${keystoreFile.absolutePath}")
+    logger.lifecycle("Production release signing configuration detected: " + keystoreFile.absolutePath)
   }
 }
 
