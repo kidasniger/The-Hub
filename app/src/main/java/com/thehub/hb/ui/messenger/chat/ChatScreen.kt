@@ -65,6 +65,7 @@ import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Message
 import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -449,6 +450,10 @@ private fun MessageBubble(
                         color = textColor,
                         fontSize = 15.sp,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                    )
+                    LinkPreviewCard(
+                        text = message.text,
+                        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
                     )
                 }
             }
