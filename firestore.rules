@@ -158,7 +158,7 @@ service cloud.firestore {
       function commentsCountMutationIsAtomic() {
         let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
         let opAfter = getAfter(opPath);
-        let targetId = opAfter.data.targetId;
+        let targetId = opAfter == null ? "" : opAfter.data.targetId;
         let commentPath = /databases/$(database)/documents/posts/$(postId)/comments/$(targetId);
         return opAfter != null
           && targetId is string
@@ -384,20 +384,29 @@ service cloud.firestore {
           let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
           let postPath = /databases/$(database)/documents/posts/$(postId);
           let opAfter = getAfter(opPath);
+          let oldCount = get(postPath).data.commentsCount;
+          let newCount = getAfter(postPath).data.commentsCount;
           return opAfter != null
             && opAfter.data.type == 'comment_create'
             && opAfter.data.targetId == targetCommentId
-            && getAfter(postPath).data.commentsCount == get(postPath).data.commentsCount + 1;
+            && (
+              (oldCount == null && newCount == 1)
+              || (oldCount != null && newCount == oldCount + 1)
+            );
         }
 
         function commentDeleteIsAtomic(targetCommentId) {
           let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
           let postPath = /databases/$(database)/documents/posts/$(postId);
           let opAfter = getAfter(opPath);
+          let oldCount = get(postPath).data.commentsCount;
+          let newCount = getAfter(postPath).data.commentsCount;
           return opAfter != null
             && opAfter.data.type == 'comment_delete'
             && opAfter.data.targetId == targetCommentId
-            && getAfter(postPath).data.commentsCount == get(postPath).data.commentsCount - 1;
+            && oldCount != null
+            && oldCount > 0
+            && newCount == oldCount - 1;
         }
 
         allow create: if isAuthenticated()
