@@ -101,8 +101,8 @@ jobs:
       - name: Determine and validate release version
         id: version_step
         env:
-          GH_TOKEN: \${{ github.token }}
-          REQUESTED_TAG: \${{ inputs.tag_name }}
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.tag_name }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -353,3 +353,13 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify published GitHub Release
+        run: |
+          set -euo pipefail
+          RELEASE_TAG="$(gh release view "$TAG" --json tagName --jq '.tagName')"
+          RELEASE_NAME="$(gh release view "$TAG" --json name --jq '.name')"
+          test "$RELEASE_TAG" = "$TAG"
+          test "$RELEASE_NAME" = "The Hub $TAG"
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk"
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.aab"
+          echo "GitHub Release verified: $RELEASE_NAME"
