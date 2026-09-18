@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.util.Log
-import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.thehub.hb.data.model.AppUpdateInfo
 import kotlinx.coroutines.CoroutineScope
@@ -312,6 +311,13 @@ class AppUpdateDownloadManager(
 
         val downloadDir =
             context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: run {
+                currentDownloadId = -1L
+                _status.value = DownloadStatus.Failed(
+                    "Dossier de téléchargement introuvable."
+                )
+                return
+            }
         val file = File(downloadDir, fileName)
 
         val validFile = when {
