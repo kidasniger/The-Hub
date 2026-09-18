@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.os.Environment
 import android.util.Log
-import androidx.core.content.FileProvider
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -14,7 +13,6 @@ import com.google.firebase.FirebaseOptions
 import com.thehub.hb.di.AppContainer
 import com.thehub.hb.di.DefaultAppContainer
 import okhttp3.OkHttpClient
-import java.io.File
 
 class HubApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -33,9 +31,7 @@ class HubApplication : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val request = chain.request()
-                val response = chain.proceed(request)
-                // If remote host (like ImgBB) returns 404 or 410, the image was deleted
+                val response = chain.proceed(chain.request())
                 if (response.code == 404 || response.code == 410) {
                     throw java.io.IOException("Image deleted on remote host (HTTP ${response.code})")
                 }
@@ -78,11 +74,6 @@ class HubApplication : Application(), ImageLoaderFactory {
             instance?.clearInternalImageCache()
         }
 
-        /**
-         * Removes completed update APKs that are no longer useful because the
-         * installed application is already at the same or a newer version.
-         * Future-version APKs are preserved so they can still be installed.
-         */
         fun cleanupDownloadedUpdateApks(context: Context) {
             val downloadDir =
                 context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return
@@ -121,7 +112,8 @@ class HubApplication : Application(), ImageLoaderFactory {
                             if (apkFile.delete()) {
                                 Log.i(
                                     "HubApplication",
-                                    "Removed obsolete update APK ${apkFile.name} "                                            + "(installed=$installedVersion, cached=$cachedVersion)"
+                                    "Removed obsolete update APK ${apkFile.name} " +
+                                        "(installed=$installedVersion, cached=$cachedVersion)"
                                 )
                             }
                         } catch (e: Exception) {
