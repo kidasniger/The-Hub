@@ -191,6 +191,62 @@ async function testRepostDeleteCounterMustMatchDeletion() {
 }
 
 
+async function testExactAndroidMessageTransaction() {
+  const conversationRef = doc(alice(), "conversations/alice_bob");
+
+  await assertSucceeds(runTransaction(alice(), async transaction => {
+    const conversationDoc = await transaction.get(conversationRef);
+    const conversation = conversationDoc.data();
+    const nextUnread = (conversation.unreadCount?.bob ?? 0) + 1;
+    const messageRef = doc(alice(), "conversations/alice_bob/messages/transaction-message");
+    const opRef = doc(alice(), "conversations/alice_bob/messageOps/alice");
+
+    transaction.set(messageRef, {
+      senderId: "alice",
+      text: "transaction message",
+      imageUrl: null,
+      createdAt: serverTimestamp(),
+      status: "sent",
+    });
+    transaction.set(opRef, {
+      type: "send",
+      targetId: "transaction-message",
+    });
+    transaction.update(conversationRef, {
+      lastMessageText: "transaction message",
+      lastMessageAt: serverTimestamp(),
+      lastMessageSenderId: "alice",
+      "unreadCount.bob": nextUnread,
+    });
+  }));
+
+  await assertSucceeds(runTransaction(alice(), async transaction => {
+    const conversationDoc = await transaction.get(conversationRef);
+    const conversation = conversationDoc.data();
+    const nextUnread = (conversation.unreadCount?.bob ?? 0) + 1;
+    const messageRef = doc(alice(), "conversations/alice_bob/messages/transaction-message-2");
+    const opRef = doc(alice(), "conversations/alice_bob/messageOps/alice");
+
+    transaction.set(messageRef, {
+      senderId: "alice",
+      text: "transaction message 2",
+      imageUrl: null,
+      createdAt: serverTimestamp(),
+      status: "sent",
+    });
+    transaction.set(opRef, {
+      type: "send",
+      targetId: "transaction-message-2",
+    });
+    transaction.update(conversationRef, {
+      lastMessageText: "transaction message 2",
+      lastMessageAt: serverTimestamp(),
+      lastMessageSenderId: "alice",
+      "unreadCount.bob": nextUnread,
+    });
+  }));
+}
+
 async function testMessageSecurityAndAtomicSend() {
   const conversationRef = doc(alice(), "conversations/alice_bob");
   const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
@@ -356,6 +412,7 @@ try {
   await testCommentDeleteCounterMustMatchDeletion();
   await testUnfollowCounterMustMatchDeletion();
   await testRepostDeleteCounterMustMatchDeletion();
+  await testExactAndroidMessageTransaction();
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
