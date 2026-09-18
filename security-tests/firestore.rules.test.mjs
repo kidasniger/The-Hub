@@ -18,6 +18,7 @@ const rules = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "u
 let testEnv;
 let aliceDb;
 let bobDb;
+let legacyDb;
 let charlieDb;
 
 function alice() {
@@ -191,6 +192,44 @@ async function testRepostDeleteCounterMustMatchDeletion() {
 }
 
 
+async function testLegacyUserFollowCompatibility() {
+  await testEnv.withSecurityRulesDisabled(async () => {
+    await setDoc(doc(legacyDb, "users/legacy"), {
+      username: "legacy",
+      followersCount: 0,
+      followingCount: 0,
+    });
+  });
+
+  await assertSucceeds(runTransaction(legacyDb, async transaction => {
+    const targetUserRef = doc(legacyDb, "users/bob");
+    const currentUserRef = doc(legacyDb, "users/legacy");
+    const followingRef = doc(legacyDb, "users/legacy/following/bob");
+    const followerRef = doc(legacyDb, "users/bob/followers/legacy");
+
+    const targetUser = await transaction.get(targetUserRef);
+    const existingFollowing = await transaction.get(followingRef);
+
+    if (!targetUser.exists() || existingFollowing.exists()) return;
+
+    transaction.set(followingRef, {
+      followedAt: new Date(),
+      followingId: "bob",
+      uid: "bob",
+    });
+    transaction.set(followerRef, {
+      followedAt: new Date(),
+      followerId: "legacy",
+      uid: "legacy",
+    });
+    transaction.update(currentUserRef, {
+      followingCount: 1,
+    });
+    transaction.update(targetUserRef, {
+      followersCount: 1,
+    });
+  }));
+}
 async function testExactAndroidMessageTransaction() {
   const conversationRef = doc(alice(), "conversations/alice_bob");
 
@@ -400,6 +439,7 @@ try {
 
   aliceDb = testEnv.authenticatedContext("alice").firestore();
   bobDb = testEnv.authenticatedContext("bob").firestore();
+  legacyDb = testEnv.authenticatedContext("legacy").firestore();
   charlieDb = testEnv.authenticatedContext("charlie").firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
@@ -412,6 +452,7 @@ try {
   await testCommentDeleteCounterMustMatchDeletion();
   await testUnfollowCounterMustMatchDeletion();
   await testRepostDeleteCounterMustMatchDeletion();
+  await testLegacyUserFollowCompatibility();
   await testExactAndroidMessageTransaction();
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
