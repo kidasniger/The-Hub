@@ -1,12 +1,8 @@
 package com.thehub.hb.ui.update
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,17 +32,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -55,11 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.AppUpdateInfo
 import com.thehub.hb.data.remote.DownloadStatus
+import com.thehub.hb.data.remote.GitHubUpdateService
 import com.thehub.hb.data.remote.formatFileSize
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubBorderLight
 import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubLightGray
 import com.thehub.hb.ui.theme.HubMuted
@@ -131,7 +126,6 @@ fun UpdateContent(
             .padding(horizontal = 24.dp, vertical = 12.dp)
             .padding(bottom = 24.dp)
     ) {
-        // Header Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -213,7 +207,6 @@ fun UpdateContent(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Release notes card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -255,8 +248,7 @@ fun UpdateContent(
                         .height(120.dp)
                         .verticalScroll(scrollState)
                 ) {
-                    val notesText = com.thehub.hb.data.remote.GitHubUpdateService()
-                        .sanitizeReleaseNotes(info.releaseNotes)
+                    val notesText = GitHubUpdateService().sanitizeReleaseNotes(info.releaseNotes)
                     Text(
                         text = notesText,
                         color = HubLightGray,
@@ -269,7 +261,6 @@ fun UpdateContent(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Download progress or Status indicator
         when (status) {
             is DownloadStatus.Downloading -> {
                 Column(
@@ -327,12 +318,12 @@ fun UpdateContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Prêt",
+                        contentDescription = "Prêt à être installé",
                         tint = HubSuccess,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Téléchargement terminé ! Cliquez ci-dessous pour installer.",
+                        text = "Mise à jour prête à être installée.",
                         color = HubWhite,
                         fontSize = 12.sp
                     )
@@ -365,12 +356,9 @@ fun UpdateContent(
                 }
             }
 
-            is DownloadStatus.Idle -> {
-                // No extra status text
-            }
+            is DownloadStatus.Idle -> Unit
         }
 
-        // Action Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -456,13 +444,13 @@ fun UpdateContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.SystemUpdate,
-                            contentDescription = "Installer",
+                            contentDescription = "Installer la mise à jour",
                             modifier = Modifier.size(18.dp),
                             tint = Color.Black
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Installer",
+                            text = "Installer la mise à jour",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
