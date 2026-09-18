@@ -326,72 +326,62 @@ class UserRepository(
             val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
 
             val now = Timestamp.now()
-
-            // Check if target user already follows current user (reciprocal relationship)
             val isMutual = try {
-                val targetFollowsCurrentDoc = targetFollowingRef.get().await()
-                targetFollowsCurrentDoc.exists()
+                targetFollowingRef.get().await().exists()
             } catch (_: Exception) {
                 false
             }
 
-            // 1. Record following for current user (own document, guaranteed allowed)
-            followingRef.set(
-                mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid),
-                SetOptions.merge()
-            ).await()
+            val created = firestore.runTransaction { transaction ->
+                val existingFollowing = transaction.get(followingRef)
+                val targetUser = transaction.get(targetUserRef)
+                if (!targetUser.exists()) {
+                    throw IllegalStateException("Utilisateur cible introuvable")
+                }
+                if (existingFollowing.exists()) {
+                    return@runTransaction false
+                }
 
-            // 2. Increment followingCount for current user
-            try {
-                currentUserRef.set(
-                    mapOf("followingCount" to FieldValue.increment(1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not increment followingCount: ${e.message}")
+                transaction.set(
+                    followingRef,
+                    mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid)
+                )
+                transaction.set(
+                    followerRef,
+                    mapOf("followedAt" to now, "followerId" to uid, "uid" to uid)
+                )
+                transaction.update(
+                    currentUserRef,
+                    "followingCount",
+                    FieldValue.increment(1)
+                )
+                transaction.update(
+                    targetUserRef,
+                    "followersCount",
+                    FieldValue.increment(1)
+                )
+                true
+            }.await()
+
+            if (!created) {
+                return@withContext Result.success(Unit)
             }
 
-            // 3. Record follower on target user's followers subcollection
-            try {
-                followerRef.set(
-                    mapOf("followedAt" to now, "followerId" to uid, "uid" to uid),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not set follower doc on target user: ${e.message}")
-            }
-
-            // 4. Try incrementing target user followersCount if allowed by security rules
-            try {
-                targetUserRef.set(
-                    mapOf("followersCount" to FieldValue.increment(1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not increment target followersCount: ${e.message}")
-            }
-
-            // 5. If reciprocal relationship established, maintain friends subcollections
             if (isMutual) {
                 try {
                     currentUserFriendRef.set(
                         mapOf("friendedAt" to now, "uid" to targetUid),
                         SetOptions.merge()
                     ).await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Could not write to currentUser friends: ${e.message}")
-                }
-                try {
                     targetUserFriendRef.set(
                         mapOf("friendedAt" to now, "uid" to uid),
                         SetOptions.merge()
                     ).await()
                 } catch (e: Exception) {
-                    Log.w("UserRepository", "Could not write to targetUser friends: ${e.message}")
+                    Log.w("UserRepository", "Could not write friend relationship: ${e.message}")
                 }
             }
 
-            // 6. Send notification to target user
             try {
                 notificationRepository.createNotification(
                     recipientId = targetUid,
@@ -408,7 +398,7 @@ class UserRepository(
 
     /**
      * Unfollow a user safely.
-     * Removes following/followers records and mutual friend records.
+     * Removes both relationship records and decrements followersCount atomically.
      */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
@@ -422,46 +412,47 @@ class UserRepository(
             val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
             val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
 
-            // 1. Delete following record from current user's following subcollection (guaranteed authorized)
-            followingRef.delete().await()
+            val removed = firestore.runTransaction { transaction ->
+                val followingDoc = transaction.get(followingRef)
+                val followerDoc = transaction.get(followerRef)
+                val targetUser = transaction.get(targetUserRef)
+                val currentUser = transaction.get(currentUserRef)
 
-            // 2. Decrement current user's following count (current user's document)
-            try {
-                currentUserRef.set(
-                    mapOf("followingCount" to FieldValue.increment(-1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not decrement followingCount: ${e.message}")
+                if (!followingDoc.exists() && !followerDoc.exists()) {
+                    return@runTransaction false
+                }
+                if (!targetUser.exists()) {
+                    throw IllegalStateException("Utilisateur cible introuvable")
+                }
+
+                transaction.delete(followingRef)
+                transaction.delete(followerRef)
+
+                val followingCount = currentUser.getLong("followingCount") ?: 0L
+                transaction.update(
+                    currentUserRef,
+                    "followingCount",
+                    if (followingCount > 0L) FieldValue.increment(-1) else 0L
+                )
+
+                val followersCount = targetUser.getLong("followersCount") ?: 0L
+                transaction.update(
+                    targetUserRef,
+                    "followersCount",
+                    if (followersCount > 0L) FieldValue.increment(-1) else 0L
+                )
+                true
+            }.await()
+
+            if (!removed) {
+                return@withContext Result.success(Unit)
             }
 
-            // 3. Delete follower record from target user's followers subcollection
-            try {
-                followerRef.delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not delete follower doc on target user: ${e.message}")
-            }
-
-            // 4. Try decrementing followersCount on target user if permitted
-            try {
-                targetUserRef.set(
-                    mapOf("followersCount" to FieldValue.increment(-1)),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not decrement target followersCount: ${e.message}")
-            }
-
-            // 5. Remove friend relationship from both users' friends subcollections if it existed
             try {
                 currentUserFriendRef.delete().await()
-            } catch (e: Exception) {
-                Log.w("UserRepository", "Could not delete from currentUser friends: ${e.message}")
-            }
-            try {
                 targetUserFriendRef.delete().await()
             } catch (e: Exception) {
-                Log.w("UserRepository", "Could not delete from targetUser friends: ${e.message}")
+                Log.w("UserRepository", "Could not delete friend relationship: ${e.message}")
             }
 
             Result.success(Unit)
