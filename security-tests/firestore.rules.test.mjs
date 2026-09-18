@@ -51,6 +51,9 @@ async function testDirectCounterTampering() {
   await assertFails(updateDoc(attackerPost, { likesCount: 999 }));
   await assertFails(updateDoc(attackerPost, { commentsCount: 999 }));
   await assertFails(updateDoc(attackerPost, { repostsCount: 999 }));
+  await assertFails(updateDoc(doc(alice(), "posts/post-1"), { likesCount: 999 }));
+  await assertFails(updateDoc(doc(alice(), "posts/post-1"), { commentsCount: 999 }));
+  await assertFails(updateDoc(doc(alice(), "posts/post-1"), { repostsCount: 999 }));
   await assertFails(updateDoc(doc(alice(), "users/alice"), { followersCount: 999 }));
 }
 
