@@ -56,6 +56,7 @@ import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostMediaImage
+import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
@@ -320,6 +321,10 @@ fun PostDetailScreen(
                                 lineHeight = 26.sp,
                                 color = HubWhite,
                                 modifier = Modifier.fillMaxWidth()
+                            )
+                            LinkPreviewCard(
+                                text = post.text,
+                                modifier = Modifier.padding(top = 10.dp)
                             )
                         }
 
