@@ -215,6 +215,13 @@ fun CreatePostScreen(
                     )
                 }
 
+                if (uiState.text.isNotBlank()) {
+                    LinkPreviewCard(
+                        text = uiState.text,
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
+                }
+
                 // Character Counter
                 Row(
                     modifier = Modifier.fillMaxWidth(),
