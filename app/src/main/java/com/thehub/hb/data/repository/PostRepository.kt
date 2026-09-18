@@ -380,6 +380,7 @@ class PostRepository(
                 createdAt = now,
                 likesCount = 0,
                 commentsCount = 0,
+                repostsCount = 0,
                 isRepost = false,
                 originalPostId = null,
                 isLikedByCurrentUser = false,
@@ -488,8 +489,33 @@ class PostRepository(
                 Log.w("PostRepository", "Failed deleting comments subcollection: ${e.message}")
             }
 
-            // 3. Delete the post document itself
-            postRef.delete().await()
+            // 3. Delete the post document itself. For reposts, also remove
+            // the unique repost marker and decrement the original post counter
+            // in the same atomic transaction.
+            val isRepost = postDoc.getBoolean("isRepost") == true
+            val originalPostId = postDoc.getString("originalPostId")
+
+            if (isRepost && !originalPostId.isNullOrBlank()) {
+                val originalRef = firestore.collection("posts").document(originalPostId)
+                val repostMarkerRef = originalRef.collection("reposts").document(uid)
+
+                firestore.runTransaction { transaction ->
+                    val currentPost = transaction.get(postRef)
+                    if (!currentPost.exists()) return@runTransaction
+
+                    val originalDoc = transaction.get(originalRef)
+                    val markerDoc = transaction.get(repostMarkerRef)
+
+                    transaction.delete(postRef)
+
+                    if (originalDoc.exists() && markerDoc.exists()) {
+                        transaction.delete(repostMarkerRef)
+                        transaction.update(originalRef, "repostsCount", FieldValue.increment(-1))
+                    }
+                }.await()
+            } else {
+                postRef.delete().await()
+            }
 
             // 4. Decrement author's postsCount
             if (authorId.isNotBlank()) {
@@ -673,10 +699,19 @@ class PostRepository(
                 } catch (_: Exception) {}
             }
 
+            val counterOpRef = postRef.collection("counterOps").document(uid)
+
             val authorId = firestore.runTransaction { transaction ->
                 val postDoc = transaction.get(postRef)
                 val author = postDoc.getString("authorId") ?: ""
                 transaction.set(commentRef, comment.toMap())
+                transaction.set(
+                    counterOpRef,
+                    mapOf(
+                        "type" to "comment_create",
+                        "targetId" to commentRef.id
+                    )
+                )
                 transaction.update(postRef, "commentsCount", FieldValue.increment(1))
                 author
             }.await()
@@ -788,10 +823,24 @@ class PostRepository(
                 return@withContext Result.failure(Exception("Vous n'avez pas l'autorisation de supprimer ce commentaire"))
             }
 
-            commentRef.delete().await()
-            try {
-                postRef.update("commentsCount", FieldValue.increment(-1)).await()
-            } catch (_: Exception) {}
+            val counterOpRef = postRef.collection("counterOps").document(uid)
+            firestore.runTransaction { transaction ->
+                val currentComment = transaction.get(commentRef)
+                val currentPost = transaction.get(postRef)
+                if (!currentComment.exists() || !currentPost.exists()) {
+                    throw IllegalStateException("Commentaire ou publication introuvable")
+                }
+
+                transaction.delete(commentRef)
+                transaction.set(
+                    counterOpRef,
+                    mapOf(
+                        "type" to "comment_delete",
+                        "targetId" to commentId
+                    )
+                )
+                transaction.update(postRef, "commentsCount", FieldValue.increment(-1))
+            }.await()
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -997,11 +1046,17 @@ class PostRepository(
             if (uid.isEmpty()) {
                 return@withContext Result.failure(Exception("Non connecté"))
             }
+            if (uid == postId) {
+                // This is only a sanity guard; postId is a document id, not a user id.
+            }
 
-            val docRef = firestore.collection("posts").document()
+            val originalRef = firestore.collection("posts").document(postId)
+            val repostMarkerRef = originalRef.collection("reposts").document(uid)
+            val repostRef = firestore.collection("posts").document()
+
             val now = Timestamp.now()
             val repost = Post(
-                id = docRef.id,
+                id = repostRef.id,
                 authorId = uid,
                 authorUsername = username,
                 authorPhotoUrl = photoUrl,
@@ -1010,17 +1065,46 @@ class PostRepository(
                 createdAt = now,
                 likesCount = 0,
                 commentsCount = 0,
+                repostsCount = 0,
                 isRepost = true,
                 originalPostId = postId,
                 isLikedByCurrentUser = false
             )
 
-            docRef.set(repost.toMap()).await()
+            firestore.runTransaction { transaction ->
+                val originalDoc = transaction.get(originalRef)
+                if (!originalDoc.exists()) {
+                    throw IllegalStateException("Publication originale introuvable")
+                }
+
+                val existingRepost = transaction.get(repostMarkerRef)
+                if (existingRepost.exists()) {
+                    throw IllegalStateException("Vous avez déjà repartagé cette publication")
+                }
+
+                transaction.set(repostRef, repost.toMap())
+                transaction.set(
+                    repostMarkerRef,
+                    mapOf(
+                        "postId" to postId,
+                        "reposterId" to uid,
+                        "createdAt" to now
+                    )
+                )
+                transaction.update(originalRef, "repostsCount", FieldValue.increment(1))
+            }.await()
+
             try {
                 firestore.collection("users").document(uid)
-                    .set(mapOf("postsCount" to FieldValue.increment(1)), com.google.firebase.firestore.SetOptions.merge())
+                    .set(
+                        mapOf("postsCount" to FieldValue.increment(1)),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    )
                     .await()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w("PostRepository", "Could not increment postsCount for repost: ${e.message}")
+            }
+
             Result.success(repost)
         } catch (e: Exception) {
             Result.failure(e)
