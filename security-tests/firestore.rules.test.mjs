@@ -228,6 +228,10 @@ async function testLegacyUserFollowCompatibility() {
     followerId: "legacy",
     uid: "legacy",
   });
+  batch.set(doc(legacyDb, "users/legacy/followOps/legacy"), {
+    type: "follow",
+    targetId: "legacy-target",
+  });
   batch.update(doc(legacyDb, "users/legacy"), { followingCount: 1 });
   batch.update(doc(legacyDb, "users/legacy-target"), { followersCount: 1 });
   await assertSucceeds(batch.commit());
