@@ -6,6 +6,8 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   doc,
+  getDoc,
+  serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
@@ -16,6 +18,7 @@ const rules = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "u
 let testEnv;
 let aliceDb;
 let bobDb;
+let charlieDb;
 
 function alice() {
   return aliceDb;
@@ -40,6 +43,18 @@ async function seed(ctx) {
     followersCount: 0,
     followingCount: 0,
   });
+  await setDoc(doc(db, "conversations/alice_bob"), {
+    participantIds: ["alice", "bob"],
+    participantsInfo: {
+      alice: { username: "alice" },
+      bob: { username: "bob" },
+    },
+    lastMessageText: "",
+    lastMessageAt: new Date(),
+    lastMessageSenderId: "",
+    unreadCount: { alice: 0, bob: 0 },
+  });
+
   await setDoc(doc(db, "posts/post-1"), {
     authorId: "alice",
     authorUsername: "alice",
@@ -175,6 +190,152 @@ async function testRepostDeleteCounterMustMatchDeletion() {
   await assertFails(updateDoc(doc(bob(), "posts/post-1"), { repostsCount: 1 }));
 }
 
+
+async function testMessageSecurityAndAtomicSend() {
+  const conversationRef = doc(alice(), "conversations/alice_bob");
+  const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
+  const opRef = doc(alice(), "conversations/alice_bob/messageOps/alice");
+
+  const validSend = writeBatch(alice());
+  validSend.set(messageRef, {
+    senderId: "alice",
+    text: "hello",
+    imageUrl: null,
+    createdAt: serverTimestamp(),
+    status: "sent",
+  });
+  validSend.set(opRef, {
+    type: "send",
+    targetId: "message-1",
+  });
+  validSend.update(conversationRef, {
+    lastMessageText: "hello",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "alice",
+    "unreadCount.bob": 1,
+  });
+  await assertSucceeds(validSend.commit());
+
+  const senderMessageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
+  await assertFails(updateDoc(senderMessageRef, { senderId: "bob" }));
+  await assertFails(updateDoc(senderMessageRef, { createdAt: new Date() }));
+  await assertFails(updateDoc(senderMessageRef, { status: "read" }));
+  await assertFails(updateDoc(senderMessageRef, { blockedField: true }));
+  await assertSucceeds(updateDoc(senderMessageRef, { text: "edited" }));
+  await assertSucceeds(updateDoc(senderMessageRef, { imageUrl: "https://example.com/image.jpg" }));
+}
+
+async function testMessageCreationRejectsForgedMetadata() {
+  const forgedSender = doc(alice(), "conversations/alice_bob/messages/forged-sender");
+  const senderBatch = writeBatch(alice());
+  senderBatch.set(forgedSender, {
+    senderId: "bob",
+    text: "forged",
+    imageUrl: null,
+    createdAt: serverTimestamp(),
+    status: "sent",
+  });
+  senderBatch.set(doc(alice(), "conversations/alice_bob/messageOps/alice"), {
+    type: "send",
+    targetId: "forged-sender",
+  });
+  senderBatch.update(doc(alice(), "conversations/alice_bob"), {
+    lastMessageText: "forged",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "bob",
+    "unreadCount.bob": 1,
+  });
+  await assertFails(senderBatch.commit());
+
+  const forgedTimestamp = doc(alice(), "conversations/alice_bob/messages/forged-time");
+  const timestampBatch = writeBatch(alice());
+  timestampBatch.set(forgedTimestamp, {
+    senderId: "alice",
+    text: "forged",
+    imageUrl: null,
+    createdAt: new Date("2000-01-01T00:00:00Z"),
+    status: "sent",
+  });
+  timestampBatch.set(doc(alice(), "conversations/alice_bob/messageOps/alice"), {
+    type: "send",
+    targetId: "forged-time",
+  });
+  timestampBatch.update(doc(alice(), "conversations/alice_bob"), {
+    lastMessageText: "forged",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "alice",
+    "unreadCount.bob": 2,
+  });
+  await assertFails(timestampBatch.commit());
+
+  await assertFails(updateDoc(
+    doc(alice(), "conversations/alice_bob"),
+    { lastMessageText: "tampered" }
+  ));
+  await assertFails(updateDoc(
+    doc(alice(), "conversations/alice_bob"),
+    { lastMessageSenderId: "bob" }
+  ));
+  await assertFails(updateDoc(
+    doc(alice(), "conversations/alice_bob"),
+    { "unreadCount.bob": 999 }
+  ));
+}
+
+async function testMessageRecipientCanMarkReadOnly() {
+  const messageRef = doc(bob(), "conversations/alice_bob/messages/message-1");
+  await assertSucceeds(updateDoc(
+    doc(bob(), "conversations/alice_bob"),
+    { "unreadCount.bob": 0 }
+  ));
+  await assertSucceeds(updateDoc(messageRef, { status: "read" }));
+  await assertFails(updateDoc(messageRef, { senderId: "bob" }));
+  await assertFails(updateDoc(messageRef, { text: "recipient edit" }));
+}
+
+async function testMessageAccessIsLimitedToParticipants() {
+  await assertFails(getDoc(doc(charlieDb, "conversations/alice_bob")));
+  await assertFails(getDoc(
+    doc(charlieDb, "conversations/alice_bob/messages/message-1")
+  ));
+
+  const outsiderMessage = writeBatch(charlieDb);
+  outsiderMessage.set(
+    doc(charlieDb, "conversations/alice_bob/messages/outsider-message"),
+    {
+      senderId: "charlie",
+      text: "intrusion",
+      imageUrl: null,
+      createdAt: serverTimestamp(),
+      status: "sent",
+    }
+  );
+  outsiderMessage.set(
+    doc(charlieDb, "conversations/alice_bob/messageOps/charlie"),
+    {
+      type: "send",
+      targetId: "outsider-message",
+    }
+  );
+  await assertFails(outsiderMessage.commit());
+}
+
+async function testMessageDeletionMustBeAtomicWithConversationDeletion() {
+  const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
+  await assertFails(updateDoc(messageRef, { status: "read" }));
+
+  const deleteOnlyMessage = writeBatch(alice());
+  deleteOnlyMessage.delete(messageRef);
+  await assertFails(deleteOnlyMessage.commit());
+
+  const deleteConversation = writeBatch(alice());
+  deleteConversation.delete(messageRef);
+  deleteConversation.delete(doc(alice(), "conversations/alice_bob"));
+  await assertSucceeds(deleteConversation.commit());
+
+  await assertFails(getDoc(doc(bob(), "conversations/alice_bob/messages/message-1")));
+}
+
 try {
   testEnv = await initializeTestEnvironment({
     projectId: "demo-the-hub-security",
@@ -183,6 +344,7 @@ try {
 
   aliceDb = testEnv.authenticatedContext("alice").firestore();
   bobDb = testEnv.authenticatedContext("bob").firestore();
+  charlieDb = testEnv.authenticatedContext("charlie").firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
 
@@ -194,8 +356,13 @@ try {
   await testCommentDeleteCounterMustMatchDeletion();
   await testUnfollowCounterMustMatchDeletion();
   await testRepostDeleteCounterMustMatchDeletion();
+  await testMessageSecurityAndAtomicSend();
+  await testMessageCreationRejectsForgedMetadata();
+  await testMessageRecipientCanMarkReadOnly();
+  await testMessageAccessIsLimitedToParticipants();
+  await testMessageDeletionMustBeAtomicWithConversationDeletion();
 
-  console.log("Firestore counter security tests: PASS");
+  console.log("Firestore security tests (counters + messages): PASS");
 } finally {
   if (testEnv) {
     await testEnv.cleanup();
