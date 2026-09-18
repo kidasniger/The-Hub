@@ -94,7 +94,7 @@ class RemoteImageVerifier(
     }
 
     companion object {
-        const val RECHECK_INTERVAL_MILLIS = 60_000L
+        const val RECHECK_INTERVAL_MILLIS = 30_000L
         private const val CHECK_CACHE_TTL_MILLIS = 30_000L
 
         private fun defaultClient(): OkHttpClient {
