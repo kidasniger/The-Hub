@@ -18,8 +18,8 @@ let testEnv;
 const alice = () => testEnv.authenticatedContext("alice").firestore();
 const bob = () => testEnv.authenticatedContext("bob").firestore();
 
-async function seed() {
-  const db = testEnv.unauthenticatedContext().firestore();
+async function seed(ctx) {
+  const db = ctx.firestore();
 
   await setDoc(doc(db, "users/alice"), {
     uid: "alice",
