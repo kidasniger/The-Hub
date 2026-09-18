@@ -13,6 +13,7 @@ data class Post(
     val createdAt: Timestamp = Timestamp.now(),
     val likesCount: Int = 0,
     val commentsCount: Int = 0,
+    val repostsCount: Int = 0,
     val isRepost: Boolean = false,
     val originalPostId: String? = null,
     val isLikedByCurrentUser: Boolean = false,
@@ -30,6 +31,7 @@ data class Post(
             "createdAt" to createdAt,
             "likesCount" to likesCount,
             "commentsCount" to commentsCount,
+            "repostsCount" to repostsCount,
             "isRepost" to isRepost,
             "originalPostId" to originalPostId,
             "hashtags" to hashtags
@@ -42,6 +44,7 @@ data class Post(
             val createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now()
             val likesCount = (doc.getLong("likesCount") ?: 0L).toInt()
             val commentsCount = (doc.getLong("commentsCount") ?: 0L).toInt()
+            val repostsCount = (doc.getLong("repostsCount") ?: 0L).toInt()
 
             @Suppress("UNCHECKED_CAST")
             val hashtags = (doc.get("hashtags") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
@@ -56,6 +59,7 @@ data class Post(
                 createdAt = createdAt,
                 likesCount = if (likesCount < 0) 0 else likesCount,
                 commentsCount = if (commentsCount < 0) 0 else commentsCount,
+                repostsCount = if (repostsCount < 0) 0 else repostsCount,
                 isRepost = doc.getBoolean("isRepost") ?: false,
                 originalPostId = doc.getString("originalPostId"),
                 isLikedByCurrentUser = false,

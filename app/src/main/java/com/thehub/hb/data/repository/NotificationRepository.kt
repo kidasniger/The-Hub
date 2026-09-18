@@ -187,27 +187,49 @@ class NotificationRepository(
      */
     suspend fun followUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val currentUid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
-        if (currentUid == targetUid) return@withContext Result.failure(Exception("Impossible de se suivre soi-même"))
+        if (currentUid == targetUid) {
+            return@withContext Result.failure(Exception("Impossible de se suivre soi-même"))
+        }
 
         try {
-            val now = Timestamp.now()
-            val batch = firestore.batch()
-
-            val followerDoc = firestore.collection("users").document(targetUid)
-                .collection("followers").document(currentUid)
-            batch.set(followerDoc, mapOf("followedAt" to now, "followerId" to currentUid), SetOptions.merge())
-
-            val followingDoc = firestore.collection("users").document(currentUid)
+            val targetUserRef = firestore.collection("users").document(targetUid)
+            val followerRef = targetUserRef.collection("followers").document(currentUid)
+            val followingRef = firestore.collection("users").document(currentUid)
                 .collection("following").document(targetUid)
-            batch.set(followingDoc, mapOf("followedAt" to now, "followingId" to targetUid), SetOptions.merge())
+            val now = Timestamp.now()
 
-            batch.commit().await()
+            val created = firestore.runTransaction { transaction ->
+                val targetUser = transaction.get(targetUserRef)
+                val existingFollower = transaction.get(followerRef)
+                if (!targetUser.exists()) {
+                    throw IllegalStateException("Utilisateur cible introuvable")
+                }
+                if (existingFollower.exists()) {
+                    return@runTransaction false
+                }
 
-            // Trigger notification
-            createNotification(
-                recipientId = targetUid,
-                type = NotificationItem.TYPE_FOLLOW
-            )
+                transaction.set(
+                    followerRef,
+                    mapOf("followedAt" to now, "followerId" to currentUid, "uid" to currentUid)
+                )
+                transaction.set(
+                    followingRef,
+                    mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid)
+                )
+                transaction.update(
+                    targetUserRef,
+                    "followersCount",
+                    FieldValue.increment(1)
+                )
+                true
+            }.await()
+
+            if (created) {
+                createNotification(
+                    recipientId = targetUid,
+                    type = NotificationItem.TYPE_FOLLOW
+                )
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -217,30 +239,39 @@ class NotificationRepository(
     }
 
     /**
-     * Unfollow a user: removes records from both subcollections.
+     * Unfollow a user atomically and keep followersCount synchronized.
      */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val currentUid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+
         try {
-            val followingDoc = firestore.collection("users").document(currentUid)
+            val targetUserRef = firestore.collection("users").document(targetUid)
+            val followerRef = targetUserRef.collection("followers").document(currentUid)
+            val followingRef = firestore.collection("users").document(currentUid)
                 .collection("following").document(targetUid)
-            followingDoc.delete().await()
 
-            try {
-                val followerDoc = firestore.collection("users").document(targetUid)
-                    .collection("followers").document(currentUid)
-                followerDoc.delete().await()
-            } catch (_: Exception) {}
+            firestore.runTransaction { transaction ->
+                val targetUser = transaction.get(targetUserRef)
+                val followerDoc = transaction.get(followerRef)
+                val followingDoc = transaction.get(followingRef)
 
-            try {
-                firestore.collection("users").document(currentUid)
-                    .collection("friends").document(targetUid).delete().await()
-            } catch (_: Exception) {}
+                if (!targetUser.exists()) {
+                    throw IllegalStateException("Utilisateur cible introuvable")
+                }
+                if (!followerDoc.exists() && !followingDoc.exists()) {
+                    return@runTransaction
+                }
 
-            try {
-                firestore.collection("users").document(targetUid)
-                    .collection("friends").document(currentUid).delete().await()
-            } catch (_: Exception) {}
+                transaction.delete(followerRef)
+                transaction.delete(followingRef)
+
+                val followersCount = targetUser.getLong("followersCount") ?: 0L
+                transaction.update(
+                    targetUserRef,
+                    "followersCount",
+                    if (followersCount > 0L) FieldValue.increment(-1) else 0L
+                )
+            }.await()
 
             Result.success(Unit)
         } catch (e: Exception) {

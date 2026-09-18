@@ -1,0 +1,8 @@
+{
+  "name": "the-hub-firestore-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node firestore.rules.test.mjs"
+  }
+}
