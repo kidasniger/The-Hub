@@ -24,6 +24,41 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isUser(userId) && request.resource.data.uid == userId;
 
+      function followingCountMutationIsAtomic() {
+        let opAfter = getAfter(
+          /databases/$(database)/documents/users/$(userId)/followOps/$(userId)
+        );
+        let targetId = opAfter == null ? '' : opAfter.data.targetId;
+
+        return opAfter != null
+          && opAfter.data.targetId is string
+          && (
+            (
+              opAfter.data.type == 'follow'
+              && !exists(
+                /databases/$(database)/documents/users/$(userId)/following/$(targetId)
+              )
+              && existsAfter(
+                /databases/$(database)/documents/users/$(userId)/following/$(targetId)
+              )
+              && request.resource.data.get('followingCount', 0)
+                == resource.data.get('followingCount', 0) + 1
+            )
+            || (
+              opAfter.data.type == 'unfollow'
+              && exists(
+                /databases/$(database)/documents/users/$(userId)/following/$(targetId)
+              )
+              && !existsAfter(
+                /databases/$(database)/documents/users/$(userId)/following/$(targetId)
+              )
+              && resource.data.get('followingCount', 0) > 0
+              && request.resource.data.get('followingCount', 0)
+                == resource.data.get('followingCount', 0) - 1
+            )
+          );
+      }
+
       // Profile fields remain writable by the owner, except followersCount.
       // followersCount can only change with the matching relationship writes.
       allow update: if isAuthenticated() && (
@@ -32,7 +67,12 @@ service cloud.firestore {
           && resource.data.get('uid', userId) == userId
           && request.resource.data.get('uid', userId) == userId
           && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['followersCount'])
+            .hasAny(['followersCount', 'followingCount'])
+        )
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['followingCount'])
+          && followingCountMutationIsAtomic()
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys()
