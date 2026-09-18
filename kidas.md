@@ -1,7 +1,7 @@
 ---
 name: "The Hub"
 slug: "the-hub"
-version: "1.0.22"
+version: "1.0.75"
 status: "À renseigner"
 category: "À renseigner"
 author: "À renseigner"
@@ -20,7 +20,7 @@ github: "https://github.com/kidasniger/The-Hub"
 demo: "À renseigner"
 website: "À renseigner"
 documentation: "À renseigner"
-download: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
+download: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.75/TheHub-v1.0.75.apk"
 icon: "https://raw.githubusercontent.com/kidasniger/The-Hub/main/assets/dreamhub-logo-anime.svg"
 cover: "À renseigner"
 ---
@@ -70,8 +70,8 @@ Application mobile Android The Hub, développée avec Kotlin, Jetpack Compose, R
 
 ## Android
 
-- URL: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
-- Version: "1.0.22"
+- URL: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.75/TheHub-v1.0.75.apk"
+- Version: "1.0.75"
 - Architecture: "À renseigner"
 - Taille: "21.0 MB"
 
@@ -102,7 +102,7 @@ Application mobile Android The Hub, développée avec Kotlin, Jetpack Compose, R
 - Démo: "À renseigner"
 - Site web: "À renseigner"
 - Documentation: "À renseigner"
-- Téléchargement: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
+- Téléchargement: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.75/TheHub-v1.0.75.apk"
 - YouTube: "À renseigner"
 - Vidéo de présentation: "À renseigner"
 
@@ -113,6 +113,11 @@ Application mobile Android The Hub, développée avec Kotlin, Jetpack Compose, R
 - Nettoyage des notes de version affichées par le système de mise à jour
 
 # Changelog
+
+## 1.0.75
+
+- Alignement et validation stricte du versionName, du versionCode, du tag Git et de la GitHub Release.
+- Le pipeline ne peut plus régresser silencieusement vers une ancienne version après un release plus récent.
 
 ## 1.0.22
 
