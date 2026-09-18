@@ -32,5 +32,11 @@ jobs:
         working-directory: security-tests
         run: npm install --no-save @firebase/rules-unit-testing firebase
 
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Run Firestore emulator tests
         run: npx --yes firebase-tools@latest emulators:exec --project demo-the-hub-security --only firestore "npm --prefix security-tests test"
