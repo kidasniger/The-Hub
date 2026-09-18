@@ -192,35 +192,58 @@ class NotificationRepository(
         }
 
         try {
+            val currentUserRef = firestore.collection("users").document(currentUid)
             val targetUserRef = firestore.collection("users").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(currentUid)
-            val followingRef = firestore.collection("users").document(currentUid)
-                .collection("following").document(targetUid)
+            val followingRef = currentUserRef.collection("following").document(targetUid)
             val now = Timestamp.now()
 
             val created = firestore.runTransaction { transaction ->
+                val currentUser = transaction.get(currentUserRef)
                 val targetUser = transaction.get(targetUserRef)
                 val existingFollower = transaction.get(followerRef)
+                val existingFollowing = transaction.get(followingRef)
+
+                if (!currentUser.exists()) {
+                    throw IllegalStateException("Profil utilisateur introuvable")
+                }
                 if (!targetUser.exists()) {
                     throw IllegalStateException("Utilisateur cible introuvable")
                 }
-                if (existingFollower.exists()) {
+
+                val createFollower = !existingFollower.exists()
+                val createFollowing = !existingFollowing.exists()
+
+                if (!createFollower && !createFollowing) {
                     return@runTransaction false
                 }
 
-                transaction.set(
-                    followerRef,
-                    mapOf("followedAt" to now, "followerId" to currentUid, "uid" to currentUid)
-                )
-                transaction.set(
-                    followingRef,
-                    mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid)
-                )
-                transaction.update(
-                    targetUserRef,
-                    "followersCount",
-                    FieldValue.increment(1)
-                )
+                if (createFollower) {
+                    transaction.set(
+                        followerRef,
+                        mapOf(
+                            "followedAt" to now,
+                            "followerId" to currentUid,
+                            "uid" to currentUid
+                        )
+                    )
+                    val followersCount = targetUser.getLong("followersCount") ?: 0L
+                    transaction.update(targetUserRef, "followersCount", followersCount + 1L)
+                }
+
+                if (createFollowing) {
+                    transaction.set(
+                        followingRef,
+                        mapOf(
+                            "followedAt" to now,
+                            "followingId" to targetUid,
+                            "uid" to targetUid
+                        )
+                    )
+                    val followingCount = currentUser.getLong("followingCount") ?: 0L
+                    transaction.update(currentUserRef, "followingCount", followingCount + 1L)
+                }
+
                 true
             }.await()
 
@@ -239,38 +262,49 @@ class NotificationRepository(
     }
 
     /**
-     * Unfollow a user atomically and keep followersCount synchronized.
+     * Unfollow a user atomically and keep both relation counters synchronized.
      */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val currentUid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
 
         try {
+            val currentUserRef = firestore.collection("users").document(currentUid)
             val targetUserRef = firestore.collection("users").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(currentUid)
-            val followingRef = firestore.collection("users").document(currentUid)
-                .collection("following").document(targetUid)
+            val followingRef = currentUserRef.collection("following").document(targetUid)
 
             firestore.runTransaction { transaction ->
+                val currentUser = transaction.get(currentUserRef)
                 val targetUser = transaction.get(targetUserRef)
                 val followerDoc = transaction.get(followerRef)
                 val followingDoc = transaction.get(followingRef)
 
+                if (!currentUser.exists()) {
+                    throw IllegalStateException("Profil utilisateur introuvable")
+                }
                 if (!targetUser.exists()) {
                     throw IllegalStateException("Utilisateur cible introuvable")
                 }
-                if (!followerDoc.exists() && !followingDoc.exists()) {
-                    return@runTransaction
+
+                if (followerDoc.exists()) {
+                    transaction.delete(followerRef)
+                    val followersCount = targetUser.getLong("followersCount") ?: 0L
+                    transaction.update(
+                        targetUserRef,
+                        "followersCount",
+                        (followersCount - 1L).coerceAtLeast(0L)
+                    )
                 }
 
-                transaction.delete(followerRef)
-                transaction.delete(followingRef)
-
-                val followersCount = targetUser.getLong("followersCount") ?: 0L
-                transaction.update(
-                    targetUserRef,
-                    "followersCount",
-                    if (followersCount > 0L) FieldValue.increment(-1) else 0L
-                )
+                if (followingDoc.exists()) {
+                    transaction.delete(followingRef)
+                    val followingCount = currentUser.getLong("followingCount") ?: 0L
+                    transaction.update(
+                        currentUserRef,
+                        "followingCount",
+                        (followingCount - 1L).coerceAtLeast(0L)
+                    )
+                }
             }.await()
 
             Result.success(Unit)
