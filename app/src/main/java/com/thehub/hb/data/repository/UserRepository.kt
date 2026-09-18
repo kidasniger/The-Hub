@@ -324,6 +324,7 @@ class UserRepository(
             val targetFollowingRef = targetUserRef.collection("following").document(uid)
             val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
             val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
+            val followOpRef = currentUserRef.collection("followOps").document(uid)
 
             val now = Timestamp.now()
             val result = firestore.runTransaction { transaction ->
@@ -348,6 +349,13 @@ class UserRepository(
                 }
 
                 if (createFollowing) {
+                    transaction.set(
+                        followOpRef,
+                        mapOf(
+                            "type" to "follow",
+                            "targetId" to targetUid
+                        )
+                    )
                     transaction.set(
                         followingRef,
                         mapOf(
@@ -450,6 +458,13 @@ class UserRepository(
                 }
 
                 if (deleteFollowing) {
+                    transaction.set(
+                        followOpRef,
+                        mapOf(
+                            "type" to "unfollow",
+                            "targetId" to targetUid
+                        )
+                    )
                     transaction.delete(followingRef)
                     val followingCount = currentUser.getLong("followingCount") ?: 0L
                     transaction.update(
