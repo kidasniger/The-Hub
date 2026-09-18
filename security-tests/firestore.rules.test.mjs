@@ -232,7 +232,7 @@ async function testLegacyUserFollowCompatibility() {
   await assertSucceeds(updateDoc(doc(legacyDb, "users/legacy"), {
     followingCount: 2,
   }));
-  await assertSucceeds(updateDoc(doc(legacyDb, "users/legacy-target"), {
+  await assertFails(updateDoc(doc(legacyDb, "users/legacy-target"), {
     followersCount: 2,
   }));
   await assertFails(updateDoc(doc(legacyDb, "users/legacy-target"), {
