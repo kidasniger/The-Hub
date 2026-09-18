@@ -46,8 +46,9 @@ async function seed(ctx) {
   });
   await setDoc(doc(db, "users/legacy"), {
     username: "legacy",
-    followersCount: 0,
-    followingCount: 0,
+  });
+  await setDoc(doc(db, "users/legacy-target"), {
+    username: "legacy-target",
   });
   await setDoc(doc(db, "conversations/alice_bob"), {
     participantIds: ["alice", "bob"],
@@ -59,6 +60,18 @@ async function seed(ctx) {
     lastMessageAt: new Date(),
     lastMessageSenderId: "",
     unreadCount: { alice: 0, bob: 0 },
+  });
+
+  // Legacy conversation: the unreadCount field did not exist in older data.
+  await setDoc(doc(db, "conversations/legacy_bob"), {
+    participantIds: ["legacy", "bob"],
+    participantsInfo: {
+      legacy: { username: "legacy" },
+      bob: { username: "bob" },
+    },
+    lastMessageText: "",
+    lastMessageAt: new Date(),
+    lastMessageSenderId: "",
   });
 
   await setDoc(doc(db, "posts/post-1"), {
@@ -198,9 +211,68 @@ async function testRepostDeleteCounterMustMatchDeletion() {
 
 
 async function testLegacyUserFollowCompatibility() {
+  // Both user documents are legacy-shaped: uid and both counters are absent.
+  // This is the closest equivalent to the Android follow transaction after
+  // the fix: both relation documents plus concrete counter values.
+  const batch = writeBatch(legacyDb);
+  batch.set(doc(legacyDb, "users/legacy/following/legacy-target"), {
+    followedAt: new Date(),
+    followingId: "legacy-target",
+    uid: "legacy-target",
+  });
+  batch.set(doc(legacyDb, "users/legacy-target/followers/legacy"), {
+    followedAt: new Date(),
+    followerId: "legacy",
+    uid: "legacy",
+  });
+  batch.update(doc(legacyDb, "users/legacy"), { followingCount: 1 });
+  batch.update(doc(legacyDb, "users/legacy-target"), { followersCount: 1 });
+  await assertSucceeds(batch.commit());
+
   await assertSucceeds(updateDoc(doc(legacyDb, "users/legacy"), {
-    followingCount: 1,
+    followingCount: 2,
   }));
+  await assertSucceeds(updateDoc(doc(legacyDb, "users/legacy-target"), {
+    followersCount: 2,
+  }));
+  await assertFails(updateDoc(doc(legacyDb, "users/legacy-target"), {
+    followersCount: 99,
+  }));
+}
+
+async function testLegacyConversationUnreadCountCompatibility() {
+  const messageBatch = writeBatch(legacyDb);
+  messageBatch.set(
+    doc(legacyDb, "conversations/legacy_bob/messages/legacy-message-1"),
+    {
+      senderId: "legacy",
+      text: "message legacy",
+      imageUrl: null,
+      createdAt: serverTimestamp(),
+      status: "sent",
+    }
+  );
+  messageBatch.set(
+    doc(legacyDb, "conversations/legacy_bob/messageOps/legacy"),
+    {
+      type: "send",
+      targetId: "legacy-message-1",
+    }
+  );
+  messageBatch.update(doc(legacyDb, "conversations/legacy_bob"), {
+    lastMessageText: "message legacy",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "legacy",
+    unreadCount: { legacy: 0, bob: 1 },
+  });
+  await assertSucceeds(messageBatch.commit());
+
+  const normalizedConversation = await getDoc(
+    doc(legacyDb, "conversations/legacy_bob")
+  );
+  if (!normalizedConversation.exists()) {
+    throw new Error("Legacy conversation disappeared unexpectedly");
+  }
 }
 
 async function testMessageSecurityAndAtomicSend() {
@@ -370,6 +442,7 @@ try {
   await testUnfollowCounterMustMatchDeletion();
   await testRepostDeleteCounterMustMatchDeletion();
   await testLegacyUserFollowCompatibility();
+  await testLegacyConversationUnreadCountCompatibility();
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
