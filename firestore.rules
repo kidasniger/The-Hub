@@ -92,7 +92,7 @@ service cloud.firestore {
         allow create: if isUser(followerId)
           && request.resource.data.followerId == followerId
           && existsAfter(
-            /databases/$(database)/documents/users/$(userId)/following/$(followerId)
+            /databases/$(database)/documents/users/$(followerId)/following/$(userId)
           )
           && (
             (
