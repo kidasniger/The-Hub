@@ -61,8 +61,42 @@ fun PostMediaImage(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isSaving by remember { mutableStateOf(false) }
+    val remoteImageUnavailable = rememberRemoteImageUnavailable(imageUrl)
 
-    SubcomposeAsyncImage(
+    if (remoteImageUnavailable) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(HubSurfaceElevated)
+                .border(1.dp, HubBorder, RoundedCornerShape(cornerRadius))
+                .padding(vertical = 24.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Outlined.BrokenImage,
+                    contentDescription = "Photo non disponible",
+                    tint = HubSecondary,
+                    modifier = Modifier.size(36.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Photo non disponible",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HubWhite
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Cette image a été supprimée ou n'est plus accessible.",
+                    fontSize = 12.sp,
+                    color = HubSecondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    } else {
+        SubcomposeAsyncImage(
         model = imageUrl,
         contentDescription = contentDescription,
         modifier = modifier
@@ -173,4 +207,5 @@ fun PostMediaImage(
             }
         }
     )
-}
+    }
+}}
