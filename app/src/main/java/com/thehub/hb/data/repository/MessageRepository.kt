@@ -270,56 +270,63 @@ class MessageRepository(
 
             val conversation = Conversation.fromSnapshot(convDoc)
             val otherUid = conversation.getOtherParticipantId(currentUid)
+            if (otherUid.isBlank()) {
+                return@withContext Result.failure(Exception("Conversation invalide."))
+            }
 
-            val now = Timestamp.now()
+            val messageRef = convRef.collection("messages").document()
+            val messageOpRef = convRef.collection("messageOps").document(currentUid)
+
             val messageData = hashMapOf<String, Any?>(
                 "senderId" to currentUid,
                 "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
                 "imageUrl" to (if (imageUrl.isNullOrBlank()) null else imageUrl),
-                "createdAt" to now,
+                "createdAt" to FieldValue.serverTimestamp(),
                 "status" to Message.STATUS_SENT
             )
 
-            val messageRef = convRef.collection("messages").document()
-            messageRef.set(messageData).await()
-
-            // Update conversation document
             val previewText = when {
                 !trimmedText.isNullOrBlank() -> trimmedText
                 !imageUrl.isNullOrBlank() -> "📷 Photo"
                 else -> ""
             }
 
-            val updates = hashMapOf<String, Any>(
-                "lastMessageText" to previewText,
-                "lastMessageAt" to now,
-                "lastMessageSenderId" to currentUid
+            // Message, security marker and conversation metadata are written
+            // atomically so Firestore rules can verify that the metadata really
+            // belongs to this newly-created message.
+            val batch = firestore.batch()
+            batch.set(messageRef, messageData)
+            batch.set(
+                messageOpRef,
+                mapOf(
+                    "type" to "send",
+                    "targetId" to messageRef.id
+                )
             )
-
-            if (otherUid.isNotEmpty()) {
-                updates["unreadCount.$otherUid"] = FieldValue.increment(1)
-            }
-
-            convRef.update(updates).await()
-
-            if (otherUid.isNotBlank()) {
-                try {
-                    notificationRepository.createNotification(
-                        recipientId = otherUid,
-                        type = NotificationItem.TYPE_MESSAGE,
-                        commentText = previewText
-                    )
-                } catch (_: Exception) {}
-            }
-
-            val message = Message(
-                id = messageRef.id,
-                senderId = currentUid,
-                text = if (trimmedText.isNullOrBlank()) null else trimmedText,
-                imageUrl = if (imageUrl.isNullOrBlank()) null else imageUrl,
-                createdAt = now,
-                status = Message.STATUS_SENT
+            batch.update(
+                convRef,
+                mapOf(
+                    "lastMessageText" to previewText,
+                    "lastMessageAt" to FieldValue.serverTimestamp(),
+                    "lastMessageSenderId" to currentUid,
+                    "unreadCount.$otherUid" to FieldValue.increment(1)
+                )
             )
+            batch.commit().await()
+
+            val messageDoc = messageRef.get().await()
+            if (!messageDoc.exists()) {
+                return@withContext Result.failure(Exception("Le message n'a pas pu être confirmé."))
+            }
+            val message = Message.fromSnapshot(messageDoc)
+
+            try {
+                notificationRepository.createNotification(
+                    recipientId = otherUid,
+                    type = NotificationItem.TYPE_MESSAGE,
+                    commentText = previewText
+                )
+            } catch (_: Exception) {}
 
             Result.success(message)
         } catch (e: Exception) {
@@ -369,20 +376,39 @@ class MessageRepository(
      * Delete conversation document and all its messages.
      */
     suspend fun deleteConversation(conversationId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val currentUid = currentUserId
+            ?: return@withContext Result.failure(Exception("Utilisateur non connecté."))
+
         try {
             val convRef = firestore.collection("conversations").document(conversationId)
-            
-            // Delete messages sub-collection in batches
-            val messagesQuery = convRef.collection("messages").get().await()
-            if (!messagesQuery.isEmpty) {
-                val batch = firestore.batch()
-                for (doc in messagesQuery.documents) {
-                    batch.delete(doc.reference)
-                }
-                batch.commit().await()
+            val convDoc = convRef.get().await()
+            if (!convDoc.exists()) {
+                return@withContext Result.success(Unit)
             }
 
-            convRef.delete().await()
+            val conversation = Conversation.fromSnapshot(convDoc)
+            if (!conversation.participantIds.contains(currentUid)) {
+                return@withContext Result.failure(Exception("Accès refusé."))
+            }
+
+            val messagesQuery = convRef.collection("messages").get().await()
+            // Firestore WriteBatch supports at most 500 writes. The rules require
+            // all message deletions and the parent conversation deletion to be
+            // atomic, so refuse oversized conversations rather than falling back
+            // to a less secure multi-step deletion.
+            if (messagesQuery.size() >= 500) {
+                return@withContext Result.failure(
+                    Exception("Cette conversation contient trop de messages pour être supprimée en une seule opération.")
+                )
+            }
+
+            val batch = firestore.batch()
+            for (doc in messagesQuery.documents) {
+                batch.delete(doc.reference)
+            }
+            batch.delete(convRef)
+            batch.commit().await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
