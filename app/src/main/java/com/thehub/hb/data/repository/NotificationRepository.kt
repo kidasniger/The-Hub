@@ -196,6 +196,7 @@ class NotificationRepository(
             val targetUserRef = firestore.collection("users").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(currentUid)
             val followingRef = currentUserRef.collection("following").document(targetUid)
+            val followOpRef = currentUserRef.collection("followOps").document(currentUid)
             val now = Timestamp.now()
 
             val created = firestore.runTransaction { transaction ->
@@ -232,6 +233,13 @@ class NotificationRepository(
                 }
 
                 if (createFollowing) {
+                    transaction.set(
+                        followOpRef,
+                        mapOf(
+                            "type" to "follow",
+                            "targetId" to targetUid
+                        )
+                    )
                     transaction.set(
                         followingRef,
                         mapOf(
@@ -297,6 +305,13 @@ class NotificationRepository(
                 }
 
                 if (followingDoc.exists()) {
+                    transaction.set(
+                        followOpRef,
+                        mapOf(
+                            "type" to "unfollow",
+                            "targetId" to targetUid
+                        )
+                    )
                     transaction.delete(followingRef)
                     val followingCount = currentUser.getLong("followingCount") ?: 0L
                     transaction.update(
