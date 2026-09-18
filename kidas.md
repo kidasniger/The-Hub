@@ -21,7 +21,7 @@ demo: "À renseigner"
 website: "À renseigner"
 documentation: "À renseigner"
 download: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.22/TheHub-v1.0.22.apk"
-icon: "À renseigner"
+icon: "https://raw.githubusercontent.com/kidasniger/The-Hub/main/assets/dreamhub-logo-anime.svg"
 cover: "À renseigner"
 ---
 
@@ -58,7 +58,9 @@ Application mobile Android The Hub, développée avec Kotlin, Jetpack Compose, R
 
 # Captures d'écran
 
-- À renseigner
+- https://i.ibb.co/Qvv8vz3Q/Screenshot-20260918-210616.jpg
+- https://i.ibb.co/d0vbqsdR/Screenshot-20260918-210607.jpg
+- https://i.ibb.co/wNrqSvzJ/Screenshot-20260918-210544.jpg
 
 # Vidéos
 
