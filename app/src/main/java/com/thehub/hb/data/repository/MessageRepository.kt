@@ -243,7 +243,6 @@ class MessageRepository(
         val currentUid = currentUserId
             ?: return@withContext Result.failure(Exception("Utilisateur non connecté."))
 
-        // Verify that current user account still exists and is not deleted
         try {
             val userDoc = firestore.collection("users").document(currentUid).get().await()
             if (!userDoc.exists() || userDoc.getBoolean("isDeleted") == true) {
@@ -269,11 +268,16 @@ class MessageRepository(
             }
 
             val conversation = Conversation.fromSnapshot(convDoc)
+            if (!conversation.participantIds.contains(currentUid)) {
+                return@withContext Result.failure(Exception("Accès refusé à cette conversation."))
+            }
+
             val otherUid = conversation.getOtherParticipantId(currentUid)
             if (otherUid.isBlank()) {
                 return@withContext Result.failure(Exception("Conversation invalide."))
             }
 
+            val nextUnreadCount = conversation.getUnreadCountFor(otherUid) + 1
             val messageRef = convRef.collection("messages").document()
             val messageOpRef = convRef.collection("messageOps").document(currentUid)
 
@@ -291,9 +295,9 @@ class MessageRepository(
                 else -> ""
             }
 
-            // Message, security marker and conversation metadata are written
-            // atomically so Firestore rules can verify that the metadata really
-            // belongs to this newly-created message.
+            // Keep the message, security marker and conversation metadata in a
+            // single atomic batch. The unread count is written as a concrete
+            // value so the security rules can verify the resulting document.
             val batch = firestore.batch()
             batch.set(messageRef, messageData)
             batch.set(
@@ -309,7 +313,7 @@ class MessageRepository(
                     "lastMessageText" to previewText,
                     "lastMessageAt" to FieldValue.serverTimestamp(),
                     "lastMessageSenderId" to currentUid,
-                    "unreadCount.$otherUid" to FieldValue.increment(1)
+                    "unreadCount.$otherUid" to nextUnreadCount
                 )
             )
             batch.commit().await()
@@ -318,6 +322,7 @@ class MessageRepository(
             if (!messageDoc.exists()) {
                 return@withContext Result.failure(Exception("Le message n'a pas pu être confirmé."))
             }
+
             val message = Message.fromSnapshot(messageDoc)
 
             try {

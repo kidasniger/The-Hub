@@ -28,7 +28,8 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         (
           isUser(userId)
-          && request.resource.data.uid == userId
+          && resource.data.get('uid', userId) == userId
+          && request.resource.data.get('uid', userId) == userId
           && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['followersCount'])
         )

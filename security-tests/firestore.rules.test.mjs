@@ -18,6 +18,7 @@ const rules = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "u
 let testEnv;
 let aliceDb;
 let bobDb;
+let legacyDb;
 let charlieDb;
 
 function alice() {
@@ -40,6 +41,11 @@ async function seed(ctx) {
   await setDoc(doc(db, "users/bob"), {
     uid: "bob",
     username: "bob",
+    followersCount: 0,
+    followingCount: 0,
+  });
+  await setDoc(doc(db, "users/legacy"), {
+    username: "legacy",
     followersCount: 0,
     followingCount: 0,
   });
@@ -190,6 +196,12 @@ async function testRepostDeleteCounterMustMatchDeletion() {
   await assertFails(updateDoc(doc(bob(), "posts/post-1"), { repostsCount: 1 }));
 }
 
+
+async function testLegacyUserFollowCompatibility() {
+  await assertSucceeds(updateDoc(doc(legacyDb, "users/legacy"), {
+    followingCount: 1,
+  }));
+}
 
 async function testMessageSecurityAndAtomicSend() {
   const conversationRef = doc(alice(), "conversations/alice_bob");
@@ -344,6 +356,7 @@ try {
 
   aliceDb = testEnv.authenticatedContext("alice").firestore();
   bobDb = testEnv.authenticatedContext("bob").firestore();
+  legacyDb = testEnv.authenticatedContext("legacy").firestore();
   charlieDb = testEnv.authenticatedContext("charlie").firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
@@ -356,6 +369,7 @@ try {
   await testCommentDeleteCounterMustMatchDeletion();
   await testUnfollowCounterMustMatchDeletion();
   await testRepostDeleteCounterMustMatchDeletion();
+  await testLegacyUserFollowCompatibility();
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
