@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 
 class UpdateViewModel(
     private val updateRepository: UpdateRepository,
@@ -32,7 +31,6 @@ class UpdateViewModel(
     val downloadStatus: StateFlow<DownloadStatus> = downloadManager.status
 
     init {
-        // Automatically check for updates on startup
         checkForUpdates(silent = true)
     }
 
@@ -43,16 +41,26 @@ class UpdateViewModel(
     fun checkForUpdates(silent: Boolean = false) {
         viewModelScope.launch {
             _isChecking.value = true
-            when (val result = updateRepository.checkForUpdate(currentVersion = BuildConfig.VERSION_NAME, forceRefresh = !silent)) {
+            when (
+                val result = updateRepository.checkForUpdate(
+                    currentVersion = BuildConfig.VERSION_NAME,
+                    forceRefresh = !silent
+                )
+            ) {
                 is UpdateCheckResult.UpdateAvailable -> {
                     _updateInfo.value = result.updateInfo
+                    // Restore a completed APK from the app-specific download cache.
+                    downloadManager.restoreCachedDownload(result.updateInfo)
                 }
+
                 is UpdateCheckResult.UpToDate -> {
                     _updateInfo.value = null
                     if (!silent) {
-                        _userMessage.value = "The Hub est déjà à jour (v${BuildConfig.VERSION_NAME})."
+                        _userMessage.value =
+                            "The Hub est déjà à jour (v${BuildConfig.VERSION_NAME})."
                     }
                 }
+
                 is UpdateCheckResult.Error -> {
                     if (!silent) {
                         _userMessage.value = result.message
@@ -67,7 +75,8 @@ class UpdateViewModel(
         downloadManager.startDownload(
             apkUrl = updateInfo.apkDownloadUrl,
             fileName = updateInfo.apkFileName,
-            versionName = updateInfo.latestVersion
+            versionName = updateInfo.latestVersion,
+            expectedSizeInBytes = updateInfo.apkSizeInBytes
         )
     }
 
