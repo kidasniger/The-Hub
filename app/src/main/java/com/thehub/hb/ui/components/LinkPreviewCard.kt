@@ -49,6 +49,7 @@ import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.extractFirstHttpUrl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private val linkPreviewService = LinkPreviewService()
@@ -65,6 +66,8 @@ fun LinkPreviewCard(
 
     LaunchedEffect(url) {
         isLoading = true
+        preview = null
+        delay(700L)
         preview = withContext(Dispatchers.IO) {
             linkPreviewService.preview(url)
         }
@@ -98,7 +101,7 @@ fun LinkPreviewCard(
         return
     }
 
-    val data = preview
+    val data = preview ?: return
 
     Box(
         modifier = modifier
