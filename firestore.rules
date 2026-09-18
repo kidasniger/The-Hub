@@ -23,37 +23,58 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isUser(userId) && request.resource.data.uid == userId;
 
-      // Profile owners may edit profile fields, but never follower count.
-      // followersCount may change only in the same atomic operation as the
-      // matching follower/following relationship transition.
+      // Profile fields remain writable by the owner, except followersCount.
+      // followersCount can only change with the matching relationship writes.
       allow update: if isAuthenticated() && (
         (
           isUser(userId)
           && request.resource.data.uid == userId
           && request.resource.data.diff(resource.data).affectedKeys()
-              .hasNone(['followersCount'])
+            .hasNone(['followersCount'])
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['followersCount'])
+            .hasOnly(['followersCount'])
           && (
             (
-              (resource.data.followersCount == null
-                && request.resource.data.followersCount == 1)
-              || request.resource.data.followersCount == resource.data.followersCount + 1
+              (
+                resource.data.followersCount == null
+                && request.resource.data.followersCount == 1
+              )
+              || (
+                resource.data.followersCount != null
+                && request.resource.data.followersCount == resource.data.followersCount + 1
+              )
             )
-            && !exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
-            && existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
-            && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId))
-            && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId))
+            && !exists(
+              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+            )
+            && existsAfter(
+              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+            )
+            && !exists(
+              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
+            )
+            && existsAfter(
+              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
+            )
           )
           || (
-            resource.data.followersCount > 0
+            resource.data.followersCount != null
+            && resource.data.followersCount > 0
             && request.resource.data.followersCount == resource.data.followersCount - 1
-            && exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
-            && !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
-            && exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId))
-            && !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId))
+            && exists(
+              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+            )
+            && !existsAfter(
+              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+            )
+            && exists(
+              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
+            )
+            && !existsAfter(
+              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
+            )
           )
         )
       );
@@ -78,8 +99,11 @@ service cloud.firestore {
               get(/databases/$(database)/documents/users/$(userId)).data.followersCount == null
               && getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount == 1
             )
-            || getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount
+            || (
+              get(/databases/$(database)/documents/users/$(userId)).data.followersCount != null
+              && getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount
                 == get(/databases/$(database)/documents/users/$(userId)).data.followersCount + 1
+            )
           );
 
         allow delete: if isUser(followerId)
@@ -89,9 +113,10 @@ service cloud.firestore {
           && !existsAfter(
             /databases/$(database)/documents/users/$(userId)/following/$(followerId)
           )
+          && get(/databases/$(database)/documents/users/$(userId)).data.followersCount != null
           && get(/databases/$(database)/documents/users/$(userId)).data.followersCount > 0
           && getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount
-              == get(/databases/$(database)/documents/users/$(userId)).data.followersCount - 1;
+            == get(/databases/$(database)/documents/users/$(userId)).data.followersCount - 1;
       }
 
       match /following/{followingId} {
@@ -130,52 +155,110 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if isAuthenticated();
 
-      // New posts always start with zero interaction counters. Clients cannot
-      // choose arbitrary non-zero values at creation time.
+      function commentsCountMutationIsAtomic() {
+        let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
+        let opAfter = getAfter(opPath);
+        let targetId = opAfter.data.targetId;
+        let commentPath = /databases/$(database)/documents/posts/$(postId)/comments/$(targetId);
+        return opAfter != null
+          && targetId is string
+          && (
+            (
+              (
+                resource.data.commentsCount == null
+                && request.resource.data.commentsCount == 1
+              )
+              || (
+                resource.data.commentsCount != null
+                && request.resource.data.commentsCount == resource.data.commentsCount + 1
+              )
+            )
+            && opAfter.data.type == 'comment_create'
+            && !exists(commentPath)
+            && existsAfter(commentPath)
+          )
+          || (
+            resource.data.commentsCount != null
+            && resource.data.commentsCount > 0
+            && request.resource.data.commentsCount == resource.data.commentsCount - 1
+            && opAfter.data.type == 'comment_delete'
+            && exists(commentPath)
+            && !existsAfter(commentPath)
+          );
+      }
+
+      function validRepostCreate() {
+        let originalId = request.resource.data.originalPostId;
+        let originalPath = /databases/$(database)/documents/posts/$(originalId);
+        let markerPath = /databases/$(database)/documents/posts/$(originalId)/reposts/$(request.auth.uid);
+        return originalId is string
+          && exists(originalPath)
+          && existsAfter(markerPath)
+          && getAfter(markerPath).data.repostId == postId
+          && (
+            (
+              get(originalPath).data.repostsCount == null
+              && getAfter(originalPath).data.repostsCount == 1
+            )
+            || (
+              get(originalPath).data.repostsCount != null
+              && getAfter(originalPath).data.repostsCount
+                == get(originalPath).data.repostsCount + 1
+            )
+          );
+      }
+
+      // Counter fields are forced to zero for all new client-created posts.
       allow create: if isAuthenticated()
         && request.resource.data.authorId == request.auth.uid
         && request.resource.data.likesCount == 0
         && request.resource.data.commentsCount == 0
-        && request.resource.data.repostsCount == 0;
+        && request.resource.data.repostsCount == 0
+        && (
+          request.resource.data.isRepost != true
+          || validRepostCreate()
+        );
 
-      // A normal post can be deleted by its author. A repost can be deleted
-      // only together with its repost marker and original-post counter update.
+      // Normal posts can be deleted by their author. A repost must remove its
+      // marker and decrement the original counter in the same atomic operation.
       allow delete: if isAuthenticated()
         && resource.data.authorId == request.auth.uid
         && (
           resource.data.isRepost != true
           || (
             resource.data.originalPostId is string
-            && exists(
-              /databases/$(database)/documents/posts/$(resource.data.originalPostId)
-                /reposts/$(request.auth.uid)
+            && (
+              !exists(
+                /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+              )
+              || (
+                exists(
+                  /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                )
+                && get(
+                  /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                ).data.repostId == postId
+                && !existsAfter(
+                  /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                )
+                && get(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount != null
+                && get(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount > 0
+                && getAfter(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount
+                  == get(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount - 1
+              )
             )
-            && !existsAfter(
-              /databases/$(database)/documents/posts/$(resource.data.originalPostId)
-                /reposts/$(request.auth.uid)
-            )
-            && get(
-              /databases/$(database)/documents/posts/$(resource.data.originalPostId)
-            ).data.repostsCount > 0
-            && getAfter(
-              /databases/$(database)/documents/posts/$(resource.data.originalPostId)
-            ).data.repostsCount
-              == get(
-                /databases/$(database)/documents/posts/$(resource.data.originalPostId)
-              ).data.repostsCount - 1
           )
         );
 
-      // The author may edit normal post content but cannot modify any
-      // interaction counter. Counter changes are allowed only when the
-      // corresponding interaction document changes in the same atomic write.
+      // Post authors may edit content but cannot directly change counters.
+      // Counter changes are coupled to the corresponding interaction.
       allow update: if isAuthenticated() && (
         (
           resource.data.authorId == request.auth.uid
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.diff(resource.data).affectedKeys()
-              .hasNone(['likesCount', 'commentsCount', 'repostsCount'])
+            .hasNone(['likesCount', 'commentsCount', 'repostsCount'])
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
@@ -187,12 +270,14 @@ service cloud.firestore {
               && existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
             )
             || (
-              request.resource.data.likesCount == resource.data.likesCount + 1
+              resource.data.likesCount != null
+              && request.resource.data.likesCount == resource.data.likesCount + 1
               && !exists(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
               && existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
             )
             || (
-              resource.data.likesCount > 0
+              resource.data.likesCount != null
+              && resource.data.likesCount > 0
               && request.resource.data.likesCount == resource.data.likesCount - 1
               && exists(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
               && !existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid))
@@ -201,97 +286,30 @@ service cloud.firestore {
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
-          && (
-            (
-              resource.data.commentsCount == null
-              && request.resource.data.commentsCount == 1
-              && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-              ).data.type == 'comment_create'
-              && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-              ).data.targetId is string
-              && !exists(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(getAfter(
-                    /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-                  ).data.targetId)
-              )
-              && existsAfter(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(getAfter(
-                    /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-                  ).data.targetId)
-              )
-            )
-            || (
-              request.resource.data.commentsCount == resource.data.commentsCount + 1
-              && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-              ).data.type == 'comment_create'
-              && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-              ).data.targetId is string
-              && !exists(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(getAfter(
-                    /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-                  ).data.targetId)
-              )
-              && existsAfter(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(getAfter(
-                    /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-                  ).data.targetId)
-              )
-            )
-            || (
-              resource.data.commentsCount > 0
-              && request.resource.data.commentsCount == resource.data.commentsCount - 1
-              && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-              ).data.type == 'comment_delete'
-              && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-              ).data.targetId is string
-              && exists(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(getAfter(
-                    /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-                  ).data.targetId)
-              )
-              && !existsAfter(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(getAfter(
-                    /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-                  ).data.targetId)
-              )
-            )
-          )
+          && commentsCountMutationIsAtomic()
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount'])
           && (
             (
-              (resource.data.repostsCount == null && request.resource.data.repostsCount == 1)
-              || request.resource.data.repostsCount == resource.data.repostsCount + 1
+              (
+                resource.data.repostsCount == null
+                && request.resource.data.repostsCount == 1
+              )
+              || (
+                resource.data.repostsCount != null
+                && request.resource.data.repostsCount == resource.data.repostsCount + 1
+              )
             )
-            && !exists(
-              /databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid)
-            )
-            && existsAfter(
-              /databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid)
-            )
+            && !exists(/databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid))
+            && existsAfter(/databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid))
           )
           || (
-            resource.data.repostsCount > 0
+            resource.data.repostsCount != null
+            && resource.data.repostsCount > 0
             && request.resource.data.repostsCount == resource.data.repostsCount - 1
-            && exists(
-              /databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid)
-            )
-            && !existsAfter(
-              /databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid)
-            )
+            && exists(/databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid))
+            && !existsAfter(/databases/$(database)/documents/posts/$(postId)/reposts/$(request.auth.uid))
           )
         )
       );
@@ -301,24 +319,26 @@ service cloud.firestore {
 
         allow create: if isUser(userId)
           && request.resource.data.keys().hasOnly(['likedAt'])
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)
-          ).data.likesCount
-            == (
-              get(/databases/$(database)/documents/posts/$(postId)).data.likesCount + 1
-            );
+          && (
+            (
+              get(/databases/$(database)/documents/posts/$(postId)).data.likesCount == null
+              && getAfter(/databases/$(database)/documents/posts/$(postId)).data.likesCount == 1
+            )
+            || (
+              get(/databases/$(database)/documents/posts/$(postId)).data.likesCount != null
+              && getAfter(/databases/$(database)/documents/posts/$(postId)).data.likesCount
+                == get(/databases/$(database)/documents/posts/$(postId)).data.likesCount + 1
+            )
+          );
 
         allow delete: if isUser(userId)
-          && get(/databases/$(database)/documents/posts/$(postId))
-              .data.likesCount > 0
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)
-          ).data.likesCount
-            == (
-              get(/databases/$(database)/documents/posts/$(postId)).data.likesCount - 1
-            );
+          && get(/databases/$(database)/documents/posts/$(postId)).data.likesCount != null
+          && get(/databases/$(database)/documents/posts/$(postId)).data.likesCount > 0
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.likesCount
+            == get(/databases/$(database)/documents/posts/$(postId)).data.likesCount - 1;
       }
 
+      // Internal client transaction marker. It is never readable or directly deletable.
       match /counterOps/{userId} {
         allow read: if false;
         allow delete: if false;
@@ -330,36 +350,28 @@ service cloud.firestore {
             (
               request.resource.data.type == 'comment_create'
               && !exists(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(request.resource.data.targetId)
+                /databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.targetId)
               )
               && existsAfter(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(request.resource.data.targetId)
+                /databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.targetId)
               )
               && getAfter(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(request.resource.data.targetId)
+                /databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.targetId)
               ).data.authorId == request.auth.uid
             )
             || (
               request.resource.data.type == 'comment_delete'
               && exists(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(request.resource.data.targetId)
+                /databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.targetId)
               )
               && !existsAfter(
-                /databases/$(database)/documents/posts/$(postId)/comments/
-                  $(request.resource.data.targetId)
+                /databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.targetId)
               )
               && (
                 get(
-                  /databases/$(database)/documents/posts/$(postId)/comments/
-                    $(request.resource.data.targetId)
+                  /databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.targetId)
                 ).data.authorId == request.auth.uid
-                || get(
-                  /databases/$(database)/documents/posts/$(postId)
-                ).data.authorId == request.auth.uid
+                || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
               )
             )
           );
@@ -368,59 +380,51 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if isAuthenticated();
 
+        function commentCreateIsAtomic(targetCommentId) {
+          let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
+          let postPath = /databases/$(database)/documents/posts/$(postId);
+          let opAfter = getAfter(opPath);
+          return opAfter != null
+            && opAfter.data.type == 'comment_create'
+            && opAfter.data.targetId == targetCommentId
+            && getAfter(postPath).data.commentsCount == get(postPath).data.commentsCount + 1;
+        }
+
+        function commentDeleteIsAtomic(targetCommentId) {
+          let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
+          let postPath = /databases/$(database)/documents/posts/$(postId);
+          let opAfter = getAfter(opPath);
+          return opAfter != null
+            && opAfter.data.type == 'comment_delete'
+            && opAfter.data.targetId == targetCommentId
+            && getAfter(postPath).data.commentsCount == get(postPath).data.commentsCount - 1;
+        }
+
         allow create: if isAuthenticated()
           && request.resource.data.authorId == request.auth.uid
           && request.resource.data.likesCount == 0
-          && existsAfter(
-            /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-          )
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-          ).data.type == 'comment_create'
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-          ).data.targetId == commentId
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)
-          ).data.commentsCount
-            == get(
-              /databases/$(database)/documents/posts/$(postId)
-            ).data.commentsCount + 1;
+          && commentCreateIsAtomic(commentId);
 
         allow delete: if isAuthenticated()
           && (
             resource.data.authorId == request.auth.uid
             || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
           )
-          && existsAfter(
-            /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-          )
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-          ).data.type == 'comment_delete'
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid)
-          ).data.targetId == commentId
-          && resource.data.likesCount >= 0
-          && getAfter(
-            /databases/$(database)/documents/posts/$(postId)
-          ).data.commentsCount
-            == get(
-              /databases/$(database)/documents/posts/$(postId)
-            ).data.commentsCount - 1;
+          && commentDeleteIsAtomic(commentId);
 
         allow update: if isAuthenticated() && (
           (
             resource.data.authorId == request.auth.uid
             && request.resource.data.authorId == resource.data.authorId
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['text', 'isEdited', 'editedAt'])
+              .hasOnly(['text', 'isEdited', 'editedAt'])
           )
           || (
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
             && (
               (
-                request.resource.data.likesCount == resource.data.likesCount + 1
+                resource.data.likesCount != null
+                && request.resource.data.likesCount == resource.data.likesCount + 1
                 && !exists(
                   /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/likes/$(request.auth.uid)
                 )
@@ -429,7 +433,8 @@ service cloud.firestore {
                 )
               )
               || (
-                resource.data.likesCount > 0
+                resource.data.likesCount != null
+                && resource.data.likesCount > 0
                 && request.resource.data.likesCount == resource.data.likesCount - 1
                 && exists(
                   /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/likes/$(request.auth.uid)
@@ -467,25 +472,53 @@ service cloud.firestore {
         }
       }
 
+      // One repost marker per user per original post.
       match /reposts/{userId} {
         allow read: if isAuthenticated();
 
         allow create: if isUser(userId)
+          && request.resource.data.keys().hasOnly(['postId', 'reposterId', 'repostId', 'createdAt'])
           && request.resource.data.postId == postId
           && request.resource.data.reposterId == userId
+          && request.resource.data.repostId is string
+          && existsAfter(
+            /databases/$(database)/documents/posts/$(request.resource.data.repostId)
+          )
+          && getAfter(
+            /databases/$(database)/documents/posts/$(request.resource.data.repostId)
+          ).data.authorId == request.auth.uid
+          && getAfter(
+            /databases/$(database)/documents/posts/$(request.resource.data.repostId)
+          ).data.isRepost == true
+          && getAfter(
+            /databases/$(database)/documents/posts/$(request.resource.data.repostId)
+          ).data.originalPostId == postId
           && (
             (
               get(/databases/$(database)/documents/posts/$(postId)).data.repostsCount == null
               && getAfter(/databases/$(database)/documents/posts/$(postId)).data.repostsCount == 1
             )
-            || getAfter(/databases/$(database)/documents/posts/$(postId)).data.repostsCount
-              == get(/databases/$(database)/documents/posts/$(postId)).data.repostsCount + 1
+            || (
+              get(/databases/$(database)/documents/posts/$(postId)).data.repostsCount != null
+              && getAfter(/databases/$(database)/documents/posts/$(postId)).data.repostsCount
+                == get(/databases/$(database)/documents/posts/$(postId)).data.repostsCount + 1
+            )
           );
 
         allow delete: if isUser(userId)
-          && get(/databases/$(database)/documents/posts/$(postId)).data.repostsCount > 0
-          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.repostsCount
-            == get(/databases/$(database)/documents/posts/$(postId)).data.repostsCount - 1;
+          && resource.data.repostId is string
+          && !existsAfter(
+            /databases/$(database)/documents/posts/$(resource.data.repostId)
+          )
+          && get(
+            /databases/$(database)/documents/posts/$(postId)
+          ).data.repostsCount > 0
+          && getAfter(
+            /databases/$(database)/documents/posts/$(postId)
+          ).data.repostsCount
+            == get(
+              /databases/$(database)/documents/posts/$(postId)
+            ).data.repostsCount - 1;
       }
     }
 
