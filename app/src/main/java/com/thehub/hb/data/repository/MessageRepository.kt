@@ -396,7 +396,7 @@ class MessageRepository(
             // all message deletions and the parent conversation deletion to be
             // atomic, so refuse oversized conversations rather than falling back
             // to a less secure multi-step deletion.
-            if (messagesQuery.size() >= 500) {
+            if (messagesQuery.size >= 500) {
                 return@withContext Result.failure(
                     Exception("Cette conversation contient trop de messages pour être supprimée en une seule opération.")
                 )
