@@ -14,9 +14,16 @@ import {
 const rules = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "utf8");
 
 let testEnv;
+let aliceDb;
+let bobDb;
 
-const alice = () => testEnv.authenticatedContext("alice").firestore();
-const bob = () => testEnv.authenticatedContext("bob").firestore();
+function alice() {
+  return aliceDb;
+}
+
+function bob() {
+  return bobDb;
+}
 
 async function seed(ctx) {
   const db = ctx.firestore();
@@ -173,6 +180,9 @@ try {
     projectId: "demo-the-hub-security",
     firestore: { rules },
   });
+
+  aliceDb = testEnv.authenticatedContext("alice").firestore();
+  bobDb = testEnv.authenticatedContext("bob").firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
 
