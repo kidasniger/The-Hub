@@ -117,6 +117,9 @@ service cloud.firestore {
           );
 
         allow delete: if isUser(followerId)
+          && !existsAfter(
+            /databases/$(database)/documents/users/$(followerId)/following/$(userId)
+          )
           && get(
             /databases/$(database)/documents/users/$(userId)
           ).data.get('followersCount', 0) > 0
