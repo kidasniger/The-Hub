@@ -280,6 +280,7 @@ class NotificationRepository(
             val targetUserRef = firestore.collection("users").document(targetUid)
             val followerRef = targetUserRef.collection("followers").document(currentUid)
             val followingRef = currentUserRef.collection("following").document(targetUid)
+            val followOpRef = currentUserRef.collection("followOps").document(currentUid)
 
             firestore.runTransaction { transaction ->
                 val currentUser = transaction.get(currentUserRef)
