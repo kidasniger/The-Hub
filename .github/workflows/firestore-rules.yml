@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   rules:
-    name: Validate Firestore counter rules
+    name: Validate Firestore security rules
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
