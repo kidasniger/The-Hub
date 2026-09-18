@@ -436,6 +436,7 @@ class UserRepository(
             val followerRef = targetUserRef.collection("followers").document(uid)
             val currentUserFriendRef = currentUserRef.collection("friends").document(targetUid)
             val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
+            val followOpRef = currentUserRef.collection("followOps").document(uid)
 
             val removed = firestore.runTransaction { transaction ->
                 val currentUser = transaction.get(currentUserRef)
