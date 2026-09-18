@@ -6,7 +6,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   doc,
-  FieldValue,
+  increment,
   getDoc,
   runTransaction,
   serverTimestamp,
@@ -247,7 +247,7 @@ async function testExactAndroidMessageBatch() {
     lastMessageText: "android batch",
     lastMessageAt: serverTimestamp(),
     lastMessageSenderId: "alice",
-    "unreadCount.bob": FieldValue.increment(1),
+    "unreadCount.bob": increment(1),
   });
   await assertSucceeds(batch.commit());
 
@@ -268,7 +268,7 @@ async function testExactAndroidMessageBatch() {
     lastMessageText: "second",
     lastMessageAt: serverTimestamp(),
     lastMessageSenderId: "alice",
-    "unreadCount.bob": FieldValue.increment(1),
+    "unreadCount.bob": increment(1),
   });
   await assertSucceeds(secondBatch.commit());
 }
