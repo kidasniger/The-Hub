@@ -332,7 +332,7 @@ fun UpdateContent(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Téléchargement terminé ! Cliquez ci-dessous pour installer.",
+                        text = "Mise à jour prête à être installée.",
                         color = HubWhite,
                         fontSize = 12.sp
                     )
@@ -456,13 +456,13 @@ fun UpdateContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.SystemUpdate,
-                            contentDescription = "Installer",
+                            contentDescription = "Installer la mise à jour",
                             modifier = Modifier.size(18.dp),
                             tint = Color.Black
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Installer",
+                            text = "Installer la mise à jour",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
