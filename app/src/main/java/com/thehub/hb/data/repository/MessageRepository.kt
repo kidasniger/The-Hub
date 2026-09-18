@@ -243,7 +243,6 @@ class MessageRepository(
         val currentUid = currentUserId
             ?: return@withContext Result.failure(Exception("Utilisateur non connecté."))
 
-        // Verify that current user account still exists and is not deleted
         try {
             val userDoc = firestore.collection("users").document(currentUid).get().await()
             if (!userDoc.exists() || userDoc.getBoolean("isDeleted") == true) {
@@ -263,8 +262,32 @@ class MessageRepository(
 
         try {
             val convRef = firestore.collection("conversations").document(conversationId)
+            val convDoc = convRef.get().await()
+            if (!convDoc.exists()) {
+                return@withContext Result.failure(Exception("Conversation introuvable."))
+            }
+
+            val conversation = Conversation.fromSnapshot(convDoc)
+            if (!conversation.participantIds.contains(currentUid)) {
+                return@withContext Result.failure(Exception("Accès refusé à cette conversation."))
+            }
+
+            val otherUid = conversation.getOtherParticipantId(currentUid)
+            if (otherUid.isBlank()) {
+                return@withContext Result.failure(Exception("Conversation invalide."))
+            }
+
+            val nextUnreadCount = conversation.getUnreadCountFor(otherUid) + 1
             val messageRef = convRef.collection("messages").document()
             val messageOpRef = convRef.collection("messageOps").document(currentUid)
+
+            val messageData = hashMapOf<String, Any?>(
+                "senderId" to currentUid,
+                "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
+                "imageUrl" to (if (imageUrl.isNullOrBlank()) null else imageUrl),
+                "createdAt" to FieldValue.serverTimestamp(),
+                "status" to Message.STATUS_SENT
+            )
 
             val previewText = when {
                 !trimmedText.isNullOrBlank() -> trimmedText
@@ -272,61 +295,34 @@ class MessageRepository(
                 else -> ""
             }
 
-            val otherUid = firestore.runTransaction { transaction ->
-                val convDoc = transaction.get(convRef)
-                if (!convDoc.exists()) {
-                    throw IllegalStateException("Conversation introuvable.")
-                }
-
-                val conversation = Conversation.fromSnapshot(convDoc)
-                if (!conversation.participantIds.contains(currentUid)) {
-                    throw SecurityException("Accès refusé à cette conversation.")
-                }
-
-                val recipientUid = conversation.getOtherParticipantId(currentUid)
-                if (recipientUid.isBlank()) {
-                    throw IllegalStateException("Conversation invalide.")
-                }
-
-                val nextUnreadCount = conversation.getUnreadCountFor(recipientUid) + 1
-
-                val messageData = hashMapOf<String, Any?>(
-                    "senderId" to currentUid,
-                    "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
-                    "imageUrl" to (if (imageUrl.isNullOrBlank()) null else imageUrl),
-                    "createdAt" to FieldValue.serverTimestamp(),
-                    "status" to Message.STATUS_SENT
+            // Keep the message, security marker and conversation metadata in a
+            // single atomic batch. The unread count is written as a concrete
+            // value so the security rules can verify the resulting document.
+            val batch = firestore.batch()
+            batch.set(messageRef, messageData)
+            batch.set(
+                messageOpRef,
+                mapOf(
+                    "type" to "send",
+                    "targetId" to messageRef.id
                 )
-
-                // Message, marker and conversation metadata are committed
-                // atomically. The unread count is calculated from the
-                // transaction snapshot rather than using a transform so the
-                // security rules can validate the exact post-write state.
-                transaction.set(messageRef, messageData)
-                transaction.set(
-                    messageOpRef,
-                    mapOf(
-                        "type" to "send",
-                        "targetId" to messageRef.id
-                    )
+            )
+            batch.update(
+                convRef,
+                mapOf(
+                    "lastMessageText" to previewText,
+                    "lastMessageAt" to FieldValue.serverTimestamp(),
+                    "lastMessageSenderId" to currentUid,
+                    "unreadCount.$otherUid" to nextUnreadCount
                 )
-                transaction.update(
-                    convRef,
-                    mapOf(
-                        "lastMessageText" to previewText,
-                        "lastMessageAt" to FieldValue.serverTimestamp(),
-                        "lastMessageSenderId" to currentUid,
-                        "unreadCount.$recipientUid" to nextUnreadCount
-                    )
-                )
-
-                recipientUid
-            }.await()
+            )
+            batch.commit().await()
 
             val messageDoc = messageRef.get().await()
             if (!messageDoc.exists()) {
                 return@withContext Result.failure(Exception("Le message n'a pas pu être confirmé."))
             }
+
             val message = Message.fromSnapshot(messageDoc)
 
             try {
