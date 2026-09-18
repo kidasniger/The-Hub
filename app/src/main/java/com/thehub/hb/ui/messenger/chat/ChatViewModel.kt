@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class ChatUiState(
     val conversation: Conversation? = null,
@@ -36,6 +38,8 @@ class ChatViewModel(
 ) : ViewModel() {
 
     val currentUserId: String = messageRepository.currentUserId ?: ""
+
+    private val firestoreOperationMutex = Mutex()
 
     private val _inputState = MutableStateFlow(
         ChatInputState(
@@ -92,7 +96,9 @@ class ChatViewModel(
 
     fun markAsRead() {
         viewModelScope.launch {
-            messageRepository.markAsRead(conversationId)
+            firestoreOperationMutex.withLock {
+                messageRepository.markAsRead(conversationId)
+            }
         }
     }
 
@@ -146,11 +152,13 @@ class ChatViewModel(
                 imageUrl = uploadResult.getOrNull()
             }
 
-            val result = messageRepository.sendMessage(
-                conversationId = conversationId,
-                text = if (text.isNotBlank()) text else null,
-                imageUrl = imageUrl
-            )
+            val result = firestoreOperationMutex.withLock {
+                messageRepository.sendMessage(
+                    conversationId = conversationId,
+                    text = if (text.isNotBlank()) text else null,
+                    imageUrl = imageUrl
+                )
+            }
 
             result.fold(
                 onSuccess = {

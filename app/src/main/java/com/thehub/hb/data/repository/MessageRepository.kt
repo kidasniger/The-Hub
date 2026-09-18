@@ -277,7 +277,15 @@ class MessageRepository(
                 return@withContext Result.failure(Exception("Conversation invalide."))
             }
 
-            val nextUnreadCount = conversation.getUnreadCountFor(otherUid) + 1
+            // Rebuild the complete two-participant unread map. This also repairs
+            // legacy conversations where unreadCount or one participant key is absent.
+            val currentUnread = conversation.getUnreadCountFor(currentUid)
+            val otherUnread = conversation.getUnreadCountFor(otherUid)
+            val updatedUnreadCount = mapOf(
+                currentUid to currentUnread,
+                otherUid to otherUnread + 1
+            )
+
             val messageRef = convRef.collection("messages").document()
             val messageOpRef = convRef.collection("messageOps").document(currentUid)
 
@@ -295,9 +303,6 @@ class MessageRepository(
                 else -> ""
             }
 
-            // Keep the message, security marker and conversation metadata in a
-            // single atomic batch. The unread count is written as a concrete
-            // value so the security rules can verify the resulting document.
             val batch = firestore.batch()
             batch.set(messageRef, messageData)
             batch.set(
@@ -313,7 +318,7 @@ class MessageRepository(
                     "lastMessageText" to previewText,
                     "lastMessageAt" to FieldValue.serverTimestamp(),
                     "lastMessageSenderId" to currentUid,
-                    "unreadCount.$otherUid" to nextUnreadCount
+                    "unreadCount" to updatedUnreadCount
                 )
             )
             batch.commit().await()
@@ -349,28 +354,44 @@ class MessageRepository(
 
         try {
             val convRef = firestore.collection("conversations").document(conversationId)
-            convRef.update("unreadCount.$currentUid", 0).await()
+            val convDoc = convRef.get().await()
+            if (!convDoc.exists()) {
+                return@withContext Result.success(Unit)
+            }
 
-            // Update messages from other participant that are not read yet
+            val conversation = Conversation.fromSnapshot(convDoc)
+            if (!conversation.participantIds.contains(currentUid)) {
+                return@withContext Result.failure(Exception("Accès refusé à cette conversation."))
+            }
+
+            val otherUid = conversation.getOtherParticipantId(currentUid)
+            if (otherUid.isBlank()) {
+                return@withContext Result.failure(Exception("Conversation invalide."))
+            }
+
+            // Always persist a complete two-key map so legacy conversations with
+            // missing unreadCount fields become compatible with the secured rules.
+            val unreadCount = mapOf(
+                currentUid to 0,
+                otherUid to conversation.getUnreadCountFor(otherUid)
+            )
+
             val unreadMessagesQuery = convRef.collection("messages")
                 .whereNotEqualTo("senderId", currentUid)
                 .get()
                 .await()
 
             val batch = firestore.batch()
-            var hasUpdates = false
+            batch.update(convRef, "unreadCount", unreadCount)
+
             for (doc in unreadMessagesQuery.documents) {
                 val status = doc.getString("status")
                 if (status != Message.STATUS_READ) {
                     batch.update(doc.reference, "status", Message.STATUS_READ)
-                    hasUpdates = true
                 }
             }
 
-            if (hasUpdates) {
-                batch.commit().await()
-            }
-
+            batch.commit().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
