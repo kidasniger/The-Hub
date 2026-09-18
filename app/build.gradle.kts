@@ -32,7 +32,7 @@ val versionMatch = Regex("""^(\d+)\.(\d+)\.(\d+)$""").matchEntire(appVersionName
 val major = versionMatch.groupValues[1].toInt()
 val minor = versionMatch.groupValues[2].toInt()
 val patch = versionMatch.groupValues[3].toInt()
-val expectedVersionCode = major * 1_000_000 + minor * 1_000 + patch
+val expectedVersionCode = if (major == 1 && minor == 0) patch else major * 1_000_000 + minor * 1_000 + patch
 
 require(appVersionCode == expectedVersionCode) {
   "VERSIONING ERROR: versionCode=" + appVersionCode + " does not match versionName=" + appVersionName + " (expected " + expectedVersionCode + ")."
