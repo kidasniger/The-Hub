@@ -1,0 +1,37 @@
+name: Firestore Security Rules
+
+on:
+  pull_request:
+    paths:
+      - "firestore.rules"
+      - "security-tests/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "firestore.rules"
+      - "security-tests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: Validate Firestore counter rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install rule test dependencies
+        working-directory: security-tests
+        run: npm install --no-save @firebase/rules-unit-testing firebase
+
+      - name: Run Firestore emulator tests
+        working-directory: security-tests
+        run: npx --yes firebase-tools@latest emulators:exec --only firestore "npm test"
