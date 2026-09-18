@@ -83,6 +83,7 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.rememberRemoteImageUnavailable
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
@@ -759,11 +760,15 @@ private fun PostGridThumbnail(
             .testTag("profile_post_thumb_${post.id}")
     ) {
         if (!post.imageUrl.isNullOrBlank()) {
-            SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(post.imageUrl)
-                    .crossfade(true)
-                    .build(),
+            val imageUrl = post.imageUrl!!
+            val remoteImageUnavailable = rememberRemoteImageUnavailable(imageUrl)
+
+            if (!remoteImageUnavailable) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageUrl)
+                        .crossfade(true)
+                        .build(),
                 contentDescription = "Publication",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -792,6 +797,29 @@ private fun PostGridThumbnail(
                     }
                 }
             )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(HubSurfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Photo non disponible",
+                            tint = HubSecondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Indisponible",
+                            fontSize = 10.sp,
+                            color = HubSecondary
+                        )
+                    }
+                }
+            }
         } else {
             // Text Preview thumbnail
             Box(

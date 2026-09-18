@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.ImageSaver
+import com.thehub.hb.ui.components.rememberRemoteImageUnavailable
 import kotlinx.coroutines.launch
 
 @Composable
@@ -55,6 +56,7 @@ fun ImageViewerScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isSaving by remember { mutableStateOf(false) }
+    val remoteImageUnavailable = rememberRemoteImageUnavailable(imageUrl)
 
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -98,6 +100,39 @@ fun ImageViewerScreen(
                 },
             contentAlignment = Alignment.Center
         ) {
+            if (remoteImageUnavailable) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Photo non disponible",
+                            tint = HubSecondary,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Photo non disponible",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HubWhite
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Cette photo n'est plus accessible ou a été supprimée.",
+                            fontSize = 14.sp,
+                            color = HubSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
             SubcomposeAsyncImage(
                 model = imageUrl,
                 contentDescription = "Image agrandie",
@@ -155,6 +190,7 @@ fun ImageViewerScreen(
                     }
                 }
             )
+            }
         }
 
         // Close Button Top-Left

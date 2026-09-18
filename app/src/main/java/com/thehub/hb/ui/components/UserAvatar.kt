@@ -56,6 +56,12 @@ fun UserAvatar(
         }
     }
 
+    val remoteImageUnavailable = if (!photoUrl.isNullOrBlank()) {
+        rememberRemoteImageUnavailable(photoUrl)
+    } else {
+        false
+    }
+
     Box(
         modifier = modifier
             .size(size)
@@ -63,7 +69,7 @@ fun UserAvatar(
             .border(1.dp, HubBorder, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        if (!photoUrl.isNullOrBlank()) {
+        if (!photoUrl.isNullOrBlank() && !remoteImageUnavailable) {
             SubcomposeAsyncImage(
                 model = photoUrl,
                 contentDescription = "Avatar de $name",
