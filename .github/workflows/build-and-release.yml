@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - master
+    paths-ignore:
+      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       tag_name:
@@ -354,6 +356,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify published GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           RELEASE_TAG="$(gh release view "$TAG" --json tagName --jq '.tagName')"
