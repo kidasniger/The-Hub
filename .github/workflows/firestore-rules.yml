@@ -33,5 +33,4 @@ jobs:
         run: npm install --no-save @firebase/rules-unit-testing firebase
 
       - name: Run Firestore emulator tests
-        working-directory: security-tests
-        run: npx --yes firebase-tools@latest emulators:exec --only firestore "npm test"
+        run: npx --yes firebase-tools@latest emulators:exec --project demo-the-hub-security --only firestore "npm --prefix security-tests test"
