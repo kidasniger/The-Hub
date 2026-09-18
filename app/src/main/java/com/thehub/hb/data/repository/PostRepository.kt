@@ -1084,6 +1084,7 @@ class PostRepository(
                     mapOf(
                         "postId" to postId,
                         "reposterId" to uid,
+                        "repostId" to repostRef.id,
                         "createdAt" to now
                     )
                 )
