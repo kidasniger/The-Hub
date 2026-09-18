@@ -326,44 +326,60 @@ class UserRepository(
             val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
 
             val now = Timestamp.now()
-            val isMutual = try {
-                targetFollowingRef.get().await().exists()
-            } catch (_: Exception) {
-                false
-            }
-
-            val created = firestore.runTransaction { transaction ->
-                val existingFollowing = transaction.get(followingRef)
+            val result = firestore.runTransaction { transaction ->
+                val currentUser = transaction.get(currentUserRef)
                 val targetUser = transaction.get(targetUserRef)
+                val existingFollowing = transaction.get(followingRef)
+                val existingFollower = transaction.get(followerRef)
+                val targetFollowing = transaction.get(targetFollowingRef)
+
+                if (!currentUser.exists()) {
+                    throw IllegalStateException("Profil utilisateur introuvable")
+                }
                 if (!targetUser.exists()) {
                     throw IllegalStateException("Utilisateur cible introuvable")
                 }
-                if (existingFollowing.exists()) {
-                    return@runTransaction false
+
+                val createFollowing = !existingFollowing.exists()
+                val createFollower = !existingFollower.exists()
+
+                if (!createFollowing && !createFollower) {
+                    return@runTransaction Pair(false, targetFollowing.exists())
                 }
 
-                transaction.set(
-                    followingRef,
-                    mapOf("followedAt" to now, "followingId" to targetUid, "uid" to targetUid)
-                )
-                transaction.set(
-                    followerRef,
-                    mapOf("followedAt" to now, "followerId" to uid, "uid" to uid)
-                )
-                transaction.update(
-                    currentUserRef,
-                    "followingCount",
-                    FieldValue.increment(1)
-                )
-                transaction.update(
-                    targetUserRef,
-                    "followersCount",
-                    FieldValue.increment(1)
-                )
-                true
+                if (createFollowing) {
+                    transaction.set(
+                        followingRef,
+                        mapOf(
+                            "followedAt" to now,
+                            "followingId" to targetUid,
+                            "uid" to targetUid
+                        )
+                    )
+                    val followingCount = currentUser.getLong("followingCount") ?: 0L
+                    transaction.update(currentUserRef, "followingCount", followingCount + 1L)
+                }
+
+                if (createFollower) {
+                    transaction.set(
+                        followerRef,
+                        mapOf(
+                            "followedAt" to now,
+                            "followerId" to uid,
+                            "uid" to uid
+                        )
+                    )
+                    val followersCount = targetUser.getLong("followersCount") ?: 0L
+                    transaction.update(targetUserRef, "followersCount", followersCount + 1L)
+                }
+
+                Pair(true, targetFollowing.exists())
             }.await()
 
-            if (!created) {
+            val changed = result.first
+            val isMutual = result.second
+
+            if (!changed) {
                 return@withContext Result.success(Unit)
             }
 
@@ -398,7 +414,8 @@ class UserRepository(
 
     /**
      * Unfollow a user safely.
-     * Removes both relationship records and decrements followersCount atomically.
+     * Removes both relationship records and decrements counters only for
+     * relationship records that actually existed.
      */
     suspend fun unfollowUser(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
@@ -413,34 +430,45 @@ class UserRepository(
             val targetUserFriendRef = targetUserRef.collection("friends").document(uid)
 
             val removed = firestore.runTransaction { transaction ->
+                val currentUser = transaction.get(currentUserRef)
+                val targetUser = transaction.get(targetUserRef)
                 val followingDoc = transaction.get(followingRef)
                 val followerDoc = transaction.get(followerRef)
-                val targetUser = transaction.get(targetUserRef)
-                val currentUser = transaction.get(currentUserRef)
 
-                if (!followingDoc.exists() && !followerDoc.exists()) {
-                    return@runTransaction false
-                }
                 if (!targetUser.exists()) {
                     throw IllegalStateException("Utilisateur cible introuvable")
                 }
+                if (!currentUser.exists()) {
+                    throw IllegalStateException("Profil utilisateur introuvable")
+                }
 
-                transaction.delete(followingRef)
-                transaction.delete(followerRef)
+                val deleteFollowing = followingDoc.exists()
+                val deleteFollower = followerDoc.exists()
 
-                val followingCount = currentUser.getLong("followingCount") ?: 0L
-                transaction.update(
-                    currentUserRef,
-                    "followingCount",
-                    if (followingCount > 0L) FieldValue.increment(-1) else 0L
-                )
+                if (!deleteFollowing && !deleteFollower) {
+                    return@runTransaction false
+                }
 
-                val followersCount = targetUser.getLong("followersCount") ?: 0L
-                transaction.update(
-                    targetUserRef,
-                    "followersCount",
-                    if (followersCount > 0L) FieldValue.increment(-1) else 0L
-                )
+                if (deleteFollowing) {
+                    transaction.delete(followingRef)
+                    val followingCount = currentUser.getLong("followingCount") ?: 0L
+                    transaction.update(
+                        currentUserRef,
+                        "followingCount",
+                        (followingCount - 1L).coerceAtLeast(0L)
+                    )
+                }
+
+                if (deleteFollower) {
+                    transaction.delete(followerRef)
+                    val followersCount = targetUser.getLong("followersCount") ?: 0L
+                    transaction.update(
+                        targetUserRef,
+                        "followersCount",
+                        (followersCount - 1L).coerceAtLeast(0L)
+                    )
+                }
+
                 true
             }.await()
 
