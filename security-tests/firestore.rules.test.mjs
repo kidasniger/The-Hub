@@ -50,6 +50,9 @@ async function seed(ctx) {
   await setDoc(doc(db, "users/legacy-target"), {
     username: "legacy-target",
   });
+  await setDoc(doc(db, "users/another-target"), {
+    username: "another-target",
+  });
   await setDoc(doc(db, "conversations/alice_bob"), {
     participantIds: ["alice", "bob"],
     participantsInfo: {
@@ -229,8 +232,27 @@ async function testLegacyUserFollowCompatibility() {
   batch.update(doc(legacyDb, "users/legacy-target"), { followersCount: 1 });
   await assertSucceeds(batch.commit());
 
-  await assertSucceeds(updateDoc(doc(legacyDb, "users/legacy"), {
-    followingCount: 2,
+  const secondFollow = writeBatch(legacyDb);
+  secondFollow.set(doc(legacyDb, "users/legacy/following/another-target"), {
+    followedAt: new Date(),
+    followingId: "another-target",
+    uid: "another-target",
+  });
+  secondFollow.set(doc(legacyDb, "users/another-target/followers/legacy"), {
+    followedAt: new Date(),
+    followerId: "legacy",
+    uid: "legacy",
+  });
+  secondFollow.set(doc(legacyDb, "users/legacy/followOps/legacy"), {
+    type: "follow",
+    targetId: "another-target",
+  });
+  secondFollow.update(doc(legacyDb, "users/legacy"), { followingCount: 2 });
+  secondFollow.update(doc(legacyDb, "users/another-target"), { followersCount: 1 });
+  await assertSucceeds(secondFollow.commit());
+
+  await assertFails(updateDoc(doc(legacyDb, "users/legacy"), {
+    followingCount: 3,
   }));
   await assertFails(updateDoc(doc(legacyDb, "users/legacy-target"), {
     followersCount: 2,
