@@ -263,27 +263,8 @@ class MessageRepository(
 
         try {
             val convRef = firestore.collection("conversations").document(conversationId)
-            val convDoc = convRef.get().await()
-            if (!convDoc.exists()) {
-                return@withContext Result.failure(Exception("Conversation introuvable."))
-            }
-
-            val conversation = Conversation.fromSnapshot(convDoc)
-            val otherUid = conversation.getOtherParticipantId(currentUid)
-            if (otherUid.isBlank()) {
-                return@withContext Result.failure(Exception("Conversation invalide."))
-            }
-
             val messageRef = convRef.collection("messages").document()
             val messageOpRef = convRef.collection("messageOps").document(currentUid)
-
-            val messageData = hashMapOf<String, Any?>(
-                "senderId" to currentUid,
-                "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
-                "imageUrl" to (if (imageUrl.isNullOrBlank()) null else imageUrl),
-                "createdAt" to FieldValue.serverTimestamp(),
-                "status" to Message.STATUS_SENT
-            )
 
             val previewText = when {
                 !trimmedText.isNullOrBlank() -> trimmedText
@@ -291,28 +272,56 @@ class MessageRepository(
                 else -> ""
             }
 
-            // Message, security marker and conversation metadata are written
-            // atomically so Firestore rules can verify that the metadata really
-            // belongs to this newly-created message.
-            val batch = firestore.batch()
-            batch.set(messageRef, messageData)
-            batch.set(
-                messageOpRef,
-                mapOf(
-                    "type" to "send",
-                    "targetId" to messageRef.id
+            val otherUid = firestore.runTransaction { transaction ->
+                val convDoc = transaction.get(convRef)
+                if (!convDoc.exists()) {
+                    throw IllegalStateException("Conversation introuvable.")
+                }
+
+                val conversation = Conversation.fromSnapshot(convDoc)
+                if (!conversation.participantIds.contains(currentUid)) {
+                    throw SecurityException("Accès refusé à cette conversation.")
+                }
+
+                val recipientUid = conversation.getOtherParticipantId(currentUid)
+                if (recipientUid.isBlank()) {
+                    throw IllegalStateException("Conversation invalide.")
+                }
+
+                val nextUnreadCount = conversation.getUnreadCountFor(recipientUid) + 1
+
+                val messageData = hashMapOf<String, Any?>(
+                    "senderId" to currentUid,
+                    "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
+                    "imageUrl" to (if (imageUrl.isNullOrBlank()) null else imageUrl),
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "status" to Message.STATUS_SENT
                 )
-            )
-            batch.update(
-                convRef,
-                mapOf(
-                    "lastMessageText" to previewText,
-                    "lastMessageAt" to FieldValue.serverTimestamp(),
-                    "lastMessageSenderId" to currentUid,
-                    "unreadCount.$otherUid" to FieldValue.increment(1)
+
+                // Message, marker and conversation metadata are committed
+                // atomically. The unread count is calculated from the
+                // transaction snapshot rather than using a transform so the
+                // security rules can validate the exact post-write state.
+                transaction.set(messageRef, messageData)
+                transaction.set(
+                    messageOpRef,
+                    mapOf(
+                        "type" to "send",
+                        "targetId" to messageRef.id
+                    )
                 )
-            )
-            batch.commit().await()
+                transaction.update(
+                    convRef,
+                    mapOf(
+                        "lastMessageText" to previewText,
+                        "lastMessageAt" to FieldValue.serverTimestamp(),
+                        "lastMessageSenderId" to currentUid,
+                        "unreadCount.$recipientUid" to nextUnreadCount
+                    )
+                )
+
+                recipientUid
+            }.await()
 
             val messageDoc = messageRef.get().await()
             if (!messageDoc.exists()) {
