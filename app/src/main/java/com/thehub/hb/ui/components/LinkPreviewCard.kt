@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,7 +71,34 @@ fun LinkPreviewCard(
         isLoading = false
     }
 
-    val data = preview ?: returnIfLoaded(isLoading, modifier)
+    if (preview == null) {
+        if (isLoading) {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(HubCard)
+                    .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = HubWhite,
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = "Vérification du lien…",
+                    color = HubSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        return
+    }
+
+    val data = preview
 
     Box(
         modifier = modifier
@@ -174,33 +202,3 @@ fun LinkPreviewCard(
     }
 }
 
-@Composable
-private fun returnIfLoaded(
-    isLoading: Boolean,
-    modifier: Modifier
-): @Composable (() -> Unit) {
-    if (!isLoading) return { }
-    return {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(HubCard)
-                .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                color = HubWhite,
-                strokeWidth = 2.dp
-            )
-            Text(
-                text = "Vérification du lien…",
-                color = HubSecondary,
-                fontSize = 12.sp
-            )
-        }
-    }
-}
