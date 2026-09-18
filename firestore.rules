@@ -533,13 +533,9 @@ service cloud.firestore {
 
     match /conversations/{conversationId} {
       function isParticipant() {
-        let conversation = get(
-          /databases/$(database)/documents/conversations/$(conversationId)
-        );
         return isAuthenticated()
-          && conversation != null
-          && conversation.data.participantIds is list
-          && conversation.data.participantIds.hasAny([request.auth.uid]);
+          && resource.data.participantIds is list
+          && resource.data.participantIds.hasAny([request.auth.uid]);
       }
 
       function isValidConversationCreate() {
@@ -658,10 +654,20 @@ service cloud.firestore {
       allow delete: if isParticipant();
 
       match /messageOps/{userId} {
+        function parentConversationIsAccessible() {
+          let conversation = get(
+            /databases/$(database)/documents/conversations/$(conversationId)
+          );
+          return isAuthenticated()
+            && conversation != null
+            && conversation.data.participantIds is list
+            && conversation.data.participantIds.hasAny([request.auth.uid]);
+        }
+
         allow read, delete: if false;
 
         allow create, update: if isUser(userId)
-          && isParticipant()
+          && parentConversationIsAccessible()
           && request.resource.data.keys().hasOnly(['type', 'targetId'])
           && request.resource.data.type == 'send'
           && request.resource.data.targetId is string
@@ -671,6 +677,16 @@ service cloud.firestore {
       }
 
       match /messages/{messageId} {
+        function parentConversationIsAccessible() {
+          let conversation = get(
+            /databases/$(database)/documents/conversations/$(conversationId)
+          );
+          return isAuthenticated()
+            && conversation != null
+            && conversation.data.participantIds is list
+            && conversation.data.participantIds.hasAny([request.auth.uid]);
+        }
+
         function validMessageFields() {
           return request.resource.data.keys().hasOnly([
             'senderId',
@@ -711,21 +727,21 @@ service cloud.firestore {
             && existsAfter(messagePath(messageId));
         }
 
-        allow read: if isParticipant();
+        allow read: if parentConversationIsAccessible();
 
-        allow create: if isParticipant()
+        allow create: if parentConversationIsAccessible()
           && validMessageFields()
           && sendMarkerMatchesMessage();
 
         // Individual message deletion is not permitted. Conversation deletion
         // is the only client-side deletion path and must delete messages and
         // the parent conversation in the same batch.
-        allow delete: if isParticipant()
+        allow delete: if parentConversationIsAccessible()
           && !existsAfter(
             /databases/$(database)/documents/conversations/$(conversationId)
           );
 
-        allow update: if isParticipant() && (
+        allow update: if parentConversationIsAccessible() && (
           (
             resource.data.senderId == request.auth.uid
             && request.resource.data.senderId == resource.data.senderId
