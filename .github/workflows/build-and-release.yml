@@ -15,8 +15,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: the-hub-release
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
+    if: github.actor != 'github-actions[bot]'
     name: Build, Test & Release Android APK & AAB
     runs-on: ubuntu-latest
 
@@ -93,24 +98,118 @@ jobs:
           print("SUCCESS: google-services.json verified!")
           '
 
-      - name: Determine Tag & Version
+      - name: Determine and validate release version
         id: version_step
+        env:
+          GH_TOKEN: \${{ github.token }}
+          REQUESTED_TAG: \${{ inputs.tag_name }}
         run: |
-          if [ -n "${{ inputs.tag_name }}" ]; then
-            TAG="${{ inputs.tag_name }}"
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${{ github.ref_name }}"
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+
+          VERSION_FILE = "gradle/version.properties"
+          SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+          TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+
+          def read_props():
+              data = {}
+              with open(VERSION_FILE, encoding="utf-8") as f:
+                  for line in f:
+                      line = line.strip()
+                      if line and not line.startswith("#") and "=" in line:
+                          key, value = line.split("=", 1)
+                          data[key.strip()] = value.strip()
+              return data
+
+          def parse(value, regex, label):
+              match = regex.fullmatch(value)
+              if not match:
+                  raise SystemExit("VERSIONING ERROR: invalid " + label + ": " + value)
+              return tuple(map(int, match.groups()))
+
+          def version_code(value):
+              return value[0] * 1000000 + value[1] * 1000 + value[2]
+
+          def tag_for(value):
+              return "v%d.%d.%d" % value
+
+          current_props = read_props()
+          current_name = current_props.get("versionName", "")
+          current = parse(current_name, SEMVER, "versionName")
+          current_code = int(current_props.get("versionCode", "0"))
+          if current_code != version_code(current):
+              raise SystemExit("VERSIONING ERROR: versionCode=" + str(current_code) + " does not match versionName=" + current_name)
+
+          latest_tag = subprocess.check_output(
+              ["gh", "release", "list", "--limit", "1", "--exclude-drafts", "--exclude-pre-releases", "--json", "tagName", "--jq", ".[0].tagName // empty"],
+              text=True,
+          ).strip()
+          latest = parse(latest_tag, TAG_RE, "latest release tag") if latest_tag else None
+
+          requested = os.environ.get("REQUESTED_TAG", "").strip()
+          if requested:
+              candidate = parse(requested, TAG_RE, "requested release tag")
+          elif latest is None:
+              candidate = current
+          elif current > latest:
+              candidate = current
+          else:
+              candidate = (latest[0], latest[1], latest[2] + 1)
+
+          if latest is not None and candidate <= latest:
+              raise SystemExit("VERSIONING ERROR: " + tag_for(candidate) + " is not newer than " + latest_tag)
+
+          candidate_name = "%d.%d.%d" % candidate
+          candidate_code = version_code(candidate)
+          with open(VERSION_FILE, "w", encoding="utf-8", newline="\n") as f:
+              f.write("# Single source of truth for the Android application version.\n")
+              f.write("# versionName is MAJOR.MINOR.PATCH.\n")
+              f.write("# versionCode is derived from the same SemVer tuple and validated by Gradle and CI.\n")
+              f.write("versionName=" + candidate_name + "\n")
+              f.write("versionCode=" + str(candidate_code) + "\n")
+
+          print("Latest release:", latest_tag or "(none)")
+          print("Selected version:", candidate_name)
+          print("Selected versionCode:", candidate_code)
+          print("Selected tag:", tag_for(candidate))
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write("VERSION_NAME=" + candidate_name + "\n")
+              env.write("VERSION_CODE=" + str(candidate_code) + "\n")
+              env.write("TAG=" + tag_for(candidate) + "\n")
+          PY
+          cat gradle/version.properties
+
+      - name: Commit version bump when needed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- gradle/version.properties; then
+            echo "Version file already matches $VERSION_NAME."
           else
-            TAG="v1.0.${{ github.run_number }}"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add gradle/version.properties
+            git commit -m "chore(release): prepare $TAG"
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
-          CLEAN_VER="${TAG#v}"
-          echo "Release Tag: $TAG (versionName: $CLEAN_VER, versionCode: ${{ github.run_number }})"
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "CLEAN_VER=$CLEAN_VER" >> "$GITHUB_ENV"
 
-          sed -i "s/versionName = .*/versionName = \"$CLEAN_VER\"/" app/build.gradle.kts
-          sed -i "s/versionCode = .*/versionCode = ${{ github.run_number }}/" app/build.gradle.kts
-
+      - name: Verify repository version and tag state
+        run: |
+          set -euo pipefail
+          CONFIGURED_NAME="$(grep '^versionName=' gradle/version.properties | cut -d= -f2)"
+          CONFIGURED_CODE="$(grep '^versionCode=' gradle/version.properties | cut -d= -f2)"
+          test "$CONFIGURED_NAME" = "$VERSION_NAME"
+          test "$CONFIGURED_CODE" = "$VERSION_CODE"
+          test "$TAG" = "v$VERSION_NAME"
+          git fetch --tags --force
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "ERROR: Git tag $TAG already exists on origin."
+            exit 1
+          fi
+          echo "Version state aligned: $VERSION_NAME / $VERSION_CODE / $TAG"
       - name: Validate Production Release Signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -185,6 +284,18 @@ jobs:
           test -s "$APK_FILE" || { echo "ERROR: APK missing or empty"; exit 1; }
           test -s "$AAB_FILE" || { echo "ERROR: AAB missing or empty"; exit 1; }
 
+          CONFIGURED_NAME="$(grep "^versionName=" gradle/version.properties | cut -d= -f2)"
+          CONFIGURED_CODE="$(grep "^versionCode=" gradle/version.properties | cut -d= -f2)"
+          test "$CONFIGURED_NAME" = "$VERSION_NAME"
+          test "$CONFIGURED_CODE" = "$VERSION_CODE"
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          "$AAPT" dump badging "$APK_FILE" > apk-badging.txt
+          grep -F "versionCode='$VERSION_CODE'" apk-badging.txt
+          grep -F "versionName='$VERSION_NAME'" apk-badging.txt
+          echo "APK version verified: $VERSION_NAME (versionCode $VERSION_CODE)"
+
           EXPECTED_CERT_SHA1="F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
           EXPECTED_CERT_SHA1_NORMALIZED="$(printf '%s' "$EXPECTED_CERT_SHA1" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
@@ -220,16 +331,15 @@ jobs:
 
       - name: Create Git Tag
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            git tag -a "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
-          else
-            echo "Tag $TAG already exists."
-          fi
-
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          test "$TAG_COMMIT" = "$HEAD_COMMIT"
+          echo "Git tag $TAG points exactly to commit $HEAD_COMMIT"
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
