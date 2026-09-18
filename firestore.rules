@@ -19,6 +19,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
     }
 
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isUser(userId) && request.resource.data.uid == userId;
@@ -38,43 +39,40 @@ service cloud.firestore {
             .hasOnly(['followersCount'])
           && (
             (
-              (
-                resource.data.followersCount == null
-                && request.resource.data.followersCount == 1
-              )
-              || (
-                resource.data.followersCount != null
-                && request.resource.data.followersCount == resource.data.followersCount + 1
-              )
+              resource.data.get('followersCount', 0) == 0
+              && request.resource.data.get('followersCount', 0) == 1
             )
-            && !exists(
-              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+            || (
+              resource.data.get('followersCount', 0) > 0
+              && request.resource.data.get('followersCount', 0)
+                == resource.data.get('followersCount', 0) + 1
             )
-            && existsAfter(
-              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
-            )
-            && !exists(
-              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
-            )
-            && existsAfter(
-              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
+            || (
+              resource.data.get('followersCount', 0) > 0
+              && request.resource.data.get('followersCount', 0)
+                == resource.data.get('followersCount', 0) - 1
             )
           )
-          || (
-            resource.data.followersCount != null
-            && resource.data.followersCount > 0
-            && request.resource.data.followersCount == resource.data.followersCount - 1
-            && exists(
-              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+          && (
+            (
+              request.resource.data.get('followersCount', 0)
+                == resource.data.get('followersCount', 0) + 1
+              && !exists(
+                /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+              )
+              && existsAfter(
+                /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+              )
             )
-            && !existsAfter(
-              /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
-            )
-            && exists(
-              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
-            )
-            && !existsAfter(
-              /databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)
+            || (
+              request.resource.data.get('followersCount', 0)
+                == resource.data.get('followersCount', 0) - 1
+              && exists(
+                /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+              )
+              && !existsAfter(
+                /databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)
+              )
             )
           )
         )
@@ -87,6 +85,7 @@ service cloud.firestore {
         allow write: if isUser(userId);
       }
 
+
       match /followers/{followerId} {
         allow read: if isAuthenticated();
 
@@ -97,27 +96,36 @@ service cloud.firestore {
           )
           && (
             (
-              get(/databases/$(database)/documents/users/$(userId)).data.followersCount == null
-              && getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount == 1
+              get(
+                /databases/$(database)/documents/users/$(userId)
+              ).data.get('followersCount', 0) == 0
+              && getAfter(
+                /databases/$(database)/documents/users/$(userId)
+              ).data.get('followersCount', 0) == 1
             )
             || (
-              get(/databases/$(database)/documents/users/$(userId)).data.followersCount != null
-              && getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount
-                == get(/databases/$(database)/documents/users/$(userId)).data.followersCount + 1
+              get(
+                /databases/$(database)/documents/users/$(userId)
+              ).data.get('followersCount', 0) > 0
+              && getAfter(
+                /databases/$(database)/documents/users/$(userId)
+              ).data.get('followersCount', 0)
+                == get(
+                  /databases/$(database)/documents/users/$(userId)
+                ).data.get('followersCount', 0) + 1
             )
           );
 
         allow delete: if isUser(followerId)
-          && exists(
-            /databases/$(database)/documents/users/$(followerId)/following/$(userId)
-          )
-          && !existsAfter(
-            /databases/$(database)/documents/users/$(followerId)/following/$(userId)
-          )
-          && get(/databases/$(database)/documents/users/$(userId)).data.followersCount != null
-          && get(/databases/$(database)/documents/users/$(userId)).data.followersCount > 0
-          && getAfter(/databases/$(database)/documents/users/$(userId)).data.followersCount
-            == get(/databases/$(database)/documents/users/$(userId)).data.followersCount - 1;
+          && get(
+            /databases/$(database)/documents/users/$(userId)
+          ).data.get('followersCount', 0) > 0
+          && getAfter(
+            /databases/$(database)/documents/users/$(userId)
+          ).data.get('followersCount', 0)
+            == get(
+              /databases/$(database)/documents/users/$(userId)
+            ).data.get('followersCount', 0) - 1;
       }
 
       match /following/{followingId} {
@@ -578,6 +586,7 @@ service cloud.firestore {
         return /databases/$(database)/documents/conversations/$(conversationId)/messageOps/$(uid);
       }
 
+
       function sendMetadataIsAtomic() {
         let opAfter = getAfter(messageOpPath(request.auth.uid));
         let targetId = opAfter == null ? '' : opAfter.data.targetId;
@@ -587,8 +596,20 @@ service cloud.firestore {
         let otherUid = resource.data.participantIds[0] == request.auth.uid
           ? resource.data.participantIds[1]
           : resource.data.participantIds[0];
-        let oldOtherUnread = resource.data.unreadCount[otherUid];
-        let newOtherUnread = request.resource.data.unreadCount[otherUid];
+        let oldUnread = resource.data.get('unreadCount', {});
+        let newUnread = request.resource.data.get('unreadCount', {});
+        let oldOtherUnread = oldUnread is map
+          ? oldUnread.get(otherUid, 0)
+          : 0;
+        let oldOwnUnread = oldUnread is map
+          ? oldUnread.get(request.auth.uid, 0)
+          : 0;
+        let newOtherUnread = newUnread is map
+          ? newUnread.get(otherUid, 0)
+          : 0;
+        let newOwnUnread = newUnread is map
+          ? newUnread.get(request.auth.uid, 0)
+          : 0;
         let expectedPreview = newMessage == null
           ? ''
           : (
@@ -607,31 +628,41 @@ service cloud.firestore {
           && newMessage != null
           && newMessage.data.senderId == request.auth.uid
           && newMessage.data.createdAt == request.time
-          && request.resource.data.lastMessageText == expectedPreview
-          && request.resource.data.lastMessageAt == newMessage.data.createdAt
-          && request.resource.data.lastMessageSenderId == request.auth.uid
-          && request.resource.data.unreadCount.keys().hasOnly([
+          && newUnread is map
+          && newUnread.keys().hasOnly([
             resource.data.participantIds[0],
             resource.data.participantIds[1]
           ])
-          && request.resource.data.unreadCount[request.auth.uid]
-            == resource.data.unreadCount[request.auth.uid]
-          && (
-            (oldOtherUnread == null && newOtherUnread == 1)
-            || (oldOtherUnread != null && newOtherUnread == oldOtherUnread + 1)
-          );
+          && newOwnUnread == oldOwnUnread
+          && newOtherUnread == oldOtherUnread + 1
+          && request.resource.data.lastMessageText == expectedPreview
+          && request.resource.data.lastMessageAt == newMessage.data.createdAt
+          && request.resource.data.lastMessageSenderId == request.auth.uid;
       }
 
       function unreadCountResetIsSafe() {
         let otherUid = resource.data.participantIds[0] == request.auth.uid
           ? resource.data.participantIds[1]
           : resource.data.participantIds[0];
-        return request.resource.data.unreadCount.keys().hasOnly([
+        let oldUnread = resource.data.get('unreadCount', {});
+        let newUnread = request.resource.data.get('unreadCount', {});
+        let oldOtherUnread = oldUnread is map
+          ? oldUnread.get(otherUid, 0)
+          : 0;
+        let newOtherUnread = newUnread is map
+          ? newUnread.get(otherUid, 0)
+          : 0;
+        let newOwnUnread = newUnread is map
+          ? newUnread.get(request.auth.uid, 0)
+          : 0;
+
+        return newUnread is map
+          && newUnread.keys().hasOnly([
             resource.data.participantIds[0],
             resource.data.participantIds[1]
           ])
-          && request.resource.data.unreadCount[request.auth.uid] == 0
-          && request.resource.data.unreadCount[otherUid] == resource.data.unreadCount[otherUid]
+          && newOwnUnread == 0
+          && newOtherUnread == oldOtherUnread
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCount']);
       }
 
