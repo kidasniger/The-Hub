@@ -1,4 +1,6 @@
 import java.util.Properties
+import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+
 
 val versionFile = rootProject.file("gradle/version.properties")
 require(versionFile.isFile) {
@@ -26,7 +28,6 @@ val expectedVersionCode = major * 1_000_000 + minor * 1_000 + patch
 require(appVersionCode == expectedVersionCode) {
   "VERSIONING ERROR: versionCode=" + appVersionCode + " does not match versionName=" + appVersionName + " (expected " + expectedVersionCode + ")."
 }
-import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
 plugins {
   alias(libs.plugins.android.application)
