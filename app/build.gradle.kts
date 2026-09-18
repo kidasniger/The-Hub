@@ -1,6 +1,15 @@
 import java.util.Properties
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
+plugins {
+  alias(libs.plugins.android.application)
+  alias(libs.plugins.kotlin.compose)
+  alias(libs.plugins.google.devtools.ksp)
+  alias(libs.plugins.roborazzi)
+  alias(libs.plugins.secrets)
+  alias(libs.plugins.google.services)
+}
+
 
 val versionFile = rootProject.file("gradle/version.properties")
 require(versionFile.isFile) {
@@ -29,14 +38,6 @@ require(appVersionCode == expectedVersionCode) {
   "VERSIONING ERROR: versionCode=" + appVersionCode + " does not match versionName=" + appVersionName + " (expected " + expectedVersionCode + ")."
 }
 
-plugins {
-  alias(libs.plugins.android.application)
-  alias(libs.plugins.kotlin.compose)
-  alias(libs.plugins.google.devtools.ksp)
-  alias(libs.plugins.roborazzi)
-  alias(libs.plugins.secrets)
-  alias(libs.plugins.google.services)
-}
 
 android {
   namespace = "com.thehub.hb"
