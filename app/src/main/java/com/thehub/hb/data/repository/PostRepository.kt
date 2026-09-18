@@ -1046,10 +1046,6 @@ class PostRepository(
             if (uid.isEmpty()) {
                 return@withContext Result.failure(Exception("Non connecté"))
             }
-            if (uid == postId) {
-                // This is only a sanity guard; postId is a document id, not a user id.
-            }
-
             val originalRef = firestore.collection("posts").document(postId)
             val repostMarkerRef = originalRef.collection("reposts").document(uid)
             val repostRef = firestore.collection("posts").document()
