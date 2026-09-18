@@ -120,6 +120,33 @@ service cloud.firestore {
 
       allow delete: if isUser(userId);
 
+      match /followOps/{operationId} {
+        allow read, delete: if false;
+
+        allow create, update: if isUser(userId)
+          && operationId == userId
+          && request.resource.data.keys().hasOnly(['type', 'targetId'])
+          && request.resource.data.targetId is string
+          && (
+            request.resource.data.type == 'follow'
+            || request.resource.data.type == 'unfollow'
+          )
+          && (
+            (
+              request.resource.data.type == 'follow'
+              && existsAfter(
+                /databases/$(database)/documents/users/$(userId)/following/$(request.resource.data.targetId)
+              )
+            )
+            || (
+              request.resource.data.type == 'unfollow'
+              && !existsAfter(
+                /databases/$(database)/documents/users/$(userId)/following/$(request.resource.data.targetId)
+              )
+            )
+          );
+      }
+
       match /blockedUsers/{blockedId} {
         allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == blockedId);
         allow write: if isUser(userId);
