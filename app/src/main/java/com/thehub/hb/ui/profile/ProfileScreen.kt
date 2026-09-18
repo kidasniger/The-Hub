@@ -83,6 +83,7 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.rememberRemoteImageUnavailable
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
 import com.thehub.hb.ui.theme.HubBlack
@@ -794,7 +795,7 @@ private fun PostGridThumbnail(
                             )
                         }
                     }
-                }
+                )
             } else {
                 Box(
                     modifier = Modifier
