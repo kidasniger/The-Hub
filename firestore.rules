@@ -533,9 +533,13 @@ service cloud.firestore {
 
     match /conversations/{conversationId} {
       function isParticipant() {
+        let conversation = get(
+          /databases/$(database)/documents/conversations/$(conversationId)
+        );
         return isAuthenticated()
-          && resource.data.participantIds is list
-          && resource.data.participantIds.hasAny([request.auth.uid]);
+          && conversation != null
+          && conversation.data.participantIds is list
+          && conversation.data.participantIds.hasAny([request.auth.uid]);
       }
 
       function isValidConversationCreate() {
