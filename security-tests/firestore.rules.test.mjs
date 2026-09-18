@@ -7,6 +7,7 @@ import {
 import {
   doc,
   getDoc,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -191,6 +192,86 @@ async function testRepostDeleteCounterMustMatchDeletion() {
 }
 
 
+
+
+async function testExactAndroidFollowTransaction() {
+  const targetUserRef = doc(alice(), "users/bob");
+  const followingRef = doc(alice(), "users/alice/following/bob");
+  const followerRef = doc(alice(), "users/bob/followers/alice");
+
+  await assertSucceeds(runTransaction(alice(), async transaction => {
+    const targetUser = await transaction.get(targetUserRef);
+    const existingFollowing = await transaction.get(followingRef);
+    if (!targetUser.exists() || existingFollowing.exists()) return;
+    transaction.set(followingRef, {
+      followedAt: new Date(),
+      followingId: "bob",
+      uid: "bob",
+    });
+    transaction.set(followerRef, {
+      followedAt: new Date(),
+      followerId: "alice",
+      uid: "alice",
+    });
+    transaction.update(doc(alice(), "users/alice"), {
+      followingCount: 1,
+    });
+    transaction.update(targetUserRef, {
+      followersCount: 1,
+    });
+  }));
+
+  await assertSucceeds(getDoc(followingRef));
+  await assertSucceeds(getDoc(followerRef));
+}
+
+async function testExactAndroidMessageBatch() {
+  const conversationRef = doc(alice(), "conversations/alice_bob");
+  const messageRef = doc(alice(), "conversations/alice_bob/messages/android-message");
+  const opRef = doc(alice(), "conversations/alice_bob/messageOps/alice");
+
+  const batch = writeBatch(alice());
+  batch.set(messageRef, {
+    senderId: "alice",
+    text: "android batch",
+    imageUrl: null,
+    createdAt: serverTimestamp(),
+    status: "sent",
+  });
+  batch.set(opRef, {
+    type: "send",
+    targetId: "android-message",
+  });
+  batch.update(conversationRef, {
+    lastMessageText: "android batch",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "alice",
+    "unreadCount.bob": 1,
+  });
+  await assertSucceeds(batch.commit());
+
+  const secondMessageRef = doc(alice(), "conversations/alice_bob/messages/android-message-2");
+  const secondBatch = writeBatch(alice());
+  secondBatch.set(secondMessageRef, {
+    senderId: "alice",
+    text: "second",
+    imageUrl: null,
+    createdAt: serverTimestamp(),
+    status: "sent",
+  });
+  secondBatch.set(opRef, {
+    type: "send",
+    targetId: "android-message-2",
+  });
+  secondBatch.update(conversationRef, {
+    lastMessageText: "second",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "alice",
+    "unreadCount.bob": 2,
+  });
+  await assertSucceeds(secondBatch.commit());
+}
+
 async function testMessageSecurityAndAtomicSend() {
   const conversationRef = doc(alice(), "conversations/alice_bob");
   const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
@@ -356,6 +437,8 @@ try {
   await testCommentDeleteCounterMustMatchDeletion();
   await testUnfollowCounterMustMatchDeletion();
   await testRepostDeleteCounterMustMatchDeletion();
+  await testExactAndroidFollowTransaction();
+  await testExactAndroidMessageBatch();
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
