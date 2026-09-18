@@ -6,7 +6,6 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   doc,
-  getFirestore,
   setDoc,
   updateDoc,
   writeBatch,
@@ -16,11 +15,11 @@ const rules = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "u
 
 let testEnv;
 
-const alice = () => getFirestore(testEnv.authenticatedContext("alice"));
-const bob = () => getFirestore(testEnv.authenticatedContext("bob"));
+const alice = () => testEnv.authenticatedContext("alice").firestore();
+const bob = () => testEnv.authenticatedContext("bob").firestore();
 
 async function seed() {
-  const db = getFirestore(testEnv.unauthenticatedContext());
+  const db = testEnv.unauthenticatedContext().firestore();
 
   await setDoc(doc(db, "users/alice"), {
     uid: "alice",
