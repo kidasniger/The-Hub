@@ -635,24 +635,6 @@ class UserRepository(
                     .filterNotNull()
             }
 
-            // Keep the materialized friends cache in sync for newly recovered mutuals.
-            val recoveredIds = friendIds.toSet()
-            if (recoveredIds.isNotEmpty()) {
-                try {
-                    val now = Timestamp.now()
-                    val batch = firestore.batch()
-                    recoveredIds.forEach { friendId ->
-                        batch.set(
-                            firestore.collection("users").document(uid).collection("friends").document(friendId),
-                            mapOf("friendedAt" to now, "uid" to friendId),
-                            SetOptions.merge()
-                        )
-                    }
-                    batch.commit().await()
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Friends cache sync skipped: " + e.message)
-                }
-            }
 
             Result.success(users)
         } catch (e: Exception) {
