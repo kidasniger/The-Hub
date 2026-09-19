@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -149,7 +150,7 @@ fun ReportBottomSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(if (isSelected) HubSurfaceElevated else HubBlack)
                             .border(
                                 width = 1.dp,
@@ -290,7 +291,7 @@ fun BlockUserConfirmationDialog(
             }
         },
         containerColor = HubCard,
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         modifier = Modifier.testTag("block_confirmation_dialog")
     )
 }
