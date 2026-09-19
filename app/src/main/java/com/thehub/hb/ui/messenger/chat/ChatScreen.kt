@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -44,13 +46,16 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -76,6 +81,7 @@ import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.RelativeTime
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -92,6 +98,8 @@ fun ChatScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val inputBringIntoViewRequester = remember { BringIntoViewRequester() }
+    var inputFieldFocused by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -107,6 +115,13 @@ fun ChatScreen(
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
+        }
+    }
+
+    LaunchedEffect(inputFieldFocused) {
+        if (inputFieldFocused) {
+            delay(100)
+            inputBringIntoViewRequester.bringIntoView()
         }
     }
 
@@ -341,6 +356,8 @@ fun ChatScreen(
                         onValueChange = { viewModel.onInputTextChanged(it) },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .bringIntoViewRequester(inputBringIntoViewRequester)
+                            .onFocusChanged { inputFieldFocused = it.isFocused }
                             .testTag("chat_input_field"),
                         textStyle = TextStyle(
                             color = HubWhite,
