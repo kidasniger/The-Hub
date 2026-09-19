@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
@@ -59,12 +60,14 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
@@ -85,14 +88,19 @@ import com.thehub.hb.ui.profile.ProfileViewModel
 import com.thehub.hb.ui.search.SearchScreen
 import com.thehub.hb.ui.search.SearchViewModel
 import com.thehub.hb.ui.theme.HubBlack
+import com.thehub.hb.ui.theme.HubBlue
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubMuted
+import com.thehub.hb.ui.theme.HubNavigationSurface
+import com.thehub.hb.ui.theme.HubOutline
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 
 enum class MainTab(
     val title: String,
@@ -304,24 +312,63 @@ fun HubBottomNavigationBar(
     onTabSelected: (MainTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(HubSurfaceDark)
-            .border(width = 1.dp, color = HubBorder)
             .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
             .testTag("hub_bottom_nav_bar")
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .shadow(
+                    elevation = 18.dp,
+                    shape = RoundedCornerShape(44.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.55f),
+                    spotColor = HubViolet.copy(alpha = 0.18f)
+                )
+                .clip(RoundedCornerShape(44.dp))
+                .background(HubNavigationSurface)
+                .border(
+                    width = 1.dp,
+                    color = HubOutline,
+                    shape = RoundedCornerShape(44.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
             MainTab.entries.forEach { tab ->
+                if (tab == MainTab.CREATE) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .shadow(
+                                elevation = 18.dp,
+                                shape = CircleShape,
+                                ambientColor = HubViolet.copy(alpha = 0.45f),
+                                spotColor = HubBlue.copy(alpha = 0.35f)
+                            )
+                            .clip(CircleShape)
+                            .background(brush = hubPrimaryGradient())
+                            .clickable { onTabSelected(MainTab.CREATE) }
+                            .testTag(tab.testTag),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = strings.tabCreate,
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    return@forEach
+                }
+
                 val isSelected = tab == selectedTab
-                val isCreateTab = tab == MainTab.CREATE
                 val isNotifTab = tab == MainTab.NOTIFICATIONS
 
                 val interactionSource = remember { MutableInteractionSource() }
@@ -332,23 +379,28 @@ fun HubBottomNavigationBar(
 
                 val iconScale by animateFloatAsState(
                     targetValue = targetIconScale,
-                    animationSpec = tween(durationMillis = 350, easing = TabTransitionEasing),
-                    label = "tab_icon_scale_${tab.name}"
+                    animationSpec = tween(
+                        durationMillis = 350,
+                        easing = TabTransitionEasing
+                    ),
+                    label = "tab_icon_scale_" + tab.name
                 )
 
                 val labelScale by animateFloatAsState(
                     targetValue = targetLabelScale,
-                    animationSpec = tween(durationMillis = 350, easing = TabTransitionEasing),
-                    label = "tab_label_scale_${tab.name}"
+                    animationSpec = tween(
+                        durationMillis = 350,
+                        easing = TabTransitionEasing
+                    ),
+                    label = "tab_label_scale_" + tab.name
                 )
 
-                val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
                 val tabTitle = when (tab) {
                     MainTab.FEED -> strings.tabFeed
                     MainTab.SEARCH -> strings.tabSearch
-                    MainTab.CREATE -> strings.tabCreate
                     MainTab.NOTIFICATIONS -> strings.tabNotifications
                     MainTab.PROFILE -> strings.tabProfile
+                    MainTab.CREATE -> strings.tabCreate
                 }
 
                 Column(
@@ -369,23 +421,7 @@ fun HubBottomNavigationBar(
                         ),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isCreateTab) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isSelected) HubWhite else HubSurfaceElevated)
-                                    .border(1.dp, if (isSelected) HubWhite else HubBorder, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tabTitle,
-                                    tint = if (isSelected) HubBlack else HubWhite,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        } else if (isNotifTab && unreadNotificationsCount > 0) {
+                        if (isNotifTab && unreadNotificationsCount > 0) {
                             BadgedBox(
                                 badge = {
                                     Badge(
@@ -394,7 +430,7 @@ fun HubBottomNavigationBar(
                                         modifier = Modifier.testTag("notifications_unread_badge")
                                     ) {
                                         Text(
-                                            text = if (unreadNotificationsCount > 99) "99+" else "$unreadNotificationsCount",
+                                            text = if (unreadNotificationsCount > 99) "99+" else "" + unreadNotificationsCount,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -435,4 +471,3 @@ fun HubBottomNavigationBar(
         }
     }
 }
-
