@@ -3,6 +3,7 @@ package com.thehub.hb.ui.theme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -54,15 +55,30 @@ val HubDarkPalette = HubPalette(
 val HubViolet = Color(0xFF8B5CF6)
 val HubBlue = Color(0xFF3B82F6)
 
-val HubBackground = Color(0xFF0B0B0F)
-val HubSurface = Color(0xFF17171C)
-val HubSurfaceElevatedColor = Color(0xFF1E1E22)
-val HubOutline = Color(0xFF25252D)
+val HubBackground: Color
+    @Composable get() = MaterialTheme.colorScheme.background
 
-val HubTextPrimary = Color(0xFFEDEDED)
-val HubTextSecondary = Color(0xFF9CA3AF)
+val HubSurface: Color
+    @Composable get() = MaterialTheme.colorScheme.surface
 
-val HubNavigationSurface = Color(0xE61E1E22) // #1E1E22 à ~90% d'opacité
+val HubSurfaceElevatedColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+
+val HubOutline: Color
+    @Composable get() = MaterialTheme.colorScheme.outline
+
+val HubTextPrimary: Color
+    @Composable get() = MaterialTheme.colorScheme.onBackground
+
+val HubTextSecondary: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+
+val HubNavigationSurface: Color
+    @Composable get() = if (LocalHubColors.current.isLight) {
+        Color(0xE6FFFFFF)
+    } else {
+        Color(0xE61E1E22)
+    }
 
 fun hubPrimaryGradient(): Brush {
     return Brush.linearGradient(
@@ -75,19 +91,24 @@ fun hubPrimaryGradient(): Brush {
 
 // Palette Claire : Toile lumineuse épurée, cartes blanches, texte sombre contrasté
 val HubLightPalette = HubPalette(
-    black = Color(0xFFF6F7F9), // Fond principal
-    surfaceDark = Color(0xFFFFFFFF), // Surface élevée
-    card = Color(0xFFFFFFFF), // Cartes de contenu
-    surfaceElevated = Color(0xFFECEEF2),
-    border = Color(0xFFE2E4E9),
-    borderLight = Color(0xFFEAEBED),
-    darkGray = Color(0xFFCFD3DA),
-    muted = Color(0xFF868B96),
-    secondary = Color(0xFF555B67),
-    lightGray = Color(0xFF333742),
-    white = Color(0xFF111418), // Texte et icônes principaux contrastés
-    error = Color(0xFFE53935),
-    success = Color(0xFF2E7D32),
+    black = Color(0xFFF4F5F7),
+    surfaceDark = Color(0xFFF4F5F7),
+    card = Color(0xFFFFFFFF),
+    surfaceElevated = Color(0xFFFFFFFF),
+
+    border = Color(0xFFE2E8F0),
+    borderLight = Color(0xFFE2E8F0),
+
+    darkGray = Color(0xFFE2E8F0),
+    muted = Color(0xFF64748B),
+    secondary = Color(0xFF64748B),
+
+    lightGray = Color(0xFF1E293B),
+    white = Color(0xFF0F172A),
+
+    error = Color(0xFFEF4444),
+    success = Color(0xFF22C55E),
+
     isGlass = false,
     isLight = true
 )
