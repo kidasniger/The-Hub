@@ -216,7 +216,8 @@ fun ChatScreen(
             } else {
                 val lastSentMessage = uiState.messages.lastOrNull { it.isSentBy(viewModel.currentUserId) }
 
-                LazyColumn(                    state = listState,
+                LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -499,3 +500,16 @@ private fun MessageBubble(
                     }
                 }
             }
+        }
+    }
+}
+
+private suspend fun readBytesFromUri(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+    try {
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            inputStream.readBytes()
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
