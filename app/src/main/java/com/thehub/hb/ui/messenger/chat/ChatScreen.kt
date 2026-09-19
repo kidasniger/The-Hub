@@ -130,7 +130,6 @@ fun ChatScreen(
             .fillMaxSize()
             .background(HubBlack)
             .statusBarsPadding()
-            .imePadding()
             .testTag("chat_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -294,6 +293,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(HubBlack)
+                    .imePadding()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
@@ -386,7 +386,9 @@ fun ChatScreen(
 
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
         )
     }
 }
