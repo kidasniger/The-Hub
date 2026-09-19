@@ -3,6 +3,7 @@ package com.thehub.hb.data.remote
 import android.text.Html
 import java.net.InetAddress
 import java.net.URI
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -51,8 +52,13 @@ class LinkPreviewService(
                 .url(currentUrl)
                 .get()
                 .header("User-Agent", USER_AGENT)
-                .header("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1")
-                .header("Accept-Encoding", "gzip")
+                .header(
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+                )
+                .header("Accept-Language", "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
                 .build()
 
             val response = try {
@@ -69,29 +75,36 @@ class LinkPreviewService(
                     return@repeat
                 }
 
+                if (it.code == 401 || it.code == 403 || it.code == 429) {
+                    return fallbackData(url, currentUrl, it.code)
+                }
+
                 if (it.code == 404 || it.code == 410) {
-                    return LinkPreviewData(
-                        originalUrl = url,
-                        finalUrl = currentUrl,
-                        title = null,
-                        description = null,
-                        imageUrl = null,
-                        siteName = null,
-                        httpStatus = it.code
-                    )
+                    return fallbackData(url, currentUrl, it.code)
                 }
 
                 if (!it.isSuccessful) return null
 
                 val contentType = it.header("Content-Type")?.lowercase(Locale.US).orEmpty()
-                if (!contentType.contains("text/html") && !contentType.contains("application/xhtml+xml")) {
-                    return null
-                }
+                val looksLikeHtml = contentType.isBlank() ||
+                    contentType.contains("text/html") ||
+                    contentType.contains("application/xhtml+xml") ||
+                    contentType.contains("application/xml")
+
+                if (!looksLikeHtml) return null
 
                 val body = it.body ?: return null
                 if (body.contentLength() > MAX_HTML_BYTES) return null
 
-                val html = body.string().take(MAX_HTML_CHARS)
+                val bytes = try {
+                    body.source().readByteArray(MAX_HTML_BYTES)
+                } catch (_: Exception) {
+                    return null
+                }
+
+                val html = String(bytes, StandardCharsets.UTF_8)
+                    .take(MAX_HTML_CHARS)
+
                 return parse(url, currentUrl, html)
             }
         }
@@ -99,29 +112,72 @@ class LinkPreviewService(
         return null
     }
 
+    private fun fallbackData(
+        originalUrl: String,
+        finalUrl: String,
+        status: Int
+    ): LinkPreviewData {
+        return LinkPreviewData(
+            originalUrl = originalUrl,
+            finalUrl = finalUrl,
+            title = null,
+            description = null,
+            imageUrl = null,
+            siteName = hostOf(finalUrl),
+            httpStatus = status
+        )
+    }
+
     private fun parse(originalUrl: String, finalUrl: String, html: String): LinkPreviewData {
-        val title = extractTitle(html)?.let(::cleanText)
-        val description = extractMeta(html, "description")
-            ?: extractMeta(html, "twitter:description")
         val ogTitle = extractProperty(html, "og:title")
             ?: extractProperty(html, "twitter:title")
-        val image = extractProperty(html, "og:image")
-            ?: extractProperty(html, "twitter:image")
-        val siteName = extractProperty(html, "og:site_name") ?: hostOf(finalUrl)
+
+        val title = firstNonBlank(
+            ogTitle,
+            extractJsonLdString(html, "headline"),
+            extractJsonLdString(html, "name"),
+            extractTitle(html)
+        )
+
+        val description = firstNonBlank(
+            extractProperty(html, "og:description"),
+            extractMeta(html, "description"),
+            extractProperty(html, "twitter:description"),
+            extractJsonLdString(html, "description")
+        )
+
+        val image = firstNonBlank(
+            extractProperty(html, "og:image"),
+            extractProperty(html, "og:image:url"),
+            extractProperty(html, "og:image:secure_url"),
+            extractProperty(html, "twitter:image"),
+            extractProperty(html, "twitter:image:src"),
+            extractLinkHref(html, "image_src"),
+            extractJsonLdString(html, "thumbnailUrl"),
+            extractJsonLdString(html, "image")
+        )
+
+        val canonical = extractLinkHref(html, "canonical")
 
         return LinkPreviewData(
             originalUrl = originalUrl,
             finalUrl = finalUrl,
-            title = cleanText(ogTitle ?: title),
+            title = cleanText(title),
             description = cleanText(description),
             imageUrl = resolveUrl(finalUrl, image),
-            siteName = cleanText(siteName)
+            siteName = cleanText(
+                firstNonBlank(
+                    extractProperty(html, "og:site_name"),
+                    extractJsonLdString(html, "publisher"),
+                    hostOf(canonical ?: finalUrl)
+                )
+            )
         )
     }
 
     private fun extractTitle(html: String): String? {
         return Regex(
-            pattern = """<title[^>]*>(.*?)</title>""",
+            pattern = """<title\b[^>]*>(.*?)</title\s*>""",
             options = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         ).find(html)?.groupValues?.getOrNull(1)
     }
@@ -151,31 +207,93 @@ class LinkPreviewService(
         for (tag in tagRegex.findAll(html)) {
             val attrs = parseAttributes(tag.value)
             if (predicate(attrs)) {
-                return attrs["content"]?.let(::cleanText)
+                return attrs["content"]
             }
         }
         return null
     }
 
+    private fun extractLinkHref(html: String, rel: String): String? {
+        val tagRegex = Regex(
+            pattern = """<link\b[^>]*>""",
+            options = setOf(RegexOption.IGNORE_CASE)
+        )
+
+        for (tag in tagRegex.findAll(html)) {
+            val attrs = parseAttributes(tag.value)
+            val relValue = attrs["rel"].orEmpty()
+            if (relValue.split(Regex("""\s+"""))
+                    .any { it.equals(rel, ignoreCase = true) }
+            ) {
+                return attrs["href"]
+            }
+        }
+        return null
+    }
+
+    private fun extractJsonLdString(html: String, key: String): String? {
+        val scripts = Regex(
+            pattern = """<script\b[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script\s*>""",
+            options = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+        )
+
+        val valueRegex = Regex(
+            pattern = """["']${java.util.regex.Pattern.quote(key)}["']\s*:\s*["']((?:\\.|[^"'])+)["']""",
+            options = setOf(RegexOption.IGNORE_CASE)
+        )
+
+        for (script in scripts.findAll(html)) {
+            valueRegex.find(script.groupValues[1])?.groupValues?.getOrNull(1)?.let { raw ->
+                return decodeJsonLikeString(raw)
+            }
+
+            if (key == "image" || key == "thumbnailUrl") {
+                val nestedUrl = Regex(
+                    pattern = """["']url["']\s*:\s*["']((?:\\.|[^"'])+)["']""",
+                    options = setOf(RegexOption.IGNORE_CASE)
+                ).find(script.groupValues[1])?.groupValues?.getOrNull(1)
+                if (nestedUrl != null) return decodeJsonLikeString(nestedUrl)
+            }
+        }
+
+        return null
+    }
+
+    private fun decodeJsonLikeString(value: String): String {
+        return value
+            .replace("\\/", "/")
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+    }
+
     private fun parseAttributes(tag: String): Map<String, String> {
         val result = mutableMapOf<String, String>()
         val attrRegex = Regex(
-            pattern = """([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*["']([^"']*)["']""",
+            pattern = """([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""",
             options = setOf(RegexOption.IGNORE_CASE)
         )
+
         for (match in attrRegex.findAll(tag)) {
-            result[match.groupValues[1].lowercase(Locale.US)] = match.groupValues[2]
+            val value = match.groupValues[2]
+                .ifBlank { match.groupValues[3] }
+                .ifBlank { match.groupValues[4] }
+
+            result[match.groupValues[1].lowercase(Locale.US)] = value
         }
+
         return result
     }
 
+    private fun firstNonBlank(vararg values: String?): String? {
+        return values.firstOrNull { !it.isNullOrBlank() }?.trim()
+    }
+
     private fun cleanText(value: String?): String? {
-        val cleaned = value
+        return value
             ?.replace(Regex("""\s+"""), " ")
             ?.trim()
             ?.let { Html.fromHtml(it, Html.FROM_HTML_MODE_LEGACY).toString().trim() }
             ?.takeIf { it.isNotBlank() }
-        return cleaned
     }
 
     private fun resolveUrl(base: String, target: String?): String? {
@@ -217,7 +335,12 @@ class LinkPreviewService(
         }
 
         val host = uri.host?.lowercase(Locale.US) ?: return false
-        if (host == "localhost" || host.endsWith(".localhost") || host == "0.0.0.0") {
+        if (
+            host == "localhost" ||
+            host.endsWith(".localhost") ||
+            host == "0.0.0.0" ||
+            host == "::1"
+        ) {
             return false
         }
 
@@ -236,7 +359,9 @@ class LinkPreviewService(
 
     private fun hostOf(url: String): String? {
         return try {
-            URI(url).host?.removePrefix("www.")?.takeIf { it.isNotBlank() }
+            URI(url).host
+                ?.removePrefix("www.")
+                ?.takeIf { it.isNotBlank() }
         } catch (_: Exception) {
             null
         }
@@ -249,16 +374,18 @@ class LinkPreviewService(
 
     companion object {
         private const val CACHE_TTL_MILLIS = 10 * 60 * 1000L
-        private const val MAX_HTML_BYTES = 1_000_000L
-        private const val MAX_HTML_CHARS = 750_000
-        private const val MAX_REDIRECTS = 5
-        private const val USER_AGENT = "TheHubLinkPreview/1.0"
+        private const val MAX_HTML_BYTES = 2_000_000L
+        private const val MAX_HTML_CHARS = 1_500_000
+        private const val MAX_REDIRECTS = 8
+        private const val USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36"
 
         private fun defaultClient(): OkHttpClient =
             OkHttpClient.Builder()
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(5, TimeUnit.SECONDS)
-                .callTimeout(8, TimeUnit.SECONDS)
+                .connectTimeout(7, TimeUnit.SECONDS)
+                .readTimeout(7, TimeUnit.SECONDS)
+                .callTimeout(12, TimeUnit.SECONDS)
                 .followRedirects(false)
                 .followSslRedirects(false)
                 .build()
