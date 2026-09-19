@@ -408,7 +408,9 @@ async function testLikeAndBookmarkSecurity() {
   await assertFails(updateDoc(likeRef, { forged: true }));
 
   const otherUserDelete = writeBatch(bobDb);
-  otherUserDelete.delete(likeRef);
+  otherUserDelete.delete(
+    doc(bobDb, "posts/post-1/likes/charlie")
+  );
   await assertFails(otherUserDelete.commit());
 
   const deleteLike = writeBatch(charlieDb);
@@ -430,7 +432,9 @@ async function testLikeAndBookmarkSecurity() {
   await assertSucceeds(updateDoc(bookmarkRef, { savedAt: new Date() }));
 
   const otherUserBookmarkDelete = writeBatch(bobDb);
-  otherUserBookmarkDelete.delete(bookmarkRef);
+  otherUserBookmarkDelete.delete(
+    doc(bobDb, "users/charlie/bookmarks/post-1")
+  );
   await assertFails(otherUserBookmarkDelete.commit());
 
   const deleteBookmark = writeBatch(charlieDb);
