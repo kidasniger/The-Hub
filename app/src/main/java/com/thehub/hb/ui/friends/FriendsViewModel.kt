@@ -42,7 +42,21 @@ data class FriendsUiState(
     val followingMap: Map<String, Boolean> = emptyMap(),
     val actionLoadingMap: Map<String, Boolean> = emptyMap(),
     val errorMessage: String? = null
-)
+) {
+    /**
+     * Backward-compatible local filtering used by legacy UI tests and callers.
+     * The Discover tab now performs remote search through SearchRepository.
+     */
+    val filteredUsers: List<User>
+        get() {
+            val query = searchQuery.trim()
+            if (query.isBlank()) return users
+            return users.filter { user ->
+                user.username.contains(query, ignoreCase = true) ||
+                    user.displayName.orEmpty().contains(query, ignoreCase = true)
+            }
+        }
+}
 
 class FriendsViewModel(
     private val targetUserId: String,
