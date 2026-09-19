@@ -533,6 +533,33 @@ async function testLegacyConversationUnreadCountCompatibility() {
 }
 
 async function testMessageSecurityAndAtomicSend() {
+  // Messaging now requires a valid relationship. Establish Alice -> Bob
+  // before exercising the authorized send path.
+  const followBatch = writeBatch(alice());
+  followBatch.set(
+    doc(alice(), "users/alice/following/bob"),
+    {
+      followedAt: new Date(),
+      followingId: "bob",
+      uid: "bob",
+    }
+  );
+  followBatch.set(
+    doc(alice(), "users/bob/followers/alice"),
+    {
+      followedAt: new Date(),
+      followerId: "alice",
+      uid: "alice",
+    }
+  );
+  followBatch.update(doc(alice(), "users/alice"), {
+    followingCount: 1,
+  });
+  followBatch.update(doc(alice(), "users/bob"), {
+    followersCount: 1,
+  });
+  await assertSucceeds(followBatch.commit());
+
   const conversationRef = doc(alice(), "conversations/alice_bob");
   const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
   const opRef = doc(alice(), "conversations/alice_bob/messageOps/alice");
