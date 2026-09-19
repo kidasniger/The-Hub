@@ -30,6 +30,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +50,11 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+
+private val GoogleBlue = Color(0xFF4285F4)
+private val GoogleRed = Color(0xFFEA4335)
+private val GoogleYellow = Color(0xFFFBBC05)
+private val GoogleGreen = Color(0xFF34A853)
 
 @Composable
 fun LoginScreen(
@@ -159,20 +170,7 @@ fun LoginScreen(
                         color = HubBlack
                     )
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(HubSurfaceElevated),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "G",
-                            color = HubWhite,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    GoogleGLogo()
 
                     Spacer(modifier = Modifier.size(10.dp))
 
@@ -199,5 +197,76 @@ fun LoginScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun GoogleGLogo(
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.foundation.Canvas(
+        modifier = modifier
+            .size(28.dp)
+            .testTag("login_google_logo")
+    ) {
+        val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+        val radius = size.minDimension * 0.35f
+        val strokeWidth = size.minDimension * 0.19f
+        val arcRect = Rect(
+            left = center.x - radius,
+            top = center.y - radius,
+            right = center.x + radius,
+            bottom = center.y + radius
+        )
+        val stroke = Stroke(
+            width = strokeWidth,
+            cap = StrokeCap.Butt,
+            join = StrokeJoin.Miter
+        )
+
+        drawArc(
+            color = GoogleRed,
+            startAngle = 225f,
+            sweepAngle = 90f,
+            useCenter = false,
+            topLeft = androidx.compose.ui.geometry.Offset(arcRect.left, arcRect.top),
+            size = androidx.compose.ui.geometry.Size(arcRect.width, arcRect.height),
+            style = stroke
+        )
+        drawArc(
+            color = GoogleBlue,
+            startAngle = 315f,
+            sweepAngle = 95f,
+            useCenter = false,
+            topLeft = androidx.compose.ui.geometry.Offset(arcRect.left, arcRect.top),
+            size = androidx.compose.ui.geometry.Size(arcRect.width, arcRect.height),
+            style = stroke
+        )
+        drawArc(
+            color = GoogleGreen,
+            startAngle = 50f,
+            sweepAngle = 85f,
+            useCenter = false,
+            topLeft = androidx.compose.ui.geometry.Offset(arcRect.left, arcRect.top),
+            size = androidx.compose.ui.geometry.Size(arcRect.width, arcRect.height),
+            style = stroke
+        )
+        drawArc(
+            color = GoogleYellow,
+            startAngle = 135f,
+            sweepAngle = 90f,
+            useCenter = false,
+            topLeft = androidx.compose.ui.geometry.Offset(arcRect.left, arcRect.top),
+            size = androidx.compose.ui.geometry.Size(arcRect.width, arcRect.height),
+            style = stroke
+        )
+
+        drawLine(
+            color = GoogleBlue,
+            start = center,
+            end = androidx.compose.ui.geometry.Offset(center.x + radius, center.y),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Butt
+        )
     }
 }
