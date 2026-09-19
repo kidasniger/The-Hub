@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.People
@@ -80,6 +79,7 @@ fun FeedScreen(
     onCreatePost: () -> Unit,
     onOpenMessenger: () -> Unit,
     onOpenFriends: () -> Unit = {},
+    onDiscoverUsers: () -> Unit = {},
     onAuthorClick: ((String) -> Unit)? = null,
     onEditPost: (Post) -> Unit = {},
     modifier: Modifier = Modifier
@@ -139,19 +139,6 @@ fun FeedScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = { viewModel.refresh() },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(HubSurfaceElevated)
-                            .testTag("feed_refresh_button")
-                    ) {
-                        Icon(Icons.Default.Refresh, "Actualiser", tint = HubWhite, modifier = Modifier.size(20.dp))
-                    }
-
-                    Spacer(Modifier.width(10.dp))
-
-                    IconButton(
                         onClick = onOpenFriends,
                         modifier = Modifier
                             .size(38.dp)
@@ -205,7 +192,7 @@ fun FeedScreen(
             ) {
                 when (val state = uiState) {
                     is FeedUiState.Loading -> FeedSkeletonList()
-                    is FeedUiState.Empty -> FeedEmptyState(onCreatePost)
+                    is FeedUiState.Empty -> FeedEmptyState(onCreatePost, onDiscoverUsers)
                     is FeedUiState.Error -> FeedErrorState(state.message) { viewModel.loadFeed(isRefresh = false) }
                     is FeedUiState.Success -> {
                         LazyColumn(
@@ -350,7 +337,7 @@ private fun FeedSkeletonList() {
 }
 
 @Composable
-private fun FeedEmptyState(onCreatePost: () -> Unit) {
+private fun FeedEmptyState(onCreatePost: () -> Unit, onDiscoverUsers: () -> Unit) {
     val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
     Box(
         modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -367,21 +354,35 @@ private fun FeedEmptyState(onCreatePost: () -> Unit) {
                 Icon(Icons.Outlined.DynamicFeed, null, tint = HubSecondary, modifier = Modifier.size(40.dp))
             }
             Spacer(Modifier.height(20.dp))
-            Text(strings.noPostsYet, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = HubWhite)
-            Spacer(Modifier.height(8.dp))
+            Text(
+                text = strings.noPostsYet,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(10.dp))
             Text(
                 strings.noPostsDescription,
                 fontSize = 14.sp,
                 color = HubSecondary,
                 textAlign = TextAlign.Center,
-                lineHeight = 20.sp
+                lineHeight = 21.sp
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
             HubButton(
                 text = strings.tabCreate,
                 onClick = onCreatePost,
-                modifier = Modifier.width(220.dp),
+                modifier = Modifier.width(230.dp),
                 testTag = "feed_empty_create_post"
+            )
+            Spacer(Modifier.height(10.dp))
+            HubButton(
+                text = strings.discoverUsers,
+                onClick = onDiscoverUsers,
+                variant = HubButtonVariant.Secondary,
+                modifier = Modifier.width(230.dp),
+                testTag = "feed_empty_discover_users"
             )
         }
     }

@@ -203,6 +203,10 @@ fun MainScaffoldScreen(
                         },
                         onOpenMessenger = onOpenMessenger,
                         onOpenFriends = onOpenFriends,
+                        onDiscoverUsers = {
+                            tabHistory.add(selectedTab)
+                            selectedTab = MainTab.SEARCH.ordinal
+                        },
                         onAuthorClick = onNavigateToProfile,
                         onEditPost = { post ->
                             createPostViewModel.initForEdit(post.id, post.text)
