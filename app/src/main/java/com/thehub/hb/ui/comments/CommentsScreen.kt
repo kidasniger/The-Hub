@@ -633,8 +633,8 @@ private fun CommentItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(isReply ? HubSurfaceElevated : HubSurface)
-if (isReply) .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
+            .background(if (isReply) HubSurfaceElevated else HubSurface)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .pointerInput(comment.id) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
