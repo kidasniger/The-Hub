@@ -34,6 +34,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
