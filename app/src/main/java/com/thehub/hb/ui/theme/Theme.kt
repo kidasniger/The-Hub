@@ -1,29 +1,41 @@
 package com.thehub.hb.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+
+// Définition des formes globales Material 3
+val HubShapes = Shapes(
+    extraSmall = RoundedCornerShape(14.dp),
+    small = RoundedCornerShape(20.dp),
+    medium = RoundedCornerShape(28.dp),
+    large = RoundedCornerShape(44.dp),
+    extraLarge = RoundedCornerShape(44.dp)
+)
 
 private fun createDarkColorScheme(palette: HubPalette) = darkColorScheme(
-    primary = palette.white,
-    onPrimary = palette.black,
+    primary = HubViolet,
+    onPrimary = Color.White,
     primaryContainer = palette.surfaceElevated,
     onPrimaryContainer = palette.white,
-    secondary = palette.lightGray,
-    onSecondary = palette.black,
-    background = palette.surfaceDark,
+    secondary = HubBlue,
+    onSecondary = Color.White,
+    tertiary = HubViolet,
+    onTertiary = Color.White,
+    background = palette.black,
     onBackground = palette.white,
     surface = palette.card,
     onSurface = palette.white,
     surfaceVariant = palette.surfaceElevated,
     onSurfaceVariant = palette.secondary,
     outline = palette.border,
-    outlineVariant = palette.darkGray,
+    outlineVariant = palette.borderLight,
     error = palette.error,
-    onError = palette.white
+    onError = Color.White
 )
 
 private fun createLightColorScheme(palette: HubPalette) = lightColorScheme(
@@ -51,6 +63,7 @@ fun TheHubTheme(
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
+
     val effectiveMode = when (themeMode) {
         AppThemeMode.SYSTEM -> if (isSystemDark) AppThemeMode.DARK else AppThemeMode.LIGHT
         else -> themeMode
@@ -68,12 +81,14 @@ fun TheHubTheme(
         createDarkColorScheme(palette)
     }
 
-    CompositionLocalProvider(LocalHubColors provides palette) {
+    CompositionLocalProvider(
+        LocalHubColors provides palette
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
+            shapes = HubShapes,
             content = content
         )
     }
 }
-
