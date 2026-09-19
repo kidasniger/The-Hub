@@ -45,8 +45,7 @@ fun SplashScreen(
     dataStoreManager: DataStoreManager,
     onNavigateToFeed: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
-    onNavigateToWelcome: () -> Unit,
-    onNavigateToWelcomeBack: () -> Unit
+    onNavigateToWelcome: () -> Unit
 ) {
     LaunchedEffect(Unit) {
         val startTime = System.currentTimeMillis()
@@ -92,12 +91,7 @@ fun SplashScreen(
             if (!isOnboardingCompleted) {
                 onNavigateToOnboarding()
             } else {
-                val lastEmail = dataStoreManager.lastUserEmail.first()
-                if (!lastEmail.isNullOrBlank()) {
-                    onNavigateToWelcomeBack()
-                } else {
-                    onNavigateToWelcome()
-                }
+                onNavigateToWelcome()
             }
         }
     }

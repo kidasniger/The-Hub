@@ -2,11 +2,9 @@ package com.thehub.hb.ui.login
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,17 +13,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Mail
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -39,19 +33,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubButtonVariant
-import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.components.AppLogo
+import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
@@ -63,10 +50,7 @@ fun LoginScreen(
     viewModel: LoginViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToFeed: () -> Unit,
-    onNavigateToCompleteProfile: () -> Unit = {},
-    onNavigateToVerifyEmail: () -> Unit,
-    onNavigateToResetPassword: () -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onNavigateToCompleteProfile: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -74,28 +58,24 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is LoginNavigationEvent.NavigateToFeed -> onNavigateToFeed()
-                is LoginNavigationEvent.NavigateToCompleteProfile -> onNavigateToCompleteProfile()
-                is LoginNavigationEvent.NavigateToVerifyEmail -> onNavigateToVerifyEmail()
-                is LoginNavigationEvent.NavigateToResetPassword -> onNavigateToResetPassword()
-                is LoginNavigationEvent.NavigateToSignUp -> onNavigateToSignUp()
+                LoginNavigationEvent.NavigateToFeed -> onNavigateToFeed()
+                LoginNavigationEvent.NavigateToCompleteProfile -> onNavigateToCompleteProfile()
             }
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(HubSurfaceDark)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
-        // Back Button
         IconButton(
             onClick = onNavigateBack,
             modifier = Modifier
+                .align(Alignment.TopStart)
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(HubSurfaceElevated)
@@ -110,148 +90,112 @@ fun LoginScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            AppLogo(size = 104.dp, animated = false)
 
-        Text(
-            text = "Se connecter",
-            color = HubWhite,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.5).sp
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            HubTextField(
-                value = uiState.email,
-                onValueChange = viewModel::onEmailChange,
-                placeholder = "Email",
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Mail,
-                        contentDescription = null,
-                        tint = HubSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                errorMessage = uiState.emailError,
-                testTag = "login_email_input"
-            )
-
-            HubTextField(
-                value = uiState.password,
-                onValueChange = viewModel::onPasswordChange,
-                placeholder = "Mot de passe",
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Lock,
-                        contentDescription = null,
-                        tint = HubSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                trailingIcon = {
-                    IconButton(onClick = viewModel::togglePasswordVisibility) {
-                        Icon(
-                            imageVector = if (uiState.isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = if (uiState.isPasswordVisible) "Masquer" else "Afficher",
-                            tint = HubSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                },
-                visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(onDone = { viewModel.login() }),
-                errorMessage = uiState.passwordError,
-                testTag = "login_password_input"
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Mot de passe oublié ?",
-                color = HubSecondary,
-                fontSize = 13.sp,
-                textAlign = TextAlign.End,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToResetPassword() }
-                    .padding(vertical = 4.dp)
-                    .testTag("login_forgot_password_button")
+                text = "THE HUB",
+                color = HubWhite,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 5.sp,
+                textAlign = TextAlign.Center
             )
 
-            if (uiState.generalError != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "TEXTE + IMAGE. C'EST TOUT.",
+                color = HubSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Text(
+                text = "Bienvenue sur The Hub. Connectez-vous pour partager vos images et échanger avec la communauté.",
+                color = HubSecondary,
+                fontSize = 14.sp,
+                lineHeight = 21.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)
+                    .testTag("login_description")
+            )
+
+            Spacer(modifier = Modifier.height(34.dp))
+
+            Button(
+                onClick = { viewModel.signInWithGoogle(context) },
+                enabled = !uiState.isGoogleLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .testTag("login_google_button"),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = HubWhite,
+                    contentColor = HubBlack,
+                    disabledContainerColor = HubWhite.copy(alpha = 0.72f),
+                    disabledContentColor = HubBlack
+                )
+            ) {
+                if (uiState.isGoogleLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp,
+                        color = HubBlack
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(HubSurfaceElevated),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "G",
+                            color = HubWhite,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.size(10.dp))
+
+                    Text(
+                        text = "Continuer avec Google",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (!uiState.generalError.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = uiState.generalError ?: "",
-                    color = HubError,
+                    text = uiState.generalError.orEmpty(),
+                    color = HubMuted,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-
-            HubButton(
-                text = "Se connecter",
-                onClick = viewModel::login,
-                isLoading = uiState.isLoading,
-                modifier = Modifier.padding(top = 8.dp),
-                testTag = "login_submit_button"
-            )
-
-            // Divider "OU"
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f).height(1.dp).background(HubBorder))
-                Text(
-                    text = "OU",
-                    color = HubMuted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-                Box(modifier = Modifier.weight(1f).height(1.dp).background(HubBorder))
-            }
-
-            // Social Buttons
-            HubButton(
-                text = "Continuer avec Google",
-                onClick = { viewModel.signInWithGoogle(context) },
-                variant = HubButtonVariant.Secondary,
-                isLoading = uiState.isGoogleLoading,
-                testTag = "login_google_button"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Pas encore de compte ? ", color = HubSecondary, fontSize = 13.sp)
-                Text(
-                    text = "Créer un compte",
-                    color = HubWhite,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .clickable { onNavigateToSignUp() }
-                        .padding(4.dp)
-                        .testTag("login_go_to_signup_button")
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .testTag("login_error_message")
                 )
             }
         }

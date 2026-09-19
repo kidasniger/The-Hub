@@ -20,8 +20,6 @@ import com.thehub.hb.ui.comments.CommentsScreen
 import com.thehub.hb.ui.comments.CommentsViewModel
 import com.thehub.hb.ui.completeprofile.CompleteProfileScreen
 import com.thehub.hb.ui.completeprofile.CompleteProfileViewModel
-import com.thehub.hb.ui.confirmpassword.ConfirmPasswordScreen
-import com.thehub.hb.ui.confirmpassword.ConfirmPasswordViewModel
 import com.thehub.hb.ui.createpost.CreatePostScreen
 import com.thehub.hb.ui.createpost.CreatePostViewModel
 import com.thehub.hb.ui.feed.FeedViewModel
@@ -52,23 +50,16 @@ import com.thehub.hb.ui.profile.FollowListType
 import com.thehub.hb.ui.profile.FollowListViewModel
 import com.thehub.hb.ui.profile.ProfileScreen
 import com.thehub.hb.ui.profile.ProfileViewModel
-import com.thehub.hb.ui.resetpassword.ResetPasswordScreen
-import com.thehub.hb.ui.resetpassword.ResetPasswordViewModel
 import com.thehub.hb.ui.search.SearchViewModel
 import com.thehub.hb.ui.settings.BlockedUsersScreen
 import com.thehub.hb.ui.settings.BlockedUsersViewModel
 import com.thehub.hb.ui.settings.SettingsScreen
 import com.thehub.hb.ui.settings.SettingsViewModel
-import com.thehub.hb.ui.signup.SignUpScreen
-import com.thehub.hb.ui.signup.SignUpViewModel
 import com.thehub.hb.ui.splash.SplashScreen
 import com.thehub.hb.ui.terms.TermsScreen
-import com.thehub.hb.ui.verifyemail.VerifyEmailScreen
-import com.thehub.hb.ui.verifyemail.VerifyEmailViewModel
 import com.thehub.hb.ui.update.UpdateBottomSheet
 import com.thehub.hb.ui.update.UpdateViewModel
 import com.thehub.hb.ui.welcome.WelcomeScreen
-import com.thehub.hb.ui.welcomeback.WelcomeBackScreen
 
 @Composable
 fun HubNavGraph(
@@ -77,7 +68,6 @@ fun HubNavGraph(
 ) {
     val authRepository = appContainer.authRepository
     val dataStoreManager = appContainer.dataStoreManager
-    val lastUserEmail by dataStoreManager.lastUserEmail.collectAsState(initial = "")
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = UpdateViewModel.Factory(
@@ -113,11 +103,6 @@ fun HubNavGraph(
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
-                onNavigateToWelcomeBack = {
-                    navController.navigate(Screen.WelcomeBack.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
-                    }
-                }
             )
         }
 
@@ -126,7 +111,7 @@ fun HubNavGraph(
             OnboardingScreen(
                 dataStoreManager = dataStoreManager,
                 onFinish = {
-                    navController.navigate(Screen.Welcome.route) {
+                    navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
@@ -137,26 +122,7 @@ fun HubNavGraph(
         composable(Screen.Welcome.route) {
             WelcomeScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
-                onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
                 onNavigateToTerms = { navController.navigate(Screen.Terms.route) }
-            )
-        }
-
-        // Welcome Back
-        composable(Screen.WelcomeBack.route) {
-            WelcomeBackScreen(
-                authRepository = authRepository,
-                dataStoreManager = dataStoreManager,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToLogin = { navController.navigate(Screen.Login.route) },
-                onNavigateToFeed = {
-                    navController.navigate(Screen.Feed.route) {
-                        popUpTo(Screen.WelcomeBack.route) { inclusive = true }
-                    }
-                },
-                onNavigateToVerifyEmail = {
-                    navController.navigate(Screen.VerifyEmail.route)
-                }
             )
         }
 
@@ -166,7 +132,7 @@ fun HubNavGraph(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return LoginViewModel(authRepository, lastUserEmail ?: "") as T
+                        return LoginViewModel(authRepository) as T
                     }
                 }
             )
@@ -182,136 +148,6 @@ fun HubNavGraph(
                 onNavigateToCompleteProfile = {
                     navController.navigate(Screen.CompleteProfile.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                },
-                onNavigateToVerifyEmail = {
-                    navController.navigate(Screen.VerifyEmail.route)
-                },
-                onNavigateToResetPassword = {
-                    navController.navigate(Screen.ResetPassword.route)
-                },
-                onNavigateToSignUp = {
-                    navController.navigate(Screen.SignUp.route)
-                }
-            )
-        }
-
-        // Sign Up
-        composable(Screen.SignUp.route) {
-            val signUpViewModel: SignUpViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return SignUpViewModel(authRepository) as T
-                    }
-                }
-            )
-
-            SignUpScreen(
-                viewModel = signUpViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToVerifyEmail = {
-                    navController.navigate(Screen.VerifyEmail.route) {
-                        popUpTo(Screen.SignUp.route) { inclusive = true }
-                    }
-                },
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route)
-                },
-                onNavigateToTerms = {
-                    navController.navigate(Screen.Terms.route)
-                },
-                onNavigateToCompleteProfile = {
-                    navController.navigate(Screen.CompleteProfile.route) {
-                        popUpTo(Screen.SignUp.route) { inclusive = true }
-                    }
-                },
-                onNavigateToFeed = {
-                    navController.navigate(Screen.Feed.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        // Verify Email
-        composable(Screen.VerifyEmail.route) {
-            val verifyEmailViewModel: VerifyEmailViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return VerifyEmailViewModel(authRepository) as T
-                    }
-                }
-            )
-
-            VerifyEmailScreen(
-                viewModel = verifyEmailViewModel,
-                onNavigateToCompleteProfile = {
-                    navController.navigate(Screen.CompleteProfile.route) {
-                        popUpTo(Screen.VerifyEmail.route) { inclusive = true }
-                    }
-                },
-                onNavigateToFeed = {
-                    navController.navigate(Screen.Feed.route) {
-                        popUpTo(Screen.VerifyEmail.route) { inclusive = true }
-                    }
-                },
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.VerifyEmail.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        // Reset Password
-        composable(Screen.ResetPassword.route) {
-            val resetPasswordViewModel: ResetPasswordViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return ResetPasswordViewModel(authRepository) as T
-                    }
-                }
-            )
-
-            ResetPasswordScreen(
-                viewModel = resetPasswordViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToLogin = { navController.popBackStack() },
-                onNavigateToConfirmPassword = { oobCode ->
-                    navController.navigate(Screen.ConfirmPassword.createRoute(oobCode))
-                }
-            )
-        }
-
-        // Confirm Password
-        composable(
-            route = Screen.ConfirmPassword.route,
-            arguments = listOf(
-                navArgument("oobCode") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                }
-            )
-        ) { backStackEntry ->
-            val code = backStackEntry.arguments?.getString("oobCode") ?: ""
-            val confirmPasswordViewModel: ConfirmPasswordViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return ConfirmPasswordViewModel(authRepository, code) as T
-                    }
-                }
-            )
-
-            ConfirmPasswordScreen(
-                viewModel = confirmPasswordViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.ResetPassword.route) { inclusive = true }
                     }
                 }
             )
@@ -877,9 +713,6 @@ fun HubNavGraph(
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToResetPassword = {
-                    navController.navigate(Screen.ResetPassword.route)
-                },
                 onNavigateToBlockedUsers = {
                     navController.navigate(Screen.BlockedUsers.route)
                 },

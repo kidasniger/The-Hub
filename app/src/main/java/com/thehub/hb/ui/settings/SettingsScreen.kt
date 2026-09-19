@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -71,7 +70,6 @@ import com.thehub.hb.ui.theme.HubWhite
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToResetPassword: () -> Unit,
     onNavigateToBlockedUsers: () -> Unit,
     onNavigateToTerms: () -> Unit,
     onSignedOut: () -> Unit,
@@ -156,14 +154,6 @@ fun SettingsScreen(
                         subtitle = uiState.userEmail.takeIf { it.isNotBlank() } ?: "—",
                         onClick = null,
                         testTag = "settings_row_email"
-                    )
-                    Divider()
-                    SettingsActionRow(
-                        icon = Icons.Default.LockReset,
-                        title = strings.changePassword,
-                        subtitle = strings.changePasswordSubtitle,
-                        onClick = onNavigateToResetPassword,
-                        testTag = "settings_row_change_password"
                     )
                 }
 
