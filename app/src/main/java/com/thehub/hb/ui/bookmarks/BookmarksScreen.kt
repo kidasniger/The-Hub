@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.bookmarks
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubOutline
+import com.thehub.hb.ui.theme.HubSurface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
