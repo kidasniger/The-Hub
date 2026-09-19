@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.onboarding
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -204,9 +205,9 @@ fun OnboardingScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(76.dp)
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .clip(MaterialTheme.shapes.medium)
                                         .background(HubCard)
-                                        .border(1.dp, HubBorder, RoundedCornerShape(16.dp)),
+                                        .border(1.dp, HubBorder, MaterialTheme.shapes.medium),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
