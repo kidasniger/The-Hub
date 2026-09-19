@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.profile
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -252,8 +255,9 @@ private fun FollowUserRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(HubCard)
+            .clip(MaterialTheme.shapes.medium)
+            .background(HubSurface)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .clickable(onClick = onUserClick)
             .padding(horizontal = 14.dp, vertical = 10.dp)
             .testTag("follow_user_row_${user.uid}"),
