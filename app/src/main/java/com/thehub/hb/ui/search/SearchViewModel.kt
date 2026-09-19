@@ -8,6 +8,7 @@ import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.NotificationRepository
 import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.SearchRepository
+import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,7 +45,8 @@ data class SearchUiState(
 class SearchViewModel(
     private val searchRepository: SearchRepository,
     private val postRepository: PostRepository,
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -231,19 +233,37 @@ class SearchViewModel(
     }
 
     fun toggleFollow(targetUid: String) {
+        if (targetUid == currentUserId) return
+
         val isCurrentlyFollowing = _uiState.value.followingIds.contains(targetUid)
         viewModelScope.launch {
-            if (isCurrentlyFollowing) {
-                _uiState.update { it.copy(followingIds = it.followingIds - targetUid) }
-                val res = notificationRepository.unfollowUser(targetUid)
-                if (res.isFailure) {
-                    _uiState.update { it.copy(followingIds = it.followingIds + targetUid) }
-                }
+            val result = if (isCurrentlyFollowing) {
+                _uiState.update { it.copy(followingIds = it.followingIds - targetUid, errorMessage = null) }
+                userRepository.unfollowUser(targetUid)
             } else {
-                _uiState.update { it.copy(followingIds = it.followingIds + targetUid) }
-                val res = notificationRepository.followUser(targetUid)
-                if (res.isFailure) {
-                    _uiState.update { it.copy(followingIds = it.followingIds - targetUid) }
+                _uiState.update { it.copy(followingIds = it.followingIds + targetUid, errorMessage = null) }
+                userRepository.followUser(targetUid)
+            }
+
+            if (result.isFailure) {
+                val fallback = if (isCurrentlyFollowing) {
+                    _uiState.value.followingIds + targetUid
+                } else {
+                    _uiState.value.followingIds - targetUid
+                }
+                val raw = result.exceptionOrNull()?.localizedMessage.orEmpty()
+                val friendly = when {
+                    raw.contains("PERMISSION_DENIED", ignoreCase = true) ||
+                        raw.contains("insufficient permissions", ignoreCase = true) ->
+                        "Impossible de modifier l'abonnement : autorisations Firestore insuffisantes."
+                    raw.isNotBlank() -> raw
+                    else -> "Impossible de modifier l'abonnement."
+                }
+                _uiState.update {
+                    it.copy(
+                        followingIds = fallback,
+                        errorMessage = friendly
+                    )
                 }
             }
         }
