@@ -401,7 +401,7 @@ async function testLikeAndBookmarkSecurity() {
 
   const likeBatch = writeBatch(charlieDb);
   likeBatch.set(likeRef, { likedAt: new Date() });
-  likeBatch.update(doc(charlieDb, "posts/post-1"), { likesCount: 1 });
+  likeBatch.update(doc(charlieDb, "posts/post-1"), { likesCount: 2 });
   await assertSucceeds(likeBatch.commit());
 
   await assertFails(updateDoc(likeRef, { likedAt: new Date() }));
@@ -413,7 +413,7 @@ async function testLikeAndBookmarkSecurity() {
 
   const deleteLike = writeBatch(charlieDb);
   deleteLike.delete(likeRef);
-  deleteLike.update(doc(charlieDb, "posts/post-1"), { likesCount: 0 });
+  deleteLike.update(doc(charlieDb, "posts/post-1"), { likesCount: 1 });
   await assertSucceeds(deleteLike.commit());
 
   const bookmarkRef = doc(charlieDb, "users/charlie/bookmarks/post-1");
