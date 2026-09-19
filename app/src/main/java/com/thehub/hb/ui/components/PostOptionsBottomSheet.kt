@@ -79,7 +79,7 @@ fun PostOptionsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = HubCard,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentColor = HubWhite,
         dragHandle = {
             Box(
@@ -237,7 +237,7 @@ fun DeletePostConfirmationDialog(
         onDismissRequest = {
             if (!isDeleting) onDismiss()
         },
-        containerColor = HubCard,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = "Supprimer la publication ?",
