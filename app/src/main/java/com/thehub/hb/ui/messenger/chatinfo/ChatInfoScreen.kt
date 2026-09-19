@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.messenger.chatinfo
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -184,7 +187,7 @@ fun ChatInfoScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(HubSurfaceElevated)
                                 .padding(14.dp)
                         ) {
