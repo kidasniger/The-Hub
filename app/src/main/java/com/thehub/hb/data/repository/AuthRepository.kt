@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-class FirestoreCreationException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 const val GOOGLE_WEB_CLIENT_ID = "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com"
 
@@ -40,10 +39,6 @@ class AuthRepository(
     private val imgbbService: ImgbbService = ImgbbService(),
     private val dataStoreManager: DataStoreManager
 ) {
-    var lastVerificationEmailSentSuccessfully: Boolean = true
-        private set
-    var lastVerificationEmailError: Throwable? = null
-        private set
 
     val currentUserFlow: Flow<FirebaseUser?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -93,174 +88,6 @@ class AuthRepository(
         } catch (e: Exception) {
             android.util.Log.w("AuthRepository", "checkUsernameUnique skipped: ${e.message}")
             false
-        }
-    }
-
-    suspend fun signUp(email: String, username: String, password: String): Result<FirebaseUser> {
-        return try {
-            val cleanUsername = username.trim().lowercase()
-            if (!isValidUsername(cleanUsername)) {
-                return Result.failure(Exception("Le nom d'utilisateur doit contenir entre 3 et 30 caractères alphanumériques (lettres, chiffres, tirets bas ou points)."))
-            }
-            val isUnique = checkUsernameUnique(cleanUsername)
-            if (!isUnique) {
-                return Result.failure(Exception("Ce nom d'utilisateur est déjà pris."))
-            }
-
-            val existingUser = auth.currentUser
-            val user = if (existingUser != null && existingUser.email?.equals(email.trim(), ignoreCase = true) == true) {
-                android.util.Log.d("AuthRepository", "Utilisateur Firebase Auth déjà actif pour ${existingUser.email}")
-                existingUser
-            } else {
-                try {
-                    val authResult = auth.createUserWithEmailAndPassword(email.trim(), password).await()
-                    authResult.user ?: throw Exception("Utilisateur introuvable après création.")
-                } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
-                    try {
-                        val signInResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
-                        signInResult.user ?: throw collision
-                    } catch (_: Exception) {
-                        throw collision
-                    }
-                }
-            }
-
-            // Send email verification
-            try {
-                user.sendEmailVerification().await()
-                lastVerificationEmailSentSuccessfully = true
-                lastVerificationEmailError = null
-                android.util.Log.d("AuthRepository", "Email de vérification envoyé à ${user.email}")
-            } catch (e: Exception) {
-                android.util.Log.w("AuthRepository", "Échec d'envoi de l'email de vérification", e)
-                lastVerificationEmailSentSuccessfully = false
-                lastVerificationEmailError = e
-            }
-
-            // Reserve username in usernames collection atomically
-            try {
-                firestore.collection("usernames").document(cleanUsername).set(
-                    mapOf(
-                        "uid" to user.uid,
-                        "createdAt" to com.google.firebase.Timestamp.now()
-                    ),
-                    SetOptions.merge()
-                ).await()
-            } catch (e: Exception) {
-                android.util.Log.w("AuthRepository", "Failed to reserve username in usernames collection: ${e.message}")
-            }
-
-            // Save user document in Firestore
-            val newUser = User(
-                uid = user.uid,
-                email = email.trim(),
-                username = cleanUsername,
-                displayName = null,
-                photoUrl = null,
-                bio = null,
-                birthdate = null,
-                createdAt = System.currentTimeMillis()
-            )
-
-            try {
-                kotlinx.coroutines.withTimeout(10000L) {
-                    firestore.collection("users").document(user.uid).set(newUser.toMap(), SetOptions.merge()).await()
-                }
-                android.util.Log.d("AuthRepository", "Document Firestore users/${user.uid} créé avec succès")
-            } catch (e: Exception) {
-                android.util.Log.e("AuthRepository", "Échec de création du document Firestore users/${user.uid}", e)
-                throw FirestoreCreationException(
-                    "Compte créé avec succès, mais échec d'enregistrement du profil (${e.localizedMessage ?: "erreur serveur Firestore"}).",
-                    e
-                )
-            }
-
-            // Save in local dataStore
-            dataStoreManager.saveLastUser(
-                email = email.trim(),
-                username = cleanUsername
-            )
-
-            Result.success(user)
-        } catch (e: Exception) {
-            android.util.Log.e("AuthRepository", "signUp failure: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun signIn(email: String, password: String): Result<FirebaseUser> {
-        return try {
-            val authResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
-            val user = authResult.user ?: throw Exception("Connexion impossible.")
-
-            // Fetch firestore user profile and verify account is not deleted
-            val doc = firestore.collection("users").document(user.uid).get().await()
-            if (doc.exists()) {
-                val isDeleted = doc.getBoolean("isDeleted") == true
-                if (isDeleted) {
-                    auth.signOut()
-                    dataStoreManager.clearAll()
-                    return Result.failure(Exception("Ce compte a été supprimé."))
-                }
-                val userData = User.fromMap(doc.data ?: emptyMap())
-                dataStoreManager.saveLastUser(
-                    email = user.email ?: email.trim(),
-                    name = userData.displayName,
-                    username = userData.username,
-                    photoUrl = userData.photoUrl
-                )
-            } else {
-                // User document doesn't exist in Firestore (deleted)
-                auth.signOut()
-                dataStoreManager.clearAll()
-                return Result.failure(Exception("Ce compte n'existe pas ou a été supprimé."))
-            }
-
-            Result.success(user)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun sendEmailVerification(): Result<Unit> {
-        return try {
-            val user = auth.currentUser ?: throw Exception("Aucun utilisateur connecté.")
-            user.sendEmailVerification().await()
-            lastVerificationEmailSentSuccessfully = true
-            lastVerificationEmailError = null
-            Result.success(Unit)
-        } catch (e: Exception) {
-            lastVerificationEmailSentSuccessfully = false
-            lastVerificationEmailError = e
-            Result.failure(e)
-        }
-    }
-
-    suspend fun reloadUser(): Result<FirebaseUser?> {
-        return try {
-            val user = auth.currentUser ?: return Result.success(null)
-            user.reload().await()
-            Result.success(auth.currentUser)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun sendPasswordReset(email: String): Result<Unit> {
-        return try {
-            auth.sendPasswordResetEmail(email.trim()).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun confirmPasswordReset(code: String, newPassword: String): Result<Unit> {
-        return try {
-            auth.confirmPasswordReset(code.trim(), newPassword).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
