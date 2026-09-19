@@ -233,10 +233,9 @@ class MessageRepository(
             val convRef = firestore.collection("conversations").document(convId)
 
             // Existing conversations remain readable for their participants.
-            // A missing conversation may return PERMISSION_DENIED on get because
+            // A missing conversation can return PERMISSION_DENIED on get because
             // firestore.rules cannot prove participation on a non-existent resource.
-            // Treat that specific result as "not created yet" and let the guarded
-            // create path below decide whether the relationship permits creation.
+            // Treat only that specific case as "not created yet".
             val existingDoc = try {
                 convRef.get().await()
             } catch (e: FirebaseFirestoreException) {
@@ -580,3 +579,71 @@ class MessageRepository(
                 .collection("blockedUsers")
                 .document(userId)
                 .set(
+                    mapOf(
+                        "userId" to userId,
+                        "blockedAt" to Timestamp.now()
+                    )
+                )
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Check if a user is blocked by current user.
+     */
+    suspend fun isUserBlocked(userId: String): Boolean = withContext(Dispatchers.IO) {
+        val currentUid = currentUserId ?: return@withContext false
+        try {
+            val doc = firestore.collection("users")
+                .document(currentUid)
+                .collection("blockedUsers")
+                .document(userId)
+                .get()
+                .await()
+            doc.exists()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Search users by username, case-insensitive.
+     * Excludes current user.
+     */
+    suspend fun searchUsers(query: String): Result<List<User>> = withContext(Dispatchers.IO) {
+        val currentUid = currentUserId
+        val cleanQuery = query.trim().lowercase()
+
+        try {
+            val users = if (cleanQuery.isEmpty()) {
+                val snapshot = firestore.collection("users")
+                    .get()
+                    .await()
+                snapshot.documents.mapNotNull { doc ->
+                    val user = User.fromMap(doc.data ?: emptyMap())
+                    if (user.uid != currentUid) user else null
+                }
+            } else {
+                val snapshot = firestore.collection("users")
+                    .orderBy("username")
+                    .startAt(cleanQuery)
+                    .endAt(cleanQuery + "\uf8ff")
+                    .get()
+                    .await()
+
+                snapshot.documents.mapNotNull { doc ->
+                    val user = User.fromMap(doc.data ?: emptyMap())
+                    if (user.uid != currentUid) user else null
+                }
+            }
+
+            Result.success(users)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
