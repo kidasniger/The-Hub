@@ -578,3 +578,5 @@ class MessageRepository(
             firestore.collection("users")
                 .document(currentUid)
                 .collection("blockedUsers")
+                .document(userId)
+                .set(
