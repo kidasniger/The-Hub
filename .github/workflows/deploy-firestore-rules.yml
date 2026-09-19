@@ -7,6 +7,7 @@ on:
     paths:
       - "firestore.rules"
       - "firebase.json"
+      - ".github/workflows/deploy-firestore-rules.yml"
   workflow_dispatch:
 
 permissions:
@@ -39,7 +40,6 @@ jobs:
           set -euo pipefail
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "ERROR: GitHub secret FIREBASE_SERVICE_ACCOUNT is required."
-            echo "Create a Firebase/Google service-account JSON key with permission to deploy Firestore Security Rules."
             exit 1
           fi
 
@@ -54,28 +54,52 @@ jobs:
               sys.exit(1)
 
           if data.get("type") != "service_account":
-              print('ERROR: FIREBASE_SERVICE_ACCOUNT must be a service-account JSON key.')
+              print("ERROR: FIREBASE_SERVICE_ACCOUNT must be a service-account JSON key.")
               sys.exit(1)
 
           project_id = data.get("project_id")
           if project_id != "the-hub-f95f4":
-              print(f'ERROR: service-account project_id="{project_id}" (expected "the-hub-f95f4")')
+              print(
+                  f'ERROR: service-account project_id="{project_id}" '
+                  'does not match "the-hub-f95f4".'
+              )
               sys.exit(1)
 
           print("SUCCESS: Firebase deployment credentials validated.")
           PY
+
+      - name: Install Firebase Admin SDK
+        run: npm install --no-save --no-package-lock firebase-admin@latest
 
       - name: Deploy Firestore Security Rules
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import admin from "firebase-admin";
 
-          npx --yes firebase-tools@latest deploy             --only firestore             --project the-hub-f95f4             --non-interactive
+          const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+          if (!raw) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT is missing.");
+          }
 
-          rm -f "$RUNNER_TEMP/firebase-service-account.json"
+          const credentials = JSON.parse(raw);
+
+          admin.initializeApp({
+            credential: admin.credential.cert(credentials),
+            projectId: "the-hub-f95f4",
+          });
+
+          const source = fs.readFileSync("firestore.rules", "utf8");
+          if (!source.includes("service cloud.firestore")) {
+            throw new Error("firestore.rules does not look like a Cloud Firestore ruleset.");
+          }
+
+          await admin.securityRules().releaseFirestoreRulesetFromSource(source);
+          console.log("SUCCESS: Firestore Security Rules released to project the-hub-f95f4.");
+          NODE
 
       - name: Verify Firebase project target
         run: |
