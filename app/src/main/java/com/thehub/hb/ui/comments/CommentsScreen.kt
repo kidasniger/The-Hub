@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.comments
 
 import android.widget.Toast
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -442,7 +445,7 @@ fun CommentsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(HubSurfaceElevated)
-                        .border(width = 1.dp, color = HubBorder)
+                        .border(width = 1.dp, color = HubOutline)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .testTag("comment_reply_banner"),
                     verticalAlignment = Alignment.CenterVertically
@@ -497,9 +500,9 @@ fun CommentsScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(22.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(HubCard)
-                        .border(1.dp, HubBorder, RoundedCornerShape(22.dp))
+                        .border(1.dp, HubBorder, MaterialTheme.shapes.medium)
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     if (uiState.inputText.isEmpty()) {
@@ -629,9 +632,9 @@ private fun CommentItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isReply) HubSurfaceElevated else HubCard)
-            .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
+            .background(isReply ? HubSurfaceElevated : HubSurface)
+if (isReply) .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .pointerInput(comment.id) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
