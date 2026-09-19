@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
@@ -32,7 +31,6 @@ import com.thehub.hb.ui.theme.HubWhite
 @Composable
 fun WelcomeScreen(
     onNavigateToLogin: () -> Unit,
-    onNavigateToSignUp: () -> Unit,
     onNavigateToTerms: () -> Unit
 ) {
     Column(
@@ -72,15 +70,9 @@ fun WelcomeScreen(
 
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             HubButton(
-                text = "Créer un compte",
-                onClick = onNavigateToSignUp,
-                variant = HubButtonVariant.Primary
-            )
-
-            HubButton(
                 text = "Se connecter",
                 onClick = onNavigateToLogin,
-                variant = HubButtonVariant.Secondary
+                variant = HubButtonVariant.Primary
             )
 
             Spacer(modifier = Modifier.height(4.dp))
