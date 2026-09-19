@@ -1,6 +1,10 @@
 package com.thehub.hb.ui.feed.components
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -91,8 +95,9 @@ fun PostCard(
                 onClick = { onPostClick(post.id) }
             )
             .testTag("post_card_${post.id}"),
-        colors = CardDefaults.cardColors(containerColor = HubCard),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(containerColor = HubSurface),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, HubOutline)
     ) {
         Column(
             modifier = Modifier
