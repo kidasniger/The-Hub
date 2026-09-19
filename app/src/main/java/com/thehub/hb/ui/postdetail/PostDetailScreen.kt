@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.postdetail
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -351,9 +354,9 @@ fun PostDetailScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(HubCard)
-                                    .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(HubSurface)
+                                    .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                                     .padding(14.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -516,7 +519,7 @@ fun PostDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(HubSurfaceElevated)
                                     .padding(20.dp),
                                 contentAlignment = Alignment.Center
@@ -551,9 +554,9 @@ fun PostDetailScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(HubCard)
-                                .border(1.dp, HubBorder, RoundedCornerShape(24.dp))
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(HubSurface)
+                                .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                                 .clickable { onOpenComments(post.id) }
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -677,7 +680,7 @@ private fun CommentItemPreview(comment: Comment) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(HubSurfaceElevated)
             .padding(12.dp),
         verticalAlignment = Alignment.Top
