@@ -263,8 +263,7 @@ class LinkPreviewService(
         return value
             .replace("\\/", "/")
             .replace("\\"", """)
-            .replace("\\'", "'")
-            .replace("\\\\", "\")
+            .replace("\\\\", "\\")
     }
 
     private fun parseAttributes(tag: String): Map<String, String> {
