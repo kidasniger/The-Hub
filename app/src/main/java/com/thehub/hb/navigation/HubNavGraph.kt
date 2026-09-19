@@ -366,7 +366,8 @@ fun HubNavGraph(
                         return SearchViewModel(
                             searchRepository = appContainer.searchRepository,
                             postRepository = appContainer.postRepository,
-                            notificationRepository = appContainer.notificationRepository
+                            notificationRepository = appContainer.notificationRepository,
+                            userRepository = appContainer.userRepository
                         ) as T
                     }
                 }
