@@ -314,9 +314,9 @@ private fun FeedSkeletonList() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(170.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(HubCard)
-                    .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(HubSurface)
+                    .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                     .padding(16.dp)
             ) {
                 Column {
