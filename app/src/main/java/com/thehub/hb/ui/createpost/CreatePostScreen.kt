@@ -21,10 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +41,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +72,7 @@ import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 
 @Composable
 fun CreatePostScreen(
@@ -77,6 +84,8 @@ fun CreatePostScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val textBringIntoViewRequester = remember { BringIntoViewRequester() }
+    var textFieldFocused by remember { mutableStateOf(false) }
 
     // Native Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -92,12 +101,18 @@ fun CreatePostScreen(
         }
     }
 
+    LaunchedEffect(textFieldFocused) {
+        if (textFieldFocused) {
+            delay(100)
+            textBringIntoViewRequester.bringIntoView()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(HubBlack)
             .statusBarsPadding()
-            .imePadding()
             .testTag("create_post_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -206,6 +221,8 @@ fun CreatePostScreen(
                         onValueChange = { viewModel.updateText(it) },
                         modifier = Modifier
                             .fillMaxSize()
+                            .bringIntoViewRequester(textBringIntoViewRequester)
+                            .onFocusChanged { textFieldFocused = it.isFocused }
                             .testTag("create_post_text_field"),
                         textStyle = TextStyle(
                             color = HubWhite,
@@ -288,6 +305,7 @@ fun CreatePostScreen(
                         .fillMaxWidth()
                         .background(HubSurfaceElevated)
                         .border(width = 1.dp, color = HubBorder)
+                        .imePadding()
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
