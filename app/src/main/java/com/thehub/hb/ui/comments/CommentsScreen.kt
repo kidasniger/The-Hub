@@ -882,7 +882,7 @@ private fun CommentOptionsBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = HubSurfaceElevated,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentColor = HubWhite,
         dragHandle = {
             Box(
@@ -1033,7 +1033,7 @@ private fun EditCommentDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
-        containerColor = HubSurfaceElevated,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = "Modifier le commentaire",
@@ -1103,7 +1103,7 @@ private fun DeleteCommentDialog(
 ) {
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
-        containerColor = HubSurfaceElevated,
+        containerColor = MaterialTheme.colorScheme.surface,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Delete,
@@ -1178,7 +1178,7 @@ private fun ReportCommentDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
-        containerColor = HubSurfaceElevated,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = "Signaler ce commentaire",
