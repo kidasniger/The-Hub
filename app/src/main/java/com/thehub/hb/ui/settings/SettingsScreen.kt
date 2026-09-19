@@ -423,6 +423,7 @@ private fun SettingsCard(content: @Composable () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(HubSurface, MaterialTheme.shapes.medium)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
     ) {
         content()
     }
