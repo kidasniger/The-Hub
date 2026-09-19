@@ -498,6 +498,28 @@ async function testLegacyUserFollowCompatibility() {
 }
 
 async function testLegacyConversationUnreadCountCompatibility() {
+  // Legacy message sending is still allowed when the legacy user has a valid
+  // follow relationship to the recipient.
+  const relationBatch = writeBatch(legacyDb);
+  relationBatch.set(doc(legacyDb, "users/legacy/following/bob"), {
+    followedAt: new Date(),
+    followingId: "bob",
+    uid: "bob",
+  });
+  relationBatch.set(doc(legacyDb, "users/bob/followers/legacy"), {
+    followedAt: new Date(),
+    followerId: "legacy",
+    uid: "legacy",
+  });
+  relationBatch.set(doc(legacyDb, "users/legacy/followOps/legacy"), {
+    type: "follow",
+    targetId: "bob",
+  });
+  relationBatch.update(doc(legacyDb, "users/legacy"), { followingCount: 1 });
+  relationBatch.update(doc(legacyDb, "users/bob"), { followersCount: 1 });
+  await assertSucceeds(relationBatch.commit());
+
+  // Continue with the legacy conversation send path.
   const messageBatch = writeBatch(legacyDb);
   messageBatch.set(
     doc(legacyDb, "conversations/legacy_bob/messages/legacy-message-1"),
@@ -1021,6 +1043,25 @@ async function testSensitiveCollectionWrites() {
 
   // conversations: participant can create/delete; a nonparticipant cannot
   // create a conversation that excludes itself or delete one it is not in.
+  const conversationRelation = writeBatch(eveDb);
+  conversationRelation.set(doc(eveDb, "users/eve/following/alice"), {
+    followedAt: new Date(),
+    followingId: "alice",
+    uid: "alice",
+  });
+  conversationRelation.set(doc(eveDb, "users/alice/followers/eve"), {
+    followedAt: new Date(),
+    followerId: "eve",
+    uid: "eve",
+  });
+  conversationRelation.set(doc(eveDb, "users/eve/followOps/eve"), {
+    type: "follow",
+    targetId: "alice",
+  });
+  conversationRelation.update(doc(eveDb, "users/eve"), { followingCount: 1 });
+  conversationRelation.update(doc(eveDb, "users/alice"), { followersCount: 1 });
+  await assertSucceeds(conversationRelation.commit());
+
   const conversationRef = doc(eveDb, "conversations/eve_security_alice");
   await assertFails(setDoc(
     doc(bobDb, "conversations/eve_security_forbidden"),
