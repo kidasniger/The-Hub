@@ -9,6 +9,9 @@ import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -64,13 +67,19 @@ class FriendsViewModel(
             UserCacheRepository.getInstance().observeUsers(friends.map { it.uid })
 
             val curId = currentUserId
-            val followMap = mutableMapOf<String, Boolean>()
-            if (curId != null) {
-                for (u in friends) {
-                    if (u.uid != curId) {
-                        val isFollowing = userRepository.checkIsFollowing(u.uid).getOrDefault(true)
-                        followMap[u.uid] = isFollowing
-                    }
+            val followMap = if (curId == null) {
+                emptyMap()
+            } else {
+                coroutineScope {
+                    friends
+                        .filter { it.uid != curId }
+                        .map { friend ->
+                            async {
+                                friend.uid to userRepository.checkIsFollowing(friend.uid).getOrDefault(true)
+                            }
+                        }
+                        .awaitAll()
+                        .toMap()
                 }
             }
 
