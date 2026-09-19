@@ -60,6 +60,7 @@ data class HubStrings(
     val friendsOnly: String,
     val noPostsYet: String,
     val noPostsDescription: String,
+    val discoverUsers: String,
     val pullToRefresh: String,
     val share: String,
     val repost: String,
