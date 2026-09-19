@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.components
 
 import android.content.Intent
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -112,7 +115,7 @@ fun LinkPreviewCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(HubSurfaceElevated)
             .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
             .clickable {
