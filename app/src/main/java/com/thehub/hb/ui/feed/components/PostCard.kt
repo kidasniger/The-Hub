@@ -343,7 +343,7 @@ private fun EmbeddedOriginalPost(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(HubSurfaceElevated)
             .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
             .clickable { onPostClick(originalPost.id) }
