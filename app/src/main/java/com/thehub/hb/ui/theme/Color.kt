@@ -2,6 +2,7 @@ package com.thehub.hb.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -25,24 +26,52 @@ data class HubPalette(
     val isLight: Boolean = false
 )
 
-// Palette Sombre : Noir profond & surfaces foncées minimalistes
+// Palette Premium Dark — The Hub
 val HubDarkPalette = HubPalette(
-    black = Color(0xFF050505),
-    surfaceDark = Color(0xFF0A0A0A),
-    card = Color(0xFF121212),
-    surfaceElevated = Color(0xFF181818),
-    border = Color(0xFF1E1E1E),
-    borderLight = Color(0xFF2A2A2A),
-    darkGray = Color(0xFF363636),
-    muted = Color(0xFF5A5A5A),
-    secondary = Color(0xFF8A8A8A),
-    lightGray = Color(0xFFC6C6C6),
+    black = Color(0xFF0B0B0F),
+    surfaceDark = Color(0xFF0B0B0F),
+    card = Color(0xFF17171C),
+    surfaceElevated = Color(0xFF1E1E22),
+
+    border = Color(0xFF25252D),
+    borderLight = Color.White.copy(alpha = 0.06f),
+
+    darkGray = Color(0xFF25252D),
+    muted = Color(0xFF9CA3AF),
+    secondary = Color(0xFF9CA3AF),
+
+    lightGray = Color(0xFFEDEDED),
     white = Color(0xFFFFFFFF),
+
     error = Color(0xFFFF5A5A),
-    success = Color(0xFF4CAF50),
+    success = Color(0xFF22C55E),
+
     isGlass = false,
     isLight = false
 )
+
+// Couleurs de marque et tokens globaux
+val HubViolet = Color(0xFF8B5CF6)
+val HubBlue = Color(0xFF3B82F6)
+
+val HubBackground = Color(0xFF0B0B0F)
+val HubSurface = Color(0xFF17171C)
+val HubSurfaceElevatedColor = Color(0xFF1E1E22)
+val HubOutline = Color(0xFF25252D)
+
+val HubTextPrimary = Color(0xFFEDEDED)
+val HubTextSecondary = Color(0xFF9CA3AF)
+
+val HubNavigationSurface = Color(0xE61E1E22) // #1E1E22 à ~90% d'opacité
+
+fun hubPrimaryGradient(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            HubViolet,
+            HubBlue
+        )
+    )
+}
 
 // Palette Claire : Toile lumineuse épurée, cartes blanches, texte sombre contrasté
 val HubLightPalette = HubPalette(
@@ -123,4 +152,3 @@ val HubError: Color
 
 val HubSuccess: Color
     @Composable get() = LocalHubColors.current.success
-
