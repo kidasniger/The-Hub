@@ -4,14 +4,7 @@ sealed class Screen(val route: String) {
     data object Splash : Screen("splash")
     data object Onboarding : Screen("onboarding")
     data object Welcome : Screen("welcome")
-    data object WelcomeBack : Screen("welcome_back")
     data object Login : Screen("login")
-    data object SignUp : Screen("signup")
-    data object VerifyEmail : Screen("verify_email")
-    data object ResetPassword : Screen("reset_password")
-    data object ConfirmPassword : Screen("confirm_password?oobCode={oobCode}") {
-        fun createRoute(oobCode: String = ""): String = "confirm_password?oobCode=$oobCode"
-    }
     data object CompleteProfile : Screen("complete_profile")
     data object Feed : Screen("feed")
     data object CreatePost : Screen("create_post?editPostId={editPostId}") {
