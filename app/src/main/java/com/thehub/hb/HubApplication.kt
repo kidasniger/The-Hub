@@ -12,6 +12,10 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.thehub.hb.di.AppContainer
 import com.thehub.hb.di.DefaultAppContainer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 class HubApplication : Application(), ImageLoaderFactory {
@@ -19,13 +23,16 @@ class HubApplication : Application(), ImageLoaderFactory {
         private set
 
     private var currentImageLoader: ImageLoader? = null
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         ensureFirebaseInitialized(this)
         container = DefaultAppContainer(this)
-        cleanupDownloadedUpdateApks(this)
+        applicationScope.launch {
+            cleanupDownloadedUpdateApks(this@HubApplication)
+        }
     }
 
     override fun newImageLoader(): ImageLoader {
