@@ -30,7 +30,7 @@ import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceDark
+import com.thehub.hb.ui.theme.HubBackground
 import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -95,7 +95,7 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubSurfaceDark)
+            .background(HubBackground)
             .statusBarsPadding()
             .navigationBarsPadding(),
         contentAlignment = Alignment.Center
@@ -106,7 +106,7 @@ fun SplashScreen(
         ) {
             AppLogo(
                 size = 180.dp,
-                animated = false
+                animated = true
             )
 
             Spacer(modifier = Modifier.height(32.dp))
