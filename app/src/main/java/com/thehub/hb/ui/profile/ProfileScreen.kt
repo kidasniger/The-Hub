@@ -1,6 +1,8 @@
 package com.thehub.hb.ui.profile
 
 import android.widget.Toast
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -690,7 +692,7 @@ private fun ProfileHeader(
                         .height(48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(HubSurfaceElevated)
-                        .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+                        .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                         .clickable(onClick = onSendMessage)
                         .padding(horizontal = 12.dp)
                         .testTag("message_user_button"),
