@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -121,7 +122,10 @@ fun WheelDatePicker(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(itemHeight)
-                .background(HubWhite.copy(alpha = 0.05f), shape = RoundedCornerShape(8.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(12.dp)
+                )
         )
 
         // Upper horizontal separator line
@@ -319,7 +323,7 @@ private fun <T> WheelColumn(
                 else -> 0.20f
             }
             val scale = when (distance) {
-                0 -> 1.14f
+                0 -> 1.10f
                 1 -> 0.94f
                 else -> 0.82f
             }
@@ -345,8 +349,12 @@ private fun <T> WheelColumn(
             ) {
                 Text(
                     text = labelProvider(items[index]),
-                    color = HubWhite.copy(alpha = alpha),
-                    fontSize = 17.sp,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+                    },
+                    fontSize = if (isSelected) 20.sp else 17.sp,
                     fontWeight = fontWeight,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
@@ -382,7 +390,7 @@ fun WheelDatePickerBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = HubCard,
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -414,7 +422,7 @@ fun WheelDatePickerBottomSheet(
             WheelDatePicker(
                 selectedDate = tempSelectedDate,
                 onDateSelected = { tempSelectedDate = it },
-                containerBackgroundColor = HubCard,
+                containerBackgroundColor = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
