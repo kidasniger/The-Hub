@@ -360,7 +360,7 @@ fun ChatInfoScreen(
                         Text(text = "Annuler", color = HubWhite)
                     }
                 },
-                containerColor = HubCard,
+                containerColor = MaterialTheme.colorScheme.surface,
                 textContentColor = HubWhite,
                 titleContentColor = HubWhite
             )
@@ -403,7 +403,7 @@ fun ChatInfoScreen(
                         Text(text = "Annuler", color = HubWhite)
                     }
                 },
-                containerColor = HubCard,
+                containerColor = MaterialTheme.colorScheme.surface,
                 textContentColor = HubWhite,
                 titleContentColor = HubWhite
             )
