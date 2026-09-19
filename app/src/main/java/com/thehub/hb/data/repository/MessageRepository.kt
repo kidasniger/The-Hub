@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.model.Message
 import com.thehub.hb.data.model.NotificationItem
@@ -230,51 +231,52 @@ class MessageRepository(
         try {
             val convId = Conversation.generateDeterministicId(currentUid, otherUserId)
             val convRef = firestore.collection("conversations").document(convId)
-            val doc = convRef.get().await()
 
-            if (doc.exists()) {
-                return@withContext Result.success(Conversation.fromSnapshot(doc))
-            }
-
-            val permission = checkCanSendMessage(otherUserId)
-            if (permission.isFailure) {
-                return@withContext Result.failure(
-                    permission.exceptionOrNull()
-                        ?: Exception("Erreur lors de la vérification des permissions de messagerie.")
-                )
-            }
-            if (!permission.getOrDefault(false)) {
-                return@withContext Result.failure(
-                    Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
-                )
-            }
-
-            // Resolve info for both users
+            // Avoid reading a missing conversation before Firestore can establish that
+            // the caller is a participant. A create attempt is authorized server-side
+            // by firestore.rules and does not expose existence of arbitrary chats.
             val currentInfo = resolveParticipantInfo(currentUid)
             val otherInfo = resolveParticipantInfo(otherUserId)
-
-            val participantsInfo = mapOf(
-                currentUid to currentInfo,
-                otherUserId to otherInfo
-            )
-
-            val unreadCount = mapOf(
-                currentUid to 0,
-                otherUserId to 0
-            )
 
             val newConversation = Conversation(
                 id = convId,
                 participantIds = listOf(currentUid, otherUserId),
-                participantsInfo = participantsInfo,
+                participantsInfo = mapOf(
+                    currentUid to currentInfo,
+                    otherUserId to otherInfo
+                ),
                 lastMessageText = "",
                 lastMessageAt = Timestamp.now(),
                 lastMessageSenderId = "",
-                unreadCount = unreadCount
+                unreadCount = mapOf(
+                    currentUid to 0,
+                    otherUserId to 0
+                )
             )
 
-            convRef.set(newConversation.toMap()).await()
-            Result.success(newConversation)
+            try {
+                convRef.create(newConversation.toMap()).await()
+                Result.success(newConversation)
+            } catch (e: FirebaseFirestoreException) {
+                when (e.code) {
+                    FirebaseFirestoreException.Code.ALREADY_EXISTS -> {
+                        val existingDoc = convRef.get().await()
+                        if (existingDoc.exists()) {
+                            Result.success(Conversation.fromSnapshot(existingDoc))
+                        } else {
+                            Result.failure(Exception("Conversation introuvable."))
+                        }
+                    }
+
+                    FirebaseFirestoreException.Code.PERMISSION_DENIED -> {
+                        Result.failure(
+                            Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
+                        )
+                    }
+
+                    else -> throw e
+                }
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -548,71 +550,3 @@ class MessageRepository(
                 .collection("blockedUsers")
                 .document(userId)
                 .set(
-                    mapOf(
-                        "userId" to userId,
-                        "blockedAt" to Timestamp.now()
-                    )
-                )
-                .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Check if a user is blocked by current user.
-     */
-    suspend fun isUserBlocked(userId: String): Boolean = withContext(Dispatchers.IO) {
-        val currentUid = currentUserId ?: return@withContext false
-        try {
-            val doc = firestore.collection("users")
-                .document(currentUid)
-                .collection("blockedUsers")
-                .document(userId)
-                .get()
-                .await()
-            doc.exists()
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Search users by username, case-insensitive.
-     * Excludes current user.
-     */
-    suspend fun searchUsers(query: String): Result<List<User>> = withContext(Dispatchers.IO) {
-        val currentUid = currentUserId
-        val cleanQuery = query.trim().lowercase()
-
-        try {
-            val users = if (cleanQuery.isEmpty()) {
-                val snapshot = firestore.collection("users")
-                    .get()
-                    .await()
-                snapshot.documents.mapNotNull { doc ->
-                    val user = User.fromMap(doc.data ?: emptyMap())
-                    if (user.uid != currentUid) user else null
-                }
-            } else {
-                val snapshot = firestore.collection("users")
-                    .orderBy("username")
-                    .startAt(cleanQuery)
-                    .endAt(cleanQuery + "\uf8ff")
-                    .get()
-                    .await()
-
-                snapshot.documents.mapNotNull { doc ->
-                    val user = User.fromMap(doc.data ?: emptyMap())
-                    if (user.uid != currentUid) user else null
-                }
-            }
-
-            Result.success(users)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-}
