@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.messenger
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubOutline
+import com.thehub.hb.ui.theme.HubSurface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -414,8 +417,9 @@ private fun MessengerLoadingSkeleton() {
                         modifier = Modifier
                             .fillMaxWidth(0.75f)
                             .height(12.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(HubCard)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(HubSurface)
+                            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                     )
                 }
             }
