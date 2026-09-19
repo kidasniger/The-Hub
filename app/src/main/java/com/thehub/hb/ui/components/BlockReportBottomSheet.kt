@@ -75,7 +75,7 @@ fun ReportBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = HubCard,
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -290,7 +290,7 @@ fun BlockUserConfirmationDialog(
                 Text("Annuler", color = HubSecondary)
             }
         },
-        containerColor = HubCard,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.testTag("block_confirmation_dialog")
     )
