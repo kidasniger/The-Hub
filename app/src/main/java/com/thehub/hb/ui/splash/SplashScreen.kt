@@ -18,14 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.AppLogo
@@ -35,9 +34,9 @@ import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+
+private const val MIN_SPLASH_DURATION_MS = 450L
 
 @Composable
 fun SplashScreen(
@@ -54,10 +53,9 @@ fun SplashScreen(
 
         if (currentUser != null) {
             try {
-                // Check if account still exists in Firebase Auth
+                // Validate the persisted Firebase session before entering the app.
                 currentUser.reload().await()
                 if (currentUser.isEmailVerified) {
-                    // Check if user document still exists in Firestore and is not deleted
                     val userDoc = FirebaseFirestore.getInstance()
                         .collection("users")
                         .document(currentUser.uid)
@@ -67,21 +65,19 @@ fun SplashScreen(
                     if (userDoc.exists() && userDoc.getBoolean("isDeleted") != true) {
                         isSessionValid = true
                     } else {
-                        // User was deleted on Firestore or marked deleted
                         authRepository.signOut()
                         dataStoreManager.clearAll()
                     }
                 }
             } catch (e: Exception) {
-                // e.g. FirebaseAuthInvalidUserException -> account deleted on Firebase
                 authRepository.signOut()
                 dataStoreManager.clearAll()
             }
         }
 
         val elapsed = System.currentTimeMillis() - startTime
-        if (elapsed < 1600) {
-            delay(1600 - elapsed)
+        if (elapsed < MIN_SPLASH_DURATION_MS) {
+            delay(MIN_SPLASH_DURATION_MS - elapsed)
         }
 
         if (isSessionValid) {
@@ -110,7 +106,7 @@ fun SplashScreen(
         ) {
             AppLogo(
                 size = 180.dp,
-                animated = true
+                animated = false
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -143,12 +139,11 @@ fun SplashScreen(
             )
         }
 
-        // Bottom minimalist indicator dots
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 36.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
