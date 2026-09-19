@@ -267,7 +267,7 @@ fun SettingsScreen(
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
-            containerColor = HubCard,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(strings.dialogThemeTitle, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HubWhite)
             },
@@ -313,7 +313,7 @@ fun SettingsScreen(
     if (showSignOutDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
-            containerColor = HubCard,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(strings.dialogSignOutTitle, fontWeight = FontWeight.Bold, color = HubWhite) },
             text = { Text(strings.dialogSignOutMessage, color = HubSecondary) },
             confirmButton = {
@@ -338,7 +338,7 @@ fun SettingsScreen(
     if (showDeleteStep1Dialog) {
         AlertDialog(
             onDismissRequest = { showDeleteStep1Dialog = false },
-            containerColor = HubCard,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(strings.dialogDeleteAccountTitle, fontWeight = FontWeight.Bold, color = HubWhite) },
             text = { Text(strings.dialogDeleteAccountMessage, color = HubSecondary, lineHeight = 20.sp) },
             confirmButton = {
@@ -367,7 +367,7 @@ fun SettingsScreen(
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isDeletingAccount) showDeleteStep2Dialog = false },
-            containerColor = HubCard,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(strings.dialogDeleteAccountTitle, fontWeight = FontWeight.Bold, color = HubWhite) },
             text = {
                 Column {
