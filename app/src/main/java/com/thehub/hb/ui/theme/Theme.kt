@@ -39,12 +39,16 @@ private fun createDarkColorScheme(palette: HubPalette) = darkColorScheme(
 )
 
 private fun createLightColorScheme(palette: HubPalette) = lightColorScheme(
-    primary = palette.white,
-    onPrimary = palette.surfaceDark,
-    primaryContainer = palette.surfaceElevated,
-    onPrimaryContainer = palette.white,
-    secondary = palette.secondary,
-    onSecondary = palette.surfaceDark,
+    primary = HubViolet,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFEDE9FE),
+    onPrimaryContainer = Color(0xFF2E1065),
+    secondary = HubBlue,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFDBEAFE),
+    onSecondaryContainer = Color(0xFF172554),
+    tertiary = HubViolet,
+    onTertiary = Color.White,
     background = palette.black,
     onBackground = palette.white,
     surface = palette.card,
@@ -54,7 +58,7 @@ private fun createLightColorScheme(palette: HubPalette) = lightColorScheme(
     outline = palette.border,
     outlineVariant = palette.darkGray,
     error = palette.error,
-    onError = palette.surfaceDark
+    onError = Color.White
 )
 
 @Composable
