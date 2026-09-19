@@ -532,7 +532,6 @@ async function testLegacyUserFollowCompatibility() {
 async function testLegacyConversationUnreadCountCompatibility() {
   await establishMessagingRelation(legacyDb, "legacy", "bob");
 
-  const messageBatch = writeBatch(legacyDb);
   // Continue with the legacy conversation send path.
   const messageBatch = writeBatch(legacyDb);
   messageBatch.set(
