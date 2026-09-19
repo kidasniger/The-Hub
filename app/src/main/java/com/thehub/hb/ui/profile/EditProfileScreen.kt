@@ -1,6 +1,8 @@
 package com.thehub.hb.ui.profile
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material3.MaterialTheme
+import com.thehub.hb.ui.theme.HubSurface
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -355,12 +357,12 @@ fun EditProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF121212), RoundedCornerShape(20.dp))
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(HubSurface, MaterialTheme.shapes.medium)
                             .border(
                                 width = 1.dp,
                                 color = HubBorder,
-                                shape = RoundedCornerShape(20.dp)
+                                shape = MaterialTheme.shapes.medium
                             )
                             .clickable { showDatePicker = true }
                             .padding(horizontal = 16.dp)
