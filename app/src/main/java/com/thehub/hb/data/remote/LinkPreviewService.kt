@@ -262,7 +262,7 @@ class LinkPreviewService(
     private fun decodeJsonLikeString(value: String): String {
         return value
             .replace("\\/", "/")
-            .replace("\\"", """)
+            .replace("\\\"", "\"")
             .replace("\\\\", "\\")
     }
 
