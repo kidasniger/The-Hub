@@ -4,7 +4,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.model.Message
 import com.thehub.hb.data.model.NotificationItem
@@ -105,13 +104,15 @@ class MessageRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Real-time stream of messages in a conversation, sorted by createdAt ascending.
+     * Real-time stream of every message in a conversation.
+     *
+     * Ordering is done client-side so legacy messages that do not contain a
+     * createdAt field are not silently excluded by Firestore's orderBy query.
      */
     fun getMessages(conversationId: String): Flow<List<Message>> = callbackFlow {
         val listener = firestore.collection("conversations")
             .document(conversationId)
             .collection("messages")
-            .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     trySend(emptyList())
@@ -119,13 +120,20 @@ class MessageRepository(
                 }
 
                 if (snapshot != null) {
-                    val messages = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            Message.fromSnapshot(doc)
-                        } catch (_: Exception) {
-                            null
+                    val messages = snapshot.documents
+                        .mapNotNull { doc ->
+                            try {
+                                Message.fromSnapshot(doc)
+                            } catch (_: Exception) {
+                                null
+                            }
                         }
-                    }
+                        .sortedWith(
+                            compareBy<Message> { it.createdAt.seconds }
+                                .thenBy { it.createdAt.nanoseconds }
+                                .thenBy { it.id }
+                        )
+
                     trySend(messages)
                 }
             }
@@ -496,7 +504,6 @@ class MessageRepository(
         try {
             val users = if (cleanQuery.isEmpty()) {
                 val snapshot = firestore.collection("users")
-                    .limit(20)
                     .get()
                     .await()
                 snapshot.documents.mapNotNull { doc ->
@@ -508,7 +515,6 @@ class MessageRepository(
                     .orderBy("username")
                     .startAt(cleanQuery)
                     .endAt(cleanQuery + "\uf8ff")
-                    .limit(20)
                     .get()
                     .await()
 
