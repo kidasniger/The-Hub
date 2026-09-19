@@ -136,6 +136,38 @@ class ChatViewModel(
         viewModelScope.launch {
             _inputState.update { it.copy(isSending = true, errorMessage = null) }
 
+            val targetUserId = uiState.value.otherUserId
+            if (targetUserId.isBlank()) {
+                _inputState.update {
+                    it.copy(
+                        isSending = false,
+                        errorMessage = "Impossible d'identifier le destinataire."
+                    )
+                }
+                return@launch
+            }
+
+            val permission = messageRepository.checkCanSendMessage(targetUserId)
+            if (permission.isFailure) {
+                _inputState.update {
+                    it.copy(
+                        isSending = false,
+                        errorMessage = "Erreur lors de la vérification des permissions de messagerie."
+                    )
+                }
+                return@launch
+            }
+
+            if (!permission.getOrDefault(false)) {
+                _inputState.update {
+                    it.copy(
+                        isSending = false,
+                        errorMessage = "Vous devez être ami ou abonné pour envoyer un message à cet utilisateur."
+                    )
+                }
+                return@launch
+            }
+
             var imageUrl: String? = null
             if (imageBytes != null) {
                 val uploadResult = messageRepository.uploadMessageImage(imageBytes)

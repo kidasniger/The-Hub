@@ -2,9 +2,6 @@ package com.thehub.hb.ui.friends
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +30,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,10 +52,10 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.HubTextField
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
+import com.thehub.hb.ui.theme.HubOutline
 import com.thehub.hb.ui.theme.HubSecondary
+import com.thehub.hb.ui.theme.HubSurface
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 
@@ -69,7 +69,7 @@ fun FriendsScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        containerColor = HubBlack,
+        containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
@@ -80,7 +80,6 @@ fun FriendsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -107,128 +106,265 @@ fun FriendsScreen(
                 )
             }
 
-            // Search Bar Filter
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ScrollableTabRow(
+                selectedTabIndex = uiState.selectedTab.ordinal,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = HubWhite,
+                edgePadding = 16.dp,
+                divider = { HorizontalDivider(color = HubBorder) }
             ) {
-                HubTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    placeholder = "Rechercher...",
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = HubSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    trailingIcon = if (uiState.searchQuery.isNotBlank()) {
-                        {
-                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Effacer",
-                                    tint = HubSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    } else null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("friends_search_input")
+                Tab(
+                    selected = uiState.selectedTab == FriendsTab.FRIENDS,
+                    onClick = { viewModel.selectTab(FriendsTab.FRIENDS) },
+                    text = { Text("Mes amis") }
+                )
+                Tab(
+                    selected = uiState.selectedTab == FriendsTab.CONNECTIONS,
+                    onClick = { viewModel.selectTab(FriendsTab.CONNECTIONS) },
+                    text = { Text("Abonnés / abonnements") }
+                )
+                Tab(
+                    selected = uiState.selectedTab == FriendsTab.DISCOVER,
+                    onClick = { viewModel.selectTab(FriendsTab.DISCOVER) },
+                    text = { Text("Trouver des amis") }
                 )
             }
 
-            HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(36.dp)
+            when (uiState.selectedTab) {
+                FriendsTab.FRIENDS -> {
+                    if (uiState.isLoading) {
+                        LoadingState(modifier = Modifier.weight(1f))
+                    } else if (uiState.users.isEmpty()) {
+                        EmptyFriendsState(
+                            text = "Pas encore d'amis en commun.",
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        UserList(
+                            users = uiState.users,
+                            currentUserId = viewModel.currentUserId,
+                            followingMap = uiState.followingMap,
+                            actionLoadingMap = uiState.actionLoadingMap,
+                            onUserClick = onUserClick,
+                            onToggleFollow = viewModel::toggleFollowUser
                         )
                     }
                 }
 
-                uiState.filteredUsers.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f)
-                            .padding(32.dp)
-                            .testTag("friends_empty_state"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(HubSurfaceElevated),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.People,
-                                    contentDescription = null,
-                                    tint = HubSecondary,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = if (uiState.searchQuery.isNotBlank()) {
-                                    "Aucun résultat trouvé pour \"${uiState.searchQuery}\""
-                                } else {
-                                    "Pas encore d'amis en commun"
-                                },
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = HubSecondary,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                FriendsTab.CONNECTIONS -> {
+                    ConnectionSwitcher(
+                        selected = uiState.connectionsTab,
+                        onSelected = viewModel::selectConnectionsTab
+                    )
+
+                    val users = when (uiState.connectionsTab) {
+                        ConnectionsTab.FOLLOWERS -> uiState.followers
+                        ConnectionsTab.FOLLOWING -> uiState.following
+                    }
+
+                    if (uiState.isLoading) {
+                        LoadingState(modifier = Modifier.weight(1f))
+                    } else if (users.isEmpty()) {
+                        EmptyFriendsState(
+                            text = if (uiState.connectionsTab == ConnectionsTab.FOLLOWERS) {
+                                "Aucun abonné pour le moment."
+                            } else {
+                                "Vous ne suivez encore personne."
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        UserList(
+                            users = users,
+                            currentUserId = viewModel.currentUserId,
+                            followingMap = uiState.followingMap,
+                            actionLoadingMap = uiState.actionLoadingMap,
+                            onUserClick = onUserClick,
+                            onToggleFollow = viewModel::toggleFollowUser
+                        )
                     }
                 }
 
-                else -> {
-                    LazyColumn(
+                FriendsTab.DISCOVER -> {
+                    Column(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        items(
-                            items = uiState.filteredUsers,
-                            key = { it.uid }
-                        ) { user ->
-                            val isMe = user.uid == viewModel.currentUserId
-                            val isFollowing = uiState.followingMap[user.uid] ?: true
-                            val isActionLoading = uiState.actionLoadingMap[user.uid] == true
+                        HubTextField(
+                            value = uiState.searchQuery,
+                            onValueChange = viewModel::onSearchQueryChanged,
+                            placeholder = "Trouver des amis par nom ou pseudo...",
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = HubSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailingIcon = if (uiState.searchQuery.isNotBlank()) {
+                                {
+                                    IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Effacer",
+                                            tint = HubSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            } else null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("friends_discover_search_input")
+                        )
 
-                            FriendUserRow(
-                                user = user,
-                                isMe = isMe,
-                                isFollowing = isFollowing,
-                                isActionLoading = isActionLoading,
-                                onUserClick = { onUserClick(user.uid) },
-                                onToggleFollow = { viewModel.toggleFollowUser(user.uid) }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        when {
+                            uiState.isSearchLoading -> LoadingState(modifier = Modifier.weight(1f))
+                            uiState.searchQuery.isBlank() -> EmptyFriendsState(
+                                text = "Recherchez un nom ou un pseudo pour trouver de nouvelles personnes.",
+                                modifier = Modifier.weight(1f)
+                            )
+                            uiState.searchResults.isEmpty() -> EmptyFriendsState(
+                                text = "Aucun utilisateur trouvé.",
+                                modifier = Modifier.weight(1f)
+                            )
+                            else -> UserList(
+                                users = uiState.searchResults,
+                                currentUserId = viewModel.currentUserId,
+                                followingMap = uiState.followingMap,
+                                actionLoadingMap = uiState.actionLoadingMap,
+                                onUserClick = onUserClick,
+                                onToggleFollow = viewModel::toggleFollowUser,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionSwitcher(
+    selected: ConnectionsTab,
+    onSelected: (ConnectionsTab) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(HubSurface)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        ConnectionsTab.entries.forEach { tab ->
+            val selectedTab = tab == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(if (selectedTab) HubSurfaceElevated else HubSurface)
+                    .clickable { onSelected(tab) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (tab == ConnectionsTab.FOLLOWERS) "Abonnés" else "Abonnements",
+                    color = if (selectedTab) HubWhite else HubSecondary,
+                    fontWeight = if (selectedTab) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 13.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserList(
+    users: List<User>,
+    currentUserId: String?,
+    followingMap: Map<String, Boolean>,
+    actionLoadingMap: Map<String, Boolean>,
+    onUserClick: (String) -> Unit,
+    onToggleFollow: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(users, key = { it.uid }) { user ->
+            FriendUserRow(
+                user = user,
+                isMe = user.uid == currentUserId,
+                isFollowing = followingMap[user.uid] == true,
+                isActionLoading = actionLoadingMap[user.uid] == true,
+                onUserClick = { onUserClick(user.uid) },
+                onToggleFollow = { onToggleFollow(user.uid) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadingState(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            color = HubWhite,
+            strokeWidth = 2.dp,
+            modifier = Modifier.size(36.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmptyFriendsState(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp)
+            .testTag("friends_empty_state"),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(HubSurfaceElevated),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.People,
+                    contentDescription = null,
+                    tint = HubSecondary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = text,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = HubSecondary,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

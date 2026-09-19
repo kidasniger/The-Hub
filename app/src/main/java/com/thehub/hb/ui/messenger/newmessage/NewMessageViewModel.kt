@@ -87,6 +87,22 @@ class NewMessageViewModel(
     fun onUserSelected(user: User, onConversationReady: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = NewMessageUiState.Creating(user.uid)
+
+            val permission = messageRepository.checkCanSendMessage(user.uid)
+            if (permission.isFailure) {
+                _uiState.value = NewMessageUiState.Error(
+                    "Erreur lors de la vérification des permissions de messagerie."
+                )
+                return@launch
+            }
+
+            if (!permission.getOrDefault(false)) {
+                _uiState.value = NewMessageUiState.Error(
+                    "Vous devez être ami ou abonné pour envoyer un message à cet utilisateur."
+                )
+                return@launch
+            }
+
             val result = messageRepository.getOrCreateConversation(user.uid)
             result.fold(
                 onSuccess = { conversation ->

@@ -172,6 +172,49 @@ class MessageRepository(
     }
 
     /**
+     * Checks whether the current user is allowed to message the target user.
+     * Allowed relations: mutual friendship, following, or being followed.
+     */
+    suspend fun checkCanSendMessage(targetUserId: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        val currentUid = currentUserId
+            ?: return@withContext Result.success(false)
+
+        if (targetUserId.isBlank() || currentUid == targetUserId) {
+            return@withContext Result.success(false)
+        }
+
+        try {
+            val users = firestore.collection("users")
+
+            val isFriend = users.document(currentUid)
+                .collection("friends")
+                .document(targetUserId)
+                .get()
+                .await()
+
+            if (isFriend.exists()) return@withContext Result.success(true)
+
+            val isFollowing = users.document(currentUid)
+                .collection("following")
+                .document(targetUserId)
+                .get()
+                .await()
+
+            if (isFollowing.exists()) return@withContext Result.success(true)
+
+            val isFollower = users.document(targetUserId)
+                .collection("followers")
+                .document(currentUid)
+                .get()
+                .await()
+
+            Result.success(isFollower.exists())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Get or create a deterministic conversation between current user and other user.
      */
     suspend fun getOrCreateConversation(otherUserId: String): Result<Conversation> = withContext(Dispatchers.IO) {
@@ -189,6 +232,19 @@ class MessageRepository(
 
             if (doc.exists()) {
                 return@withContext Result.success(Conversation.fromSnapshot(doc))
+            }
+
+            val permission = checkCanSendMessage(otherUserId)
+            if (permission.isFailure) {
+                return@withContext Result.failure(
+                    permission.exceptionOrNull()
+                        ?: Exception("Erreur lors de la vérification des permissions de messagerie.")
+                )
+            }
+            if (!permission.getOrDefault(false)) {
+                return@withContext Result.failure(
+                    Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
+                )
             }
 
             // Resolve info for both users
@@ -298,6 +354,19 @@ class MessageRepository(
             val otherUid = conversation.getOtherParticipantId(currentUid)
             if (otherUid.isBlank()) {
                 return@withContext Result.failure(Exception("Conversation invalide."))
+            }
+
+            val permission = checkCanSendMessage(otherUid)
+            if (permission.isFailure) {
+                return@withContext Result.failure(
+                    permission.exceptionOrNull()
+                        ?: Exception("Erreur lors de la vérification des permissions de messagerie.")
+                )
+            }
+            if (!permission.getOrDefault(false)) {
+                return@withContext Result.failure(
+                    Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
+                )
             }
 
             // Rebuild the complete two-participant unread map. This also repairs

@@ -775,6 +775,36 @@ service cloud.firestore {
         return /databases/$(database)/documents/conversations/$(conversationId)/messageOps/$(uid);
       }
 
+      function canMessagePair(senderUid, targetUid) {
+        return senderUid != targetUid
+          && (
+            exists(
+              /databases/$(database)/documents/users/$(senderUid)/friends/$(targetUid)
+            )
+            || exists(
+              /databases/$(database)/documents/users/$(senderUid)/following/$(targetUid)
+            )
+            || exists(
+              /databases/$(database)/documents/users/$(targetUid)/followers/$(senderUid)
+            )
+          );
+      }
+
+      function canMessageTargetOnCreate() {
+        let targetUid = request.resource.data.participantIds[0] == request.auth.uid
+          ? request.resource.data.participantIds[1]
+          : request.resource.data.participantIds[0];
+
+        return canMessagePair(request.auth.uid, targetUid);
+      }
+
+      function canMessageOtherUser() {
+        let otherUid = resource.data.participantIds[0] == request.auth.uid
+          ? resource.data.participantIds[1]
+          : resource.data.participantIds[0];
+
+        return canMessagePair(request.auth.uid, otherUid);
+      }
 
       function sendMetadataIsAtomic() {
         let opAfter = getAfter(messageOpPath(request.auth.uid));
@@ -857,7 +887,8 @@ service cloud.firestore {
 
       allow read: if isParticipant();
 
-      allow create: if isValidConversationCreate();
+      allow create: if isValidConversationCreate()
+        && canMessageTargetOnCreate();
 
       allow update: if isParticipant() && (
         (
@@ -867,6 +898,7 @@ service cloud.firestore {
             'lastMessageSenderId',
             'unreadCount'
           ])
+          && canMessageOtherUser()
           && sendMetadataIsAtomic()
         )
         || unreadCountResetIsSafe()
@@ -889,6 +921,7 @@ service cloud.firestore {
 
         allow create, update: if isUser(userId)
           && parentConversationIsAccessible()
+          && canMessageOtherUser()
           && request.resource.data.keys().hasOnly(['type', 'targetId'])
           && request.resource.data.type == 'send'
           && request.resource.data.targetId is string
@@ -951,6 +984,7 @@ service cloud.firestore {
         allow read: if parentConversationIsAccessible();
 
         allow create: if parentConversationIsAccessible()
+          && canMessageOtherUser()
           && validMessageFields()
           && sendMarkerMatchesMessage();
 

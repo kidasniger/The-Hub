@@ -682,7 +682,8 @@ fun HubNavGraph(
                 key = "friends_$targetUserId",
                 factory = FriendsViewModel.Factory(
                     targetUserId = targetUserId,
-                    userRepository = appContainer.userRepository
+                    userRepository = appContainer.userRepository,
+                    searchRepository = appContainer.searchRepository
                 )
             )
 

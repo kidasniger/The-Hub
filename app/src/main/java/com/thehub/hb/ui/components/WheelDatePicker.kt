@@ -57,6 +57,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.YearMonth
 import kotlin.math.abs
 
 private val FRENCH_MONTHS = listOf(
@@ -84,16 +85,27 @@ fun WheelDatePicker(
     itemHeight: Dp = 44.dp,
     containerBackgroundColor: Color = Color.Unspecified
 ) {
-    val effectiveContainerBg = if (containerBackgroundColor != Color.Unspecified) containerBackgroundColor else HubCard
-    val currentYear = selectedDate.year.coerceIn(minYear, maxYear)
+    val effectiveContainerBg = if (containerBackgroundColor != Color.Unspecified) {
+        containerBackgroundColor
+    } else {
+        HubCard
+    }
+
+    val safeMinYear = minYear.coerceAtMost(maxYear)
+    val safeMaxYear = maxOf(minYear, maxYear)
+    val currentYear = selectedDate.year.coerceIn(safeMinYear, safeMaxYear)
     val currentMonth = selectedDate.monthValue.coerceIn(1, 12)
     val maxDaysInCurrentMonth = remember(currentYear, currentMonth) {
-        LocalDate.of(currentYear, currentMonth, 1).lengthOfMonth()
+        YearMonth.of(currentYear, currentMonth).lengthOfMonth()
     }
     val currentDay = selectedDate.dayOfMonth.coerceIn(1, maxDaysInCurrentMonth)
 
-    val yearsList = remember(minYear, maxYear) { (minYear..maxYear).toList() }
-    val daysList = remember(maxDaysInCurrentMonth) { (1..maxDaysInCurrentMonth).toList() }
+    val yearsList = remember(safeMinYear, safeMaxYear) {
+        (safeMinYear..safeMaxYear).toList().reversed()
+    }
+    val daysList = remember(maxDaysInCurrentMonth) {
+        (1..maxDaysInCurrentMonth).toList()
+    }
 
     val totalHeight = itemHeight * 5
 
@@ -171,7 +183,7 @@ fun WheelDatePicker(
 
             // Année
             val yearIndex = remember(currentYear, yearsList) {
-                yearsList.indexOf(currentYear).coerceAtLeast(0)
+                yearsList.indexOf(currentYear).coerceIn(0, (yearsList.size - 1).coerceAtLeast(0))
             }
             WheelColumn(
                 items = yearsList,
