@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.settings
 
 import android.widget.Toast
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -419,7 +422,7 @@ private fun SettingsCard(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(HubCard, RoundedCornerShape(12.dp))
+            .background(HubSurface, MaterialTheme.shapes.medium)
     ) {
         content()
     }
