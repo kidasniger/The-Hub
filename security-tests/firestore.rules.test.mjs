@@ -21,6 +21,8 @@ let bobDb;
 let legacyDb;
 let charlieDb;
 let daveDb;
+let eveDb;
+let anonDb;
 
 function alice() {
   return aliceDb;
@@ -675,6 +677,447 @@ async function testMessageDeletionMustBeAtomicWithConversationDeletion() {
   await assertFails(getDoc(doc(bob(), "conversations/alice_bob/messages/message-1")));
 }
 
+
+async function testSensitiveCollectionWrites() {
+  // Every write below is intentionally isolated from the earlier relationship
+  // and counter scenarios so the matrix does not depend on a mutable fixture.
+
+  // users/{userId}: owner create/update/delete; forged owner is denied.
+  const eveUserRef = doc(eveDb, "users/eve");
+  await assertSucceeds(setDoc(eveUserRef, {
+    uid: "eve",
+    username: "eve",
+    followersCount: 0,
+    followingCount: 0,
+  }));
+  await assertFails(setDoc(doc(bobDb, "users/eve"), {
+    uid: "eve",
+    username: "forged",
+    followersCount: 0,
+    followingCount: 0,
+  }));
+  await assertSucceeds(updateDoc(eveUserRef, {
+    username: "eve-updated",
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "users/eve"),
+    { username: "bob-forged" }
+  ));
+  await assertFails(updateDoc(
+    eveUserRef,
+    { uid: "bob" }
+  ));
+
+  // usernames/{usernameLower}: owner create/update/delete; another user denied.
+  const usernameRef = doc(eveDb, "usernames/eve-security");
+  await assertSucceeds(setDoc(usernameRef, {
+    uid: "eve",
+    username: "eve-security",
+  }));
+  await assertFails(setDoc(doc(bobDb, "usernames/eve-security-forged"), {
+    uid: "eve",
+    username: "forged",
+  }));
+  await assertSucceeds(updateDoc(usernameRef, {
+    username: "eve-security-renamed",
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "usernames/eve-security"),
+    { username: "bob-forged" }
+  ));
+
+  // users/{userId}/blockedUsers: only the owner may write the block list.
+  const blockedRef = doc(eveDb, "users/eve/blockedUsers/bob");
+  await assertSucceeds(setDoc(blockedRef, {
+    blockedAt: new Date(),
+  }));
+  await assertSucceeds(updateDoc(blockedRef, {
+    reason: "security-test",
+  }));
+  await assertFails(setDoc(
+    doc(bobDb, "users/eve/blockedUsers/charlie"),
+    { blockedAt: new Date() }
+  ));
+  const deleteBlocked = writeBatch(eveDb);
+  deleteBlocked.delete(blockedRef);
+  await assertSucceeds(deleteBlocked.commit());
+
+  // reports: only the authenticated reporter may create a report for itself;
+  // reports cannot be edited/deleted by clients.
+  const reportRef = doc(eveDb, "reports/eve-security");
+  await assertSucceeds(setDoc(reportRef, {
+    reporterId: "eve",
+    targetId: "alice",
+    reason: "test",
+  }));
+  await assertFails(setDoc(doc(bobDb, "reports/forged-reporter"), {
+    reporterId: "eve",
+    targetId: "alice",
+    reason: "forged",
+  }));
+  await assertFails(updateDoc(reportRef, { reason: "changed" }));
+  const deleteReport = writeBatch(eveDb);
+  deleteReport.delete(reportRef);
+  await assertFails(deleteReport.commit());
+
+  // posts: owner create/update/delete; forged author and outsider writes fail.
+  const postRef = doc(eveDb, "posts/eve-security-post");
+  await assertSucceeds(setDoc(postRef, {
+    authorId: "eve",
+    authorUsername: "eve",
+    text: "security fixture",
+    createdAt: new Date(),
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    isRepost: false,
+  }));
+  await assertFails(setDoc(doc(bobDb, "posts/eve-forged-post"), {
+    authorId: "eve",
+    authorUsername: "eve",
+    text: "forged",
+    createdAt: new Date(),
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    isRepost: false,
+  }));
+  await assertSucceeds(updateDoc(postRef, {
+    text: "edited by owner",
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "posts/eve-security-post"),
+    { text: "edited by outsider" }
+  ));
+  await assertFails(updateDoc(
+    postRef,
+    { authorId: "bob" }
+  ));
+  await assertFails(updateDoc(
+    postRef,
+    { likesCount: 999 }
+  ));
+  await assertFails(setDoc(
+    doc(anonDb, "posts/anon-post"),
+    {
+      authorId: "anon",
+      text: "unauthenticated",
+      createdAt: new Date(),
+      likesCount: 0,
+      commentsCount: 0,
+      repostsCount: 0,
+      isRepost: false,
+    }
+  ));
+
+  // bookmarks: owner create/update/delete; target and extra fields are checked.
+  const bookmarkRef = doc(eveDb, "users/eve/bookmarks/eve-security-post");
+  await assertSucceeds(setDoc(bookmarkRef, { savedAt: new Date() }));
+  await assertFails(setDoc(
+    doc(bobDb, "users/eve/bookmarks/eve-security-post"),
+    { savedAt: new Date() }
+  ));
+  await assertFails(setDoc(
+    doc(eveDb, "users/eve/bookmarks/missing-target"),
+    { savedAt: new Date() }
+  ));
+  await assertFails(setDoc(bookmarkRef, {
+    savedAt: new Date(),
+    forged: true,
+  }));
+  await assertSucceeds(updateDoc(bookmarkRef, {
+    savedAt: new Date(),
+  }));
+  await assertFails(updateDoc(
+    bookmarkRef,
+    { forged: true }
+  ));
+
+  // comments: atomic create/delete, owner-only content edit, outsider denied.
+  const commentRef = doc(
+    eveDb,
+    "posts/eve-security-post/comments/eve-security-comment"
+  );
+  const createComment = writeBatch(eveDb);
+  createComment.set(commentRef, {
+    authorId: "eve",
+    authorUsername: "eve",
+    text: "comment",
+    createdAt: new Date(),
+    likesCount: 0,
+  });
+  createComment.set(
+    doc(eveDb, "posts/eve-security-post/counterOps/eve"),
+    {
+      type: "comment_create",
+      targetId: "eve-security-comment",
+    }
+  );
+  createComment.update(postRef, { commentsCount: 1 });
+  await assertSucceeds(createComment.commit());
+
+  await assertSucceeds(updateDoc(commentRef, {
+    text: "edited comment",
+    isEdited: true,
+    editedAt: new Date(),
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "posts/eve-security-post/comments/eve-security-comment"),
+    { text: "outsider edit" }
+  ));
+  await assertFails(updateDoc(commentRef, {
+    authorId: "bob",
+  }));
+  await assertFails(updateDoc(commentRef, {
+    likesCount: 999,
+  }));
+
+  // comment likes: any authenticated user may create its own like, but only
+  // the like owner may remove it; identity/update forgery is denied.
+  const bobCommentLikeRef = doc(
+    bobDb,
+    "posts/eve-security-post/comments/eve-security-comment/likes/bob"
+  );
+  await assertFails(setDoc(
+    doc(bobDb, "posts/eve-security-post/comments/eve-security-comment/likes/eve"),
+    { likedAt: new Date() }
+  ));
+  await assertFails(setDoc(bobCommentLikeRef, {
+    likedAt: new Date(),
+    forged: true,
+  }));
+
+  const createCommentLike = writeBatch(bobDb);
+  createCommentLike.set(bobCommentLikeRef, {
+    likedAt: new Date(),
+  });
+  createCommentLike.update(
+    doc(bobDb, "posts/eve-security-post/comments/eve-security-comment"),
+    { likesCount: 1 }
+  );
+  await assertSucceeds(createCommentLike.commit());
+
+  await assertFails(updateDoc(bobCommentLikeRef, {
+    likedAt: new Date(),
+  }));
+  const eveDeleteBobLike = writeBatch(eveDb);
+  eveDeleteBobLike.delete(
+    doc(eveDb, "posts/eve-security-post/comments/eve-security-comment/likes/bob")
+  );
+  await assertFails(eveDeleteBobLike.commit());
+
+  const deleteCommentLike = writeBatch(bobDb);
+  deleteCommentLike.delete(bobCommentLikeRef);
+  deleteCommentLike.update(
+    doc(bobDb, "posts/eve-security-post/comments/eve-security-comment"),
+    { likesCount: 0 }
+  );
+  await assertSucceeds(deleteCommentLike.commit());
+
+  const deleteComment = writeBatch(eveDb);
+  deleteComment.set(
+    doc(eveDb, "posts/eve-security-post/counterOps/eve"),
+    {
+      type: "comment_delete",
+      targetId: "eve-security-comment",
+    }
+  );
+  deleteComment.delete(commentRef);
+  deleteComment.update(postRef, { commentsCount: 0 });
+  await assertSucceeds(deleteComment.commit());
+
+  // Internal relationship/counter/message markers are not client-deletable.
+  const markerDelete = writeBatch(eveDb);
+  markerDelete.delete(
+    doc(eveDb, "users/charlie/followOps/charlie")
+  );
+  markerDelete.delete(
+    doc(eveDb, "posts/post-1/counterOps/bob")
+  );
+  markerDelete.delete(
+    doc(eveDb, "conversations/alice_bob/messageOps/alice")
+  );
+  await assertFails(markerDelete.commit());
+
+  // followOps: direct fabricated operation cannot be created without the
+  // corresponding following document.
+  await assertFails(setDoc(
+    doc(eveDb, "users/eve/followOps/eve"),
+    { type: "follow", targetId: "alice" }
+  ));
+
+  // reposts: only the reposter can create/delete its marker as part of an
+  // atomic repost; update is not permitted.
+  const repostRef = doc(eveDb, "posts/eve-security-repost");
+  const repostMarkerRef = doc(eveDb, "posts/post-1/reposts/eve");
+  const createRepost = writeBatch(eveDb);
+  createRepost.set(repostRef, {
+    authorId: "eve",
+    authorUsername: "eve",
+    text: "",
+    createdAt: new Date(),
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    isRepost: true,
+    originalPostId: "post-1",
+  });
+  createRepost.set(repostMarkerRef, {
+    postId: "post-1",
+    reposterId: "eve",
+    repostId: "eve-security-repost",
+    createdAt: new Date(),
+  });
+  createRepost.update(
+    doc(eveDb, "posts/post-1"),
+    { repostsCount: 1 }
+  );
+  await assertSucceeds(createRepost.commit());
+
+  await assertFails(updateDoc(repostMarkerRef, {
+    repostId: "forged-repost",
+  }));
+  const wrongReposterDelete = writeBatch(bobDb);
+  wrongReposterDelete.delete(
+    doc(bobDb, "posts/post-1/reposts/eve")
+  );
+  await assertFails(wrongReposterDelete.commit());
+
+  const deleteRepost = writeBatch(eveDb);
+  deleteRepost.delete(repostRef);
+  deleteRepost.delete(repostMarkerRef);
+  deleteRepost.update(
+    doc(eveDb, "posts/post-1"),
+    { repostsCount: 0 }
+  );
+  await assertSucceeds(deleteRepost.commit());
+
+  // conversations: participant can create/delete; a nonparticipant cannot
+  // create a conversation that excludes itself or delete one it is not in.
+  const conversationRef = doc(eveDb, "conversations/eve_security_alice");
+  await assertFails(setDoc(
+    doc(bobDb, "conversations/eve_security_forbidden"),
+    {
+      participantIds: ["eve", "alice"],
+      participantsInfo: {
+        eve: { username: "eve" },
+        alice: { username: "alice" },
+      },
+      lastMessageText: "",
+      lastMessageAt: new Date(),
+      lastMessageSenderId: "",
+      unreadCount: { eve: 0, alice: 0 },
+    }
+  ));
+  await assertSucceeds(setDoc(conversationRef, {
+    participantIds: ["eve", "alice"],
+    participantsInfo: {
+      eve: { username: "eve" },
+      alice: { username: "alice" },
+    },
+    lastMessageText: "",
+    lastMessageAt: new Date(),
+    lastMessageSenderId: "",
+    unreadCount: { eve: 0, alice: 0 },
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "conversations/eve_security_alice"),
+    { lastMessageText: "intrusion" }
+  ));
+  const outsiderDeleteConversation = writeBatch(bobDb);
+  outsiderDeleteConversation.delete(
+    doc(bobDb, "conversations/eve_security_alice")
+  );
+  await assertFails(outsiderDeleteConversation.commit());
+
+  const deleteConversation = writeBatch(eveDb);
+  deleteConversation.delete(conversationRef);
+  await assertSucceeds(deleteConversation.commit());
+
+  // notifications: actor may create for someone else; only recipient may
+  // change isRead; deletion and identity/content edits are denied.
+  const notificationRef = doc(eveDb, "notifications/eve-security-notification");
+  await assertSucceeds(setDoc(notificationRef, {
+    actorId: "eve",
+    recipientId: "bob",
+    type: "follow",
+    isRead: false,
+  }));
+  await assertFails(setDoc(
+    doc(bobDb, "notifications/bob-security-forged"),
+    {
+      actorId: "eve",
+      recipientId: "bob",
+      type: "follow",
+      isRead: false,
+    }
+  ));
+  await assertFails(setDoc(
+    doc(eveDb, "notifications/eve-self-notification"),
+    {
+      actorId: "eve",
+      recipientId: "eve",
+      type: "follow",
+      isRead: false,
+    }
+  ));
+  await assertFails(updateDoc(
+    notificationRef,
+    { actorId: "bob" }
+  ));
+  await assertSucceeds(updateDoc(
+    doc(bobDb, "notifications/eve-security-notification"),
+    { isRead: true }
+  ));
+  await assertFails(updateDoc(
+    doc(bobDb, "notifications/eve-security-notification"),
+    { type: "message" }
+  ));
+  const deleteNotification = writeBatch(bobDb);
+  deleteNotification.delete(
+    doc(bobDb, "notifications/eve-security-notification")
+  );
+  await assertFails(deleteNotification.commit());
+
+  // Representative unauthenticated writes must be denied as well.
+  await assertFails(setDoc(
+    doc(anonDb, "users/eve"),
+    { uid: "eve" }
+  ));
+  await assertFails(updateDoc(
+    doc(anonDb, "users/alice"),
+    { username: "anon-forged" }
+  ));
+  await assertFails(setDoc(
+    doc(anonDb, "reports/anon-report"),
+    { reporterId: "anon" }
+  ));
+  await assertFails(setDoc(
+    doc(anonDb, "users/alice/bookmarks/post-1"),
+    { savedAt: new Date() }
+  ));
+  await assertFails(setDoc(
+    doc(anonDb, "posts/post-1/likes/anon"),
+    { likedAt: new Date() }
+  ));
+
+  // Cleanup only after every authorized write has been verified. This also
+  // explicitly verifies that the owner can delete the profile and username.
+  const cleanup = writeBatch(eveDb);
+  cleanup.delete(usernameRef);
+  cleanup.delete(eveUserRef);
+  await assertSucceeds(cleanup.commit());
+
+  const deleteBookmark = writeBatch(eveDb);
+  deleteBookmark.delete(bookmarkRef);
+  await assertSucceeds(deleteBookmark.commit());
+
+  const deletePost = writeBatch(eveDb);
+  deletePost.delete(postRef);
+  await assertSucceeds(deletePost.commit());
+}
+
+
 try {
   testEnv = await initializeTestEnvironment({
     projectId: "demo-the-hub-security",
@@ -686,6 +1129,8 @@ try {
   legacyDb = testEnv.authenticatedContext("legacy").firestore();
   charlieDb = testEnv.authenticatedContext("charlie").firestore();
   daveDb = testEnv.authenticatedContext("dave").firestore();
+  eveDb = testEnv.authenticatedContext("eve").firestore();
+  anonDb = testEnv.unauthenticatedContext().firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
 
@@ -706,6 +1151,7 @@ try {
   await testMessageRecipientCanMarkReadOnly();
   await testMessageAccessIsLimitedToParticipants();
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
+  await testSensitiveCollectionWrites();
 
   console.log("Firestore security tests (counters + messages): PASS");
 } finally {
