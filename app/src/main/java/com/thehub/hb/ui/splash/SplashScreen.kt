@@ -34,7 +34,6 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubWhite
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -45,8 +44,7 @@ fun SplashScreen(
     dataStoreManager: DataStoreManager,
     onNavigateToFeed: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
-    onNavigateToWelcome: () -> Unit,
-    onNavigateToWelcomeBack: () -> Unit
+    onNavigateToWelcome: () -> Unit
 ) {
     LaunchedEffect(Unit) {
         val startTime = System.currentTimeMillis()
@@ -92,12 +90,7 @@ fun SplashScreen(
             if (!isOnboardingCompleted) {
                 onNavigateToOnboarding()
             } else {
-                val lastEmail = dataStoreManager.lastUserEmail.first()
-                if (!lastEmail.isNullOrBlank()) {
-                    onNavigateToWelcomeBack()
-                } else {
-                    onNavigateToWelcome()
-                }
+                onNavigateToWelcome()
             }
         }
     }
