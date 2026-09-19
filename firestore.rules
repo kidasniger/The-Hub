@@ -157,58 +157,92 @@ service cloud.firestore {
       match /followers/{followerId} {
         allow read: if isAuthenticated();
 
-        allow create: if isUser(followerId)
+        allow create: if isAuthenticated()
+          && userId != followerId
+          && isUser(followerId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(followerId))
+          && request.resource.data.keys().hasOnly(['followedAt', 'followerId', 'uid'])
           && request.resource.data.followerId == followerId
+          && request.resource.data.uid == followerId
+          && request.resource.data.followedAt is timestamp
           && existsAfter(
             /databases/$(database)/documents/users/$(followerId)/following/$(userId)
           )
+          && getAfter(
+            /databases/$(database)/documents/users/$(followerId)/following/$(userId)
+          ).data.followingId == userId
+          && getAfter(
+            /databases/$(database)/documents/users/$(followerId)/following/$(userId)
+          ).data.uid == userId
           && (
             (
-              get(
-                /databases/$(database)/documents/users/$(userId)
-              ).data.get('followersCount', 0) == 0
-              && getAfter(
-                /databases/$(database)/documents/users/$(userId)
-              ).data.get('followersCount', 0) == 1
+              get(/databases/$(database)/documents/users/$(userId))
+                .data.get('followersCount', 0) == 0
+              && getAfter(/databases/$(database)/documents/users/$(userId))
+                .data.get('followersCount', 0) == 1
             )
             || (
-              get(
-                /databases/$(database)/documents/users/$(userId)
-              ).data.get('followersCount', 0) > 0
-              && getAfter(
-                /databases/$(database)/documents/users/$(userId)
-              ).data.get('followersCount', 0)
-                == get(
-                  /databases/$(database)/documents/users/$(userId)
-                ).data.get('followersCount', 0) + 1
+              get(/databases/$(database)/documents/users/$(userId))
+                .data.get('followersCount', 0) > 0
+              && getAfter(/databases/$(database)/documents/users/$(userId))
+                .data.get('followersCount', 0)
+                == get(/databases/$(database)/documents/users/$(userId))
+                  .data.get('followersCount', 0) + 1
             )
           );
 
-        allow delete: if isUser(followerId)
+        allow update: if false;
+
+        allow delete: if isAuthenticated()
+          && userId != followerId
+          && isUser(followerId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(followerId))
+          && resource.data.followerId == followerId
+          && resource.data.uid == followerId
           && !existsAfter(
             /databases/$(database)/documents/users/$(followerId)/following/$(userId)
           )
-          && get(
-            /databases/$(database)/documents/users/$(userId)
-          ).data.get('followersCount', 0) > 0
-          && getAfter(
-            /databases/$(database)/documents/users/$(userId)
-          ).data.get('followersCount', 0)
-            == get(
-              /databases/$(database)/documents/users/$(userId)
-            ).data.get('followersCount', 0) - 1;
+          && get(/databases/$(database)/documents/users/$(userId))
+            .data.get('followersCount', 0) > 0
+          && getAfter(/databases/$(database)/documents/users/$(userId))
+            .data.get('followersCount', 0)
+            == get(/databases/$(database)/documents/users/$(userId))
+              .data.get('followersCount', 0) - 1;
       }
 
       match /following/{followingId} {
         allow read: if isAuthenticated();
 
-        allow create: if isUser(userId)
+        allow create: if isAuthenticated()
+          && userId != followingId
+          && isUser(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(followingId))
+          && request.resource.data.keys().hasOnly(['followedAt', 'followingId', 'uid'])
           && request.resource.data.followingId == followingId
+          && request.resource.data.uid == followingId
+          && request.resource.data.followedAt is timestamp
           && existsAfter(
             /databases/$(database)/documents/users/$(followingId)/followers/$(userId)
-          );
+          )
+          && getAfter(
+            /databases/$(database)/documents/users/$(followingId)/followers/$(userId)
+          ).data.followerId == userId
+          && getAfter(
+            /databases/$(database)/documents/users/$(followingId)/followers/$(userId)
+          ).data.uid == userId;
 
-        allow delete: if isUser(userId)
+        allow update: if false;
+
+        allow delete: if isAuthenticated()
+          && userId != followingId
+          && isUser(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(followingId))
+          && resource.data.followingId == followingId
+          && resource.data.uid == followingId
           && !existsAfter(
             /databases/$(database)/documents/users/$(followingId)/followers/$(userId)
           );
@@ -216,11 +250,71 @@ service cloud.firestore {
 
       match /friends/{friendId} {
         allow read: if isAuthenticated();
-        allow write: if isAuthenticated() && (isUser(userId) || request.auth.uid == friendId);
+
+        allow create: if isAuthenticated()
+          && userId != friendId
+          && (request.auth.uid == userId || request.auth.uid == friendId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(friendId))
+          && request.resource.data.keys().hasOnly(['friendedAt', 'uid'])
+          && request.resource.data.uid == friendId
+          && request.resource.data.friendedAt is timestamp
+          && exists(/databases/$(database)/documents/users/$(userId)/following/$(friendId))
+          && exists(/databases/$(database)/documents/users/$(friendId)/following/$(userId))
+          && get(/databases/$(database)/documents/users/$(userId)/following/$(friendId))
+            .data.followingId == friendId
+          && get(/databases/$(database)/documents/users/$(userId)/following/$(friendId))
+            .data.uid == friendId
+          && get(/databases/$(database)/documents/users/$(friendId)/following/$(userId))
+            .data.followingId == userId
+          && get(/databases/$(database)/documents/users/$(friendId)/following/$(userId))
+            .data.uid == userId;
+
+        allow update: if isAuthenticated()
+          && userId != friendId
+          && (request.auth.uid == userId || request.auth.uid == friendId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(friendId))
+          && resource.data.uid == friendId
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendedAt'])
+          && request.resource.data.friendedAt is timestamp
+          && exists(/databases/$(database)/documents/users/$(userId)/following/$(friendId))
+          && exists(/databases/$(database)/documents/users/$(friendId)/following/$(userId));
+
+        allow delete: if isAuthenticated()
+          && userId != friendId
+          && (request.auth.uid == userId || request.auth.uid == friendId)
+          && resource.data.uid == friendId
+          && (
+            (
+              request.auth.uid == userId
+              && !existsAfter(
+                /databases/$(database)/documents/users/$(userId)/following/$(friendId)
+              )
+            )
+            || (
+              request.auth.uid == friendId
+              && !existsAfter(
+                /databases/$(database)/documents/users/$(friendId)/following/$(userId)
+              )
+            )
+          );
       }
 
       match /bookmarks/{bookmarkId} {
-        allow read, write: if isUser(userId);
+        allow read: if isAuthenticated();
+
+        allow create: if isUser(userId)
+          && exists(/databases/$(database)/documents/posts/$(bookmarkId))
+          && request.resource.data.keys().hasOnly(['savedAt'])
+          && request.resource.data.savedAt is timestamp;
+
+        allow update: if isUser(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedAt'])
+          && request.resource.data.savedAt is timestamp;
+
+        allow delete: if isUser(userId);
       }
     }
 
