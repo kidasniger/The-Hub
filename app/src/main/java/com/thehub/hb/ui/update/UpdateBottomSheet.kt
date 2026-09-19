@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.update
 
 import android.widget.Toast
+import com.thehub.hb.ui.theme.HubOutline
+import com.thehub.hb.ui.theme.HubSurface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -144,9 +147,9 @@ fun UpdateContent(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubCard)
-                        .border(1.dp, HubBorderLight, RoundedCornerShape(12.dp)),
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(HubSurface)
+                        .border(1.dp, HubOutline, MaterialTheme.shapes.medium),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -217,9 +220,9 @@ fun UpdateContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(HubCard)
-                .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
+                .clip(MaterialTheme.shapes.medium)
+                .background(HubSurface)
+                .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                 .padding(16.dp)
         ) {
             Column {
