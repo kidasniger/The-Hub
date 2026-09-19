@@ -232,9 +232,39 @@ class MessageRepository(
             val convId = Conversation.generateDeterministicId(currentUid, otherUserId)
             val convRef = firestore.collection("conversations").document(convId)
 
-            // Avoid reading a missing conversation before Firestore can establish that
-            // the caller is a participant. A create attempt is authorized server-side
-            // by firestore.rules and does not expose existence of arbitrary chats.
+            // Existing conversations remain readable for their participants.
+            // A missing conversation may return PERMISSION_DENIED on get because
+            // firestore.rules cannot prove participation on a non-existent resource.
+            // Treat that specific result as "not created yet" and let the guarded
+            // create path below decide whether the relationship permits creation.
+            val existingDoc = try {
+                convRef.get().await()
+            } catch (e: FirebaseFirestoreException) {
+                if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    null
+                } else {
+                    throw e
+                }
+            }
+
+            if (existingDoc?.exists() == true) {
+                return@withContext Result.success(Conversation.fromSnapshot(existingDoc))
+            }
+
+            val permission = checkCanSendMessage(otherUserId)
+            if (permission.isFailure) {
+                return@withContext Result.failure(
+                    permission.exceptionOrNull()
+                        ?: Exception("Erreur lors de la vérification des permissions de messagerie.")
+                )
+            }
+
+            if (!permission.getOrDefault(false)) {
+                return@withContext Result.failure(
+                    Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
+                )
+            }
+
             val currentInfo = resolveParticipantInfo(currentUid)
             val otherInfo = resolveParticipantInfo(otherUserId)
 
@@ -260,9 +290,9 @@ class MessageRepository(
             } catch (e: FirebaseFirestoreException) {
                 when (e.code) {
                     FirebaseFirestoreException.Code.ALREADY_EXISTS -> {
-                        val existingDoc = convRef.get().await()
-                        if (existingDoc.exists()) {
-                            Result.success(Conversation.fromSnapshot(existingDoc))
+                        val racedDoc = convRef.get().await()
+                        if (racedDoc.exists()) {
+                            Result.success(Conversation.fromSnapshot(racedDoc))
                         } else {
                             Result.failure(Exception("Conversation introuvable."))
                         }
@@ -548,5 +578,3 @@ class MessageRepository(
             firestore.collection("users")
                 .document(currentUid)
                 .collection("blockedUsers")
-                .document(userId)
-                .set(
