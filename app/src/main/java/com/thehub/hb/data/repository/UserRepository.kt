@@ -575,79 +575,58 @@ class UserRepository(
      */
     suspend fun getFriends(uid: String): Result<List<User>> = withContext(Dispatchers.IO) {
         try {
-            val friendIds = mutableListOf<String>()
+            val friendIds = linkedSetOf<String>()
 
-            // 1. Try reading directly from users/{uid}/friends subcollection
+            // Materialized friends are useful, but legacy accounts may have an
+            // incomplete cache. Always reconcile it with mutual following.
             try {
-                val snapshot = firestore.collection("users").document(uid)
+                val friendsSnap = firestore.collection("users").document(uid)
                     .collection("friends")
                     .get()
                     .await()
-                for (doc in snapshot.documents) {
-                    friendIds.add(doc.id)
-                }
+                friendsSnap.documents
+                    .map { it.id }
+                    .filter { it.isNotBlank() }
+                    .forEach(friendIds::add)
             } catch (e: Exception) {
-                Log.w("UserRepository", "Direct friends subcollection read failed (${e.message}), checking mutual follows fallback")
+                Log.w("UserRepository", "Friends cache read failed: " + e.message)
             }
 
-            // 2. If subcollection is empty or read was denied by security rules,
-            // compute mutual follows from following & followers
-            if (friendIds.isEmpty()) {
-                try {
-                    val followingSnap = firestore.collection("users").document(uid)
-                        .collection("following")
+            try {
+                val followingSnap = firestore.collection("users").document(uid)
+                    .collection("following")
+                    .get()
+                    .await()
+                val followingIds = followingSnap.documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+
+                if (followingIds.isNotEmpty()) {
+                    val followersSnap = firestore.collection("users").document(uid)
+                        .collection("followers")
                         .get()
                         .await()
-                    val followingIds = followingSnap.documents.map { it.id }.toSet()
-
-                    if (followingIds.isNotEmpty()) {
-                        val followersSnap = firestore.collection("users").document(uid)
-                            .collection("followers")
-                            .get()
-                            .await()
-                        val followerIds = followersSnap.documents.map { it.id }.toSet()
-
-                        val mutualIds = followingIds.intersect(followerIds).toList()
-                        friendIds.addAll(mutualIds)
-
-                        // Attempt to populate friends subcollection for future direct queries
-                        if (mutualIds.isNotEmpty()) {
-                            try {
-                                val now = Timestamp.now()
-                                val batch = firestore.batch()
-                                for (mId in mutualIds) {
-                                    val ref1 = firestore.collection("users").document(uid).collection("friends").document(mId)
-                                    val ref2 = firestore.collection("users").document(mId).collection("friends").document(uid)
-                                    batch.set(ref1, mapOf("friendedAt" to now, "uid" to mId))
-                                    batch.set(ref2, mapOf("friendedAt" to now, "uid" to uid))
-                                }
-                                batch.commit().await()
-                            } catch (e: Exception) {
-                                Log.w("UserRepository", "Friends cache backfill skipped: ${e.message}")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Mutual follows computation error: ${e.message}")
+                    val followerIds = followersSnap.documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                    friendIds.addAll(followingIds.intersect(followerIds))
                 }
+            } catch (e: Exception) {
+                Log.w("UserRepository", "Mutual follows reconciliation failed: " + e.message)
             }
 
-            // 3. Fetch all User profile documents concurrently so a large
-            // friends list is not held up by sequential network reads.
+            // Hydrate every friend profile concurrently. For legacy user documents
+            // without a stored uid field, the Firestore document ID is authoritative.
             val users = coroutineScope {
                 friendIds
-                    .distinct()
                     .map { friendId ->
                         async {
                             try {
                                 val userDoc = firestore.collection("users").document(friendId).get().await()
-                                if (userDoc.exists()) {
-                                    User.fromMap(userDoc.data ?: emptyMap())
-                                } else {
+                                if (!userDoc.exists()) {
                                     null
+                                } else {
+                                    val parsed = User.fromMap(userDoc.data ?: emptyMap())
+                                    parsed.copy(uid = parsed.uid.ifBlank { friendId })
                                 }
                             } catch (e: Exception) {
-                                Log.w("UserRepository", "Could not fetch user $friendId: ${e.message}")
+                                Log.w("UserRepository", "Could not fetch user " + friendId + ": " + e.message)
                                 null
                             }
                         }
@@ -655,13 +634,32 @@ class UserRepository(
                     .awaitAll()
                     .filterNotNull()
             }
+
+            // Keep the materialized friends cache in sync for newly recovered mutuals.
+            val recoveredIds = friendIds.toSet()
+            if (recoveredIds.isNotEmpty()) {
+                try {
+                    val now = Timestamp.now()
+                    val batch = firestore.batch()
+                    recoveredIds.forEach { friendId ->
+                        batch.set(
+                            firestore.collection("users").document(uid).collection("friends").document(friendId),
+                            mapOf("friendedAt" to now, "uid" to friendId),
+                            SetOptions.merge()
+                        )
+                    }
+                    batch.commit().await()
+                } catch (e: Exception) {
+                    Log.w("UserRepository", "Friends cache sync skipped: " + e.message)
+                }
+            }
+
             Result.success(users)
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error getting friends for $uid: ${e.message}", e)
+            Log.e("UserRepository", "Error getting friends for " + uid + ": " + e.message, e)
             Result.failure(e)
         }
     }
-
     /**
      * Get list of followers for a user.
      */
