@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.search
 
 import androidx.activity.compose.BackHandler
+import com.thehub.hb.ui.theme.HubOutline
+import com.thehub.hb.ui.theme.HubSurface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -567,9 +570,9 @@ private fun UserSearchResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(HubCard)
-            .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.medium)
+            .background(HubSurface)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .padding(14.dp)
             .testTag("search_user_item_${user.uid}"),
@@ -746,8 +749,8 @@ private fun TrendingSection(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(HubSurfaceDark)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(HubSurface)
                     .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
                     .padding(16.dp)
                     .testTag("trending_hashtags_container")
