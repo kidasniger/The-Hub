@@ -130,7 +130,6 @@ fun ChatScreen(
             .fillMaxSize()
             .background(HubBlack)
             .statusBarsPadding()
-            .imePadding()
             .testTag("chat_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -217,8 +216,7 @@ fun ChatScreen(
             } else {
                 val lastSentMessage = uiState.messages.lastOrNull { it.isSentBy(viewModel.currentUserId) }
 
-                LazyColumn(
-                    state = listState,
+                LazyColumn(                    state = listState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -294,6 +292,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(HubBlack)
+                    .imePadding()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
@@ -386,7 +385,9 @@ fun ChatScreen(
 
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
         )
     }
 }
@@ -498,16 +499,3 @@ private fun MessageBubble(
                     }
                 }
             }
-        }
-    }
-}
-
-private suspend fun readBytesFromUri(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
-    try {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            inputStream.readBytes()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
