@@ -444,6 +444,38 @@ async function testLikeAndBookmarkSecurity() {
   await assertSucceeds(deleteBookmark.commit());
 }
 
+async function establishMessagingRelation(db, followerId, targetId) {
+  const followerRef = doc(db, `users/${followerId}`);
+  const targetRef = doc(db, `users/${targetId}`);
+  const [followerSnap, targetSnap] = await Promise.all([
+    getDoc(followerRef),
+    getDoc(targetRef),
+  ]);
+
+  const followerCount = Number(followerSnap.data()?.followingCount ?? 0);
+  const targetCount = Number(targetSnap.data()?.followersCount ?? 0);
+
+  const batch = writeBatch(db);
+  batch.set(doc(db, `users/${followerId}/following/${targetId}`), {
+    followedAt: new Date(),
+    followingId: targetId,
+    uid: targetId,
+  });
+  batch.set(doc(db, `users/${targetId}/followers/${followerId}`), {
+    followedAt: new Date(),
+    followerId,
+    uid: followerId,
+  });
+  batch.set(doc(db, `users/${followerId}/followOps/${followerId}`), {
+    type: "follow",
+    targetId,
+  });
+  batch.update(followerRef, { followingCount: followerCount + 1 });
+  batch.update(targetRef, { followersCount: targetCount + 1 });
+
+  await assertSucceeds(batch.commit());
+}
+
 async function testLegacyUserFollowCompatibility() {
   // Both user documents are legacy-shaped: uid and both counters are absent.
   // This is the closest equivalent to the Android follow transaction after
@@ -498,27 +530,9 @@ async function testLegacyUserFollowCompatibility() {
 }
 
 async function testLegacyConversationUnreadCountCompatibility() {
-  // Legacy message sending is still allowed when the legacy user has a valid
-  // follow relationship to the recipient.
-  const relationBatch = writeBatch(legacyDb);
-  relationBatch.set(doc(legacyDb, "users/legacy/following/bob"), {
-    followedAt: new Date(),
-    followingId: "bob",
-    uid: "bob",
-  });
-  relationBatch.set(doc(legacyDb, "users/bob/followers/legacy"), {
-    followedAt: new Date(),
-    followerId: "legacy",
-    uid: "legacy",
-  });
-  relationBatch.set(doc(legacyDb, "users/legacy/followOps/legacy"), {
-    type: "follow",
-    targetId: "bob",
-  });
-  relationBatch.update(doc(legacyDb, "users/legacy"), { followingCount: 1 });
-  relationBatch.update(doc(legacyDb, "users/bob"), { followersCount: 1 });
-  await assertSucceeds(relationBatch.commit());
+  await establishMessagingRelation(legacyDb, "legacy", "bob");
 
+  const messageBatch = writeBatch(legacyDb);
   // Continue with the legacy conversation send path.
   const messageBatch = writeBatch(legacyDb);
   messageBatch.set(
@@ -555,32 +569,7 @@ async function testLegacyConversationUnreadCountCompatibility() {
 }
 
 async function testMessageSecurityAndAtomicSend() {
-  // Messaging now requires a valid relationship. Establish Alice -> Bob
-  // before exercising the authorized send path.
-  const followBatch = writeBatch(alice());
-  followBatch.set(
-    doc(alice(), "users/alice/following/bob"),
-    {
-      followedAt: new Date(),
-      followingId: "bob",
-      uid: "bob",
-    }
-  );
-  followBatch.set(
-    doc(alice(), "users/bob/followers/alice"),
-    {
-      followedAt: new Date(),
-      followerId: "alice",
-      uid: "alice",
-    }
-  );
-  followBatch.update(doc(alice(), "users/alice"), {
-    followingCount: 1,
-  });
-  followBatch.update(doc(alice(), "users/bob"), {
-    followersCount: 1,
-  });
-  await assertSucceeds(followBatch.commit());
+  await establishMessagingRelation(alice(), "alice", "bob");
 
   const conversationRef = doc(alice(), "conversations/alice_bob");
   const messageRef = doc(alice(), "conversations/alice_bob/messages/message-1");
@@ -1043,24 +1032,7 @@ async function testSensitiveCollectionWrites() {
 
   // conversations: participant can create/delete; a nonparticipant cannot
   // create a conversation that excludes itself or delete one it is not in.
-  const conversationRelation = writeBatch(eveDb);
-  conversationRelation.set(doc(eveDb, "users/eve/following/alice"), {
-    followedAt: new Date(),
-    followingId: "alice",
-    uid: "alice",
-  });
-  conversationRelation.set(doc(eveDb, "users/alice/followers/eve"), {
-    followedAt: new Date(),
-    followerId: "eve",
-    uid: "eve",
-  });
-  conversationRelation.set(doc(eveDb, "users/eve/followOps/eve"), {
-    type: "follow",
-    targetId: "alice",
-  });
-  conversationRelation.update(doc(eveDb, "users/eve"), { followingCount: 1 });
-  conversationRelation.update(doc(eveDb, "users/alice"), { followersCount: 1 });
-  await assertSucceeds(conversationRelation.commit());
+  await establishMessagingRelation(eveDb, "eve", "alice");
 
   const conversationRef = doc(eveDb, "conversations/eve_security_alice");
   await assertFails(setDoc(
