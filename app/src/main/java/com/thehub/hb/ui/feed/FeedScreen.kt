@@ -5,6 +5,7 @@ import com.thehub.hb.ui.theme.HubOutline
 import com.thehub.hb.ui.theme.HubSurface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,7 +130,16 @@ fun FeedScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AppLogo(size = 32.dp, animated = false)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .clickable { viewModel.refresh() }
+                            .testTag("feed_logo_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppLogo(size = 32.dp, animated = false)
+                    }
                     Spacer(Modifier.width(10.dp))
                     Text(
                         text = "The Hub",
