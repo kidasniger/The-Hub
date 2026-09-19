@@ -89,7 +89,7 @@ fun WheelDatePicker(
     val effectiveContainerBg = if (containerBackgroundColor != Color.Unspecified) {
         containerBackgroundColor
     } else {
-        HubCard
+        MaterialTheme.colorScheme.surface
     }
 
     val safeMinYear = minYear.coerceAtMost(maxYear)
@@ -148,12 +148,27 @@ fun WheelDatePicker(
                 .background(HubBorderLight)
         )
 
-        // Three columns: Mois, Jour, Année
+        // Three columns in French date order: Jour / Mois / Année
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Mois (nom complet, ex: "Septembre")
+            // Jour (1..28/29/30/31)
+            WheelColumn(
+                items = daysList,
+                selectedIndex = (currentDay - 1).coerceIn(0, daysList.size - 1),
+                onSelectedIndexChanged = { dayIdx ->
+                    val newDay = (dayIdx + 1).coerceIn(1, daysList.size)
+                    onDateSelected(LocalDate.of(currentYear, currentMonth, newDay))
+                },
+                labelProvider = { it.toString() },
+                itemHeight = itemHeight,
+                modifier = Modifier
+                    .weight(0.85f)
+                    .testTag("wheel_day_column")
+            )
+
+            // Mois (nom complet, ex: "Juin")
             WheelColumn(
                 items = FRENCH_MONTHS,
                 selectedIndex = currentMonth - 1,
@@ -168,21 +183,6 @@ fun WheelDatePicker(
                 modifier = Modifier
                     .weight(1.35f)
                     .testTag("wheel_month_column")
-            )
-
-            // Jour (1..28/29/30/31)
-            WheelColumn(
-                items = daysList,
-                selectedIndex = (currentDay - 1).coerceIn(0, daysList.size - 1),
-                onSelectedIndexChanged = { dayIdx ->
-                    val newDay = (dayIdx + 1).coerceIn(1, daysList.size)
-                    onDateSelected(LocalDate.of(currentYear, currentMonth, newDay))
-                },
-                labelProvider = { it.toString() },
-                itemHeight = itemHeight,
-                modifier = Modifier
-                    .weight(0.85f)
-                    .testTag("wheel_day_column")
             )
 
             // Année
