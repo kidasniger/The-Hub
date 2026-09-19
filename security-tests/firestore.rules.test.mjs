@@ -20,6 +20,7 @@ let aliceDb;
 let bobDb;
 let legacyDb;
 let charlieDb;
+let daveDb;
 
 function alice() {
   return aliceDb;
@@ -52,6 +53,18 @@ async function seed(ctx) {
   });
   await setDoc(doc(db, "users/another-target"), {
     username: "another-target",
+  });
+  await setDoc(doc(db, "users/charlie"), {
+    uid: "charlie",
+    username: "charlie",
+    followersCount: 0,
+    followingCount: 0,
+  });
+  await setDoc(doc(db, "users/dave"), {
+    uid: "dave",
+    username: "dave",
+    followersCount: 0,
+    followingCount: 0,
   });
   await setDoc(doc(db, "conversations/alice_bob"), {
     participantIds: ["alice", "bob"],
@@ -212,6 +225,218 @@ async function testRepostDeleteCounterMustMatchDeletion() {
   await assertFails(updateDoc(doc(bob(), "posts/post-1"), { repostsCount: 1 }));
 }
 
+
+
+async function testRelationshipSecurity() {
+  const charlieFollowingDave = doc(
+    charlieDb,
+    "users/charlie/following/dave"
+  );
+  const daveFollowerCharlie = doc(
+    charlieDb,
+    "users/dave/followers/charlie"
+  );
+
+  // A single half of a follow relationship is not sufficient.
+  await assertFails(setDoc(charlieFollowingDave, {
+    followedAt: new Date(),
+    followingId: "dave",
+    uid: "dave",
+  }));
+  await assertFails(setDoc(daveFollowerCharlie, {
+    followedAt: new Date(),
+    followerId: "charlie",
+    uid: "charlie",
+  }));
+
+  // The relationship document identity must match both its path and the actor.
+  await assertFails(setDoc(charlieFollowingDave, {
+    followedAt: new Date(),
+    followingId: "alice",
+    uid: "alice",
+  }));
+
+  // Valid follow: both sides + operation marker + both counters in one atomic write.
+  const charlieFollowsDave = writeBatch(charlieDb);
+  charlieFollowsDave.set(charlieFollowingDave, {
+    followedAt: new Date(),
+    followingId: "dave",
+    uid: "dave",
+  });
+  charlieFollowsDave.set(
+    doc(charlieDb, "users/charlie/followOps/charlie"),
+    {
+      type: "follow",
+      targetId: "dave",
+    }
+  );
+  charlieFollowsDave.set(daveFollowerCharlie, {
+    followedAt: new Date(),
+    followerId: "charlie",
+    uid: "charlie",
+  });
+  charlieFollowsDave.update(doc(charlieDb, "users/charlie"), {
+    followingCount: 1,
+  });
+  charlieFollowsDave.update(doc(charlieDb, "users/dave"), {
+    followersCount: 1,
+  });
+  await assertSucceeds(charlieFollowsDave.commit());
+
+  // Relationship documents are immutable.
+  await assertFails(updateDoc(charlieFollowingDave, {
+    uid: "alice",
+  }));
+  await assertFails(updateDoc(daveFollowerCharlie, {
+    followerId: "alice",
+  }));
+
+  // One-sided deletion is forbidden.
+  const oneSidedFollowingDelete = writeBatch(charlieDb);
+  oneSidedFollowingDelete.delete(charlieFollowingDave);
+  await assertFails(oneSidedFollowingDelete.commit());
+
+  // Establish the reciprocal follow.
+  const daveFollowsCharlie = writeBatch(daveDb);
+  daveFollowsCharlie.set(
+    doc(daveDb, "users/dave/following/charlie"),
+    {
+      followedAt: new Date(),
+      followingId: "charlie",
+      uid: "charlie",
+    }
+  );
+  daveFollowsCharlie.set(
+    doc(daveDb, "users/dave/followOps/dave"),
+    {
+      type: "follow",
+      targetId: "charlie",
+    }
+  );
+  daveFollowsCharlie.set(
+    doc(daveDb, "users/charlie/followers/dave"),
+    {
+      followedAt: new Date(),
+      followerId: "dave",
+      uid: "dave",
+    }
+  );
+  daveFollowsCharlie.update(doc(daveDb, "users/dave"), {
+    followingCount: 1,
+  });
+  daveFollowsCharlie.update(doc(daveDb, "users/charlie"), {
+    followersCount: 1,
+  });
+  await assertSucceeds(daveFollowsCharlie.commit());
+
+  // Friends require the two users to follow each other and preserve identity.
+  const charlieFriendDave = doc(
+    charlieDb,
+    "users/charlie/friends/dave"
+  );
+  const daveFriendCharlie = doc(
+    charlieDb,
+    "users/dave/friends/charlie"
+  );
+
+  await assertSucceeds(setDoc(charlieFriendDave, {
+    friendedAt: new Date(),
+    uid: "dave",
+  }));
+  await assertSucceeds(setDoc(daveFriendCharlie, {
+    friendedAt: new Date(),
+    uid: "charlie",
+  }));
+
+  await assertFails(setDoc(
+    doc(charlieDb, "users/charlie/friends/alice"),
+    { friendedAt: new Date(), uid: "alice" }
+  ));
+  await assertFails(updateDoc(charlieFriendDave, { uid: "alice" }));
+  await assertSucceeds(updateDoc(charlieFriendDave, {
+    friendedAt: new Date(),
+  }));
+
+  // A friend cannot be deleted while the acting user's follow still exists.
+  const earlyFriendDelete = writeBatch(charlieDb);
+  earlyFriendDelete.delete(charlieFriendDave);
+  await assertFails(earlyFriendDelete.commit());
+
+  // Unfollow Charlie -> Dave, then the reciprocal friend entries can be removed.
+  const charlieUnfollowsDave = writeBatch(charlieDb);
+  charlieUnfollowsDave.set(
+    doc(charlieDb, "users/charlie/followOps/charlie"),
+    {
+      type: "unfollow",
+      targetId: "dave",
+    }
+  );
+  charlieUnfollowsDave.delete(charlieFollowingDave);
+  charlieUnfollowsDave.delete(daveFollowerCharlie);
+  charlieUnfollowsDave.update(doc(charlieDb, "users/charlie"), {
+    followingCount: 0,
+  });
+  charlieUnfollowsDave.update(doc(charlieDb, "users/dave"), {
+    followersCount: 0,
+  });
+  await assertSucceeds(charlieUnfollowsDave.commit());
+
+  const deleteFriends = writeBatch(charlieDb);
+  deleteFriends.delete(charlieFriendDave);
+  deleteFriends.delete(daveFriendCharlie);
+  await assertSucceeds(deleteFriends.commit());
+}
+
+async function testLikeAndBookmarkSecurity() {
+  const likeRef = doc(charlieDb, "posts/post-1/likes/charlie");
+
+  await assertFails(setDoc(likeRef, {
+    likedAt: new Date(),
+    forgedUserId: "bob",
+  }));
+  await assertFails(setDoc(
+    doc(charlieDb, "posts/does-not-exist/likes/charlie"),
+    { likedAt: new Date() }
+  ));
+
+  const likeBatch = writeBatch(charlieDb);
+  likeBatch.set(likeRef, { likedAt: new Date() });
+  likeBatch.update(doc(charlieDb, "posts/post-1"), { likesCount: 1 });
+  await assertSucceeds(likeBatch.commit());
+
+  await assertFails(updateDoc(likeRef, { likedAt: new Date() }));
+  await assertFails(updateDoc(likeRef, { forged: true }));
+
+  const otherUserDelete = writeBatch(bobDb);
+  otherUserDelete.delete(likeRef);
+  await assertFails(otherUserDelete.commit());
+
+  const deleteLike = writeBatch(charlieDb);
+  deleteLike.delete(likeRef);
+  deleteLike.update(doc(charlieDb, "posts/post-1"), { likesCount: 0 });
+  await assertSucceeds(deleteLike.commit());
+
+  const bookmarkRef = doc(charlieDb, "users/charlie/bookmarks/post-1");
+  await assertSucceeds(setDoc(bookmarkRef, { savedAt: new Date() }));
+  await assertFails(setDoc(
+    doc(charlieDb, "users/charlie/bookmarks/does-not-exist"),
+    { savedAt: new Date() }
+  ));
+  await assertFails(setDoc(bookmarkRef, {
+    savedAt: new Date(),
+    forgedPostId: "post-2",
+  }));
+  await assertFails(updateDoc(bookmarkRef, { forgedField: true }));
+  await assertSucceeds(updateDoc(bookmarkRef, { savedAt: new Date() }));
+
+  const otherUserBookmarkDelete = writeBatch(bobDb);
+  otherUserBookmarkDelete.delete(bookmarkRef);
+  await assertFails(otherUserBookmarkDelete.commit());
+
+  const deleteBookmark = writeBatch(charlieDb);
+  deleteBookmark.delete(bookmarkRef);
+  await assertSucceeds(deleteBookmark.commit());
+}
 
 async function testLegacyUserFollowCompatibility() {
   // Both user documents are legacy-shaped: uid and both counters are absent.
@@ -456,6 +681,7 @@ try {
   bobDb = testEnv.authenticatedContext("bob").firestore();
   legacyDb = testEnv.authenticatedContext("legacy").firestore();
   charlieDb = testEnv.authenticatedContext("charlie").firestore();
+  daveDb = testEnv.authenticatedContext("dave").firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
 
@@ -466,6 +692,8 @@ try {
   await testRepostCounterMustMatchRepostMutation();
   await testCommentDeleteCounterMustMatchDeletion();
   await testUnfollowCounterMustMatchDeletion();
+  await testRelationshipSecurity();
+  await testLikeAndBookmarkSecurity();
   await testRepostDeleteCounterMustMatchDeletion();
   await testLegacyUserFollowCompatibility();
   await testLegacyConversationUnreadCountCompatibility();
