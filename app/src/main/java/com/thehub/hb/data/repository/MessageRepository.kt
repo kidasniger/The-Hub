@@ -121,6 +121,13 @@ class MessageRepository(
 
                 if (snapshot != null) {
                     val messages = snapshot.documents
+                        .sortedWith(
+                            compareBy<com.google.firebase.firestore.DocumentSnapshot> {
+                                it.getTimestamp("createdAt")?.seconds ?: Long.MIN_VALUE
+                            }.thenBy {
+                                it.getTimestamp("createdAt")?.nanoseconds ?: Int.MIN_VALUE
+                            }.thenBy { it.id }
+                        )
                         .mapNotNull { doc ->
                             try {
                                 Message.fromSnapshot(doc)
@@ -128,11 +135,6 @@ class MessageRepository(
                                 null
                             }
                         }
-                        .sortedWith(
-                            compareBy<Message> { it.createdAt.seconds }
-                                .thenBy { it.createdAt.nanoseconds }
-                                .thenBy { it.id }
-                        )
 
                     trySend(messages)
                 }
