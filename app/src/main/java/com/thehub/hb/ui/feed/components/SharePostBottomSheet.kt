@@ -62,7 +62,7 @@ fun SharePostBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = HubCard,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentColor = HubWhite,
         dragHandle = {
             Box(
