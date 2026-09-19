@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.settings
 
 import androidx.compose.foundation.background
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -194,8 +197,9 @@ private fun BlockedUserItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(HubCard)
+            .clip(MaterialTheme.shapes.medium)
+            .background(HubSurface)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .padding(horizontal = 14.dp, vertical = 12.dp)
             .testTag("blocked_user_row_${blockedUser.uid}"),
         verticalAlignment = Alignment.CenterVertically
