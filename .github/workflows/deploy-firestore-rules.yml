@@ -81,26 +81,31 @@ jobs:
           const { initializeApp, cert } = require("firebase-admin/app");
           const { getSecurityRules } = require("firebase-admin/security-rules");
 
-          const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-          if (!raw) {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT is missing.");
-          }
+          (async () => {
+            const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+            if (!raw) {
+              throw new Error("FIREBASE_SERVICE_ACCOUNT is missing.");
+            }
 
-          const credentials = JSON.parse(raw);
+            const credentials = JSON.parse(raw);
 
-          const app = initializeApp({
-            credential: cert(credentials),
-            projectId: "the-hub-f95f4",
+            const app = initializeApp({
+              credential: cert(credentials),
+              projectId: "the-hub-f95f4",
+            });
+
+            const securityRules = getSecurityRules(app);
+            const source = fs.readFileSync("firestore.rules", "utf8");
+            if (!source.includes("service cloud.firestore")) {
+              throw new Error("firestore.rules does not look like a Cloud Firestore ruleset.");
+            }
+
+            await securityRules.releaseFirestoreRulesetFromSource(source);
+            console.log("SUCCESS: Firestore Security Rules released to project the-hub-f95f4.");
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
           });
-
-          const securityRules = getSecurityRules(app);
-          const source = fs.readFileSync("firestore.rules", "utf8");
-          if (!source.includes("service cloud.firestore")) {
-            throw new Error("firestore.rules does not look like a Cloud Firestore ruleset.");
-          }
-
-          await securityRules.releaseFirestoreRulesetFromSource(source);
-          console.log("SUCCESS: Firestore Security Rules released to project the-hub-f95f4.");
           NODE
 
       - name: Verify Firebase project target
