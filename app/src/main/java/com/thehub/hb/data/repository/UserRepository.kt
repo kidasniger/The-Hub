@@ -581,7 +581,6 @@ class UserRepository(
             try {
                 val snapshot = firestore.collection("users").document(uid)
                     .collection("friends")
-                    .limit(100)
                     .get()
                     .await()
                 for (doc in snapshot.documents) {
@@ -597,7 +596,6 @@ class UserRepository(
                 try {
                     val followingSnap = firestore.collection("users").document(uid)
                         .collection("following")
-                        .limit(100)
                         .get()
                         .await()
                     val followingIds = followingSnap.documents.map { it.id }.toSet()
@@ -605,7 +603,6 @@ class UserRepository(
                     if (followingIds.isNotEmpty()) {
                         val followersSnap = firestore.collection("users").document(uid)
                             .collection("followers")
-                            .limit(100)
                             .get()
                             .await()
                         val followerIds = followersSnap.documents.map { it.id }.toSet()
