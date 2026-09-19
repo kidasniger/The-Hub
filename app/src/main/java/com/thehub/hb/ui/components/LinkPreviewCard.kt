@@ -67,41 +67,47 @@ fun LinkPreviewCard(
     LaunchedEffect(url) {
         isLoading = true
         preview = null
-        delay(700L)
+        delay(350L)
         preview = withContext(Dispatchers.IO) {
             linkPreviewService.preview(url)
         }
         isLoading = false
     }
 
-    if (preview == null) {
-        if (isLoading) {
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(HubCard)
-                    .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    color = HubWhite,
-                    strokeWidth = 2.dp
-                )
-                Text(
-                    text = "Vérification du lien…",
-                    color = HubSecondary,
-                    fontSize = 12.sp
-                )
-            }
+    if (isLoading && preview == null) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(HubCard)
+                .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = HubWhite,
+                strokeWidth = 2.dp
+            )
+            Text(
+                text = "Chargement de l’aperçu…",
+                color = HubSecondary,
+                fontSize = 12.sp
+            )
         }
         return
     }
 
-    val data = preview ?: return
+    val data = preview ?: LinkPreviewData(
+        originalUrl = url,
+        finalUrl = url,
+        title = "Aperçu indisponible",
+        description = "Le site n’autorise pas la récupération de ses métadonnées. Ouvrez le lien pour consulter son contenu.",
+        imageUrl = null,
+        siteName = Uri.parse(url).host?.removePrefix("www.").orEmpty(),
+        httpStatus = 0
+    )
 
     Box(
         modifier = modifier
