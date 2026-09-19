@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.friends
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import com.thehub.hb.ui.theme.HubSurface
 import com.thehub.hb.ui.theme.HubOutline
 import androidx.compose.material3.MaterialTheme
