@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.messenger
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import com.thehub.hb.ui.theme.HubOutline
 import com.thehub.hb.ui.theme.HubSurface
 import androidx.compose.material3.MaterialTheme
