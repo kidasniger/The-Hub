@@ -799,9 +799,12 @@ service cloud.firestore {
       }
 
       function canMessageOtherUser() {
-        let otherUid = resource.data.participantIds[0] == request.auth.uid
-          ? resource.data.participantIds[1]
-          : resource.data.participantIds[0];
+        let conversation = get(
+          /databases/$(database)/documents/conversations/$(conversationId)
+        );
+        let otherUid = conversation.data.participantIds[0] == request.auth.uid
+          ? conversation.data.participantIds[1]
+          : conversation.data.participantIds[0];
 
         return canMessagePair(request.auth.uid, otherUid);
       }
