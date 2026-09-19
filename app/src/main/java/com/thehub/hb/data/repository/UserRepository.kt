@@ -581,7 +581,6 @@ class UserRepository(
             try {
                 val snapshot = firestore.collection("users").document(uid)
                     .collection("friends")
-                    .limit(100)
                     .get()
                     .await()
                 for (doc in snapshot.documents) {
@@ -597,7 +596,6 @@ class UserRepository(
                 try {
                     val followingSnap = firestore.collection("users").document(uid)
                         .collection("following")
-                        .limit(100)
                         .get()
                         .await()
                     val followingIds = followingSnap.documents.map { it.id }.toSet()
@@ -605,7 +603,6 @@ class UserRepository(
                     if (followingIds.isNotEmpty()) {
                         val followersSnap = firestore.collection("users").document(uid)
                             .collection("followers")
-                            .limit(100)
                             .get()
                             .await()
                         val followerIds = followersSnap.documents.map { it.id }.toSet()
@@ -635,17 +632,28 @@ class UserRepository(
                 }
             }
 
-            // 3. Fetch User profile documents for each friend ID
-            val users = mutableListOf<User>()
-            for (friendId in friendIds.distinct()) {
-                try {
-                    val userDoc = firestore.collection("users").document(friendId).get().await()
-                    if (userDoc.exists()) {
-                        users.add(User.fromMap(userDoc.data ?: emptyMap()))
+            // 3. Fetch all User profile documents concurrently so a large
+            // friends list is not held up by sequential network reads.
+            val users = coroutineScope {
+                friendIds
+                    .distinct()
+                    .map { friendId ->
+                        async {
+                            try {
+                                val userDoc = firestore.collection("users").document(friendId).get().await()
+                                if (userDoc.exists()) {
+                                    User.fromMap(userDoc.data ?: emptyMap())
+                                } else {
+                                    null
+                                }
+                            } catch (e: Exception) {
+                                Log.w("UserRepository", "Could not fetch user $friendId: ${e.message}")
+                                null
+                            }
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.w("UserRepository", "Could not fetch user $friendId: ${e.message}")
-                }
+                    .awaitAll()
+                    .filterNotNull()
             }
             Result.success(users)
         } catch (e: Exception) {
