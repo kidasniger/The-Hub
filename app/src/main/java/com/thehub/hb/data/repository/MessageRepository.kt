@@ -51,7 +51,13 @@ class MessageRepository(
             .whereArrayContains("participantIds", uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(emptyList())
+                    // A listener can report a later network/cache/rules error after
+                    // successfully delivering cached data. Never turn that event
+                    // into an empty list, otherwise conversations visibly disappear.
+                    android.util.Log.w(
+                        "MessageRepository",
+                        "Conversation listener error: " + error.message
+                    )
                     return@addSnapshotListener
                 }
 
@@ -59,10 +65,18 @@ class MessageRepository(
                     val conversations = snapshot.documents.mapNotNull { doc ->
                         try {
                             Conversation.fromSnapshot(doc)
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            android.util.Log.w(
+                                "MessageRepository",
+                                "Skipping malformed conversation " + doc.id + ": " + e.message
+                            )
                             null
                         }
-                    }.sortedByDescending { it.lastMessageAt.toDate().time }
+                    }.sortedWith(
+                        compareByDescending<Conversation> { it.lastMessageAt.seconds }
+                            .thenByDescending { it.lastMessageAt.nanoseconds }
+                            .thenByDescending { it.id }
+                    )
 
                     trySend(conversations)
                 }
