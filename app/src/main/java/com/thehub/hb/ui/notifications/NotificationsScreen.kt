@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.notifications
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -289,7 +290,7 @@ private fun NotificationRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(backgroundColor)
             .border(1.dp, borderColor, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
