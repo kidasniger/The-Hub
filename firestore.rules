@@ -489,7 +489,13 @@ service cloud.firestore {
         allow read: if isAuthenticated();
 
         allow create: if isUser(userId)
+          && exists(/databases/$(database)/documents/posts/$(postId))
           && request.resource.data.keys().hasOnly(['likedAt'])
+          && request.resource.data.likedAt is timestamp
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId is string
+          && exists(
+            /databases/$(database)/documents/users/$(get(/databases/$(database)/documents/posts/$(postId)).data.authorId)
+          )
           && (
             (
               get(/databases/$(database)/documents/posts/$(postId)).data.likesCount == null
@@ -502,7 +508,11 @@ service cloud.firestore {
             )
           );
 
+        allow update: if false;
+
         allow delete: if isUser(userId)
+          && resource.data.keys().hasOnly(['likedAt'])
+          && resource.data.likedAt is timestamp
           && get(/databases/$(database)/documents/posts/$(postId)).data.likesCount != null
           && get(/databases/$(database)/documents/posts/$(postId)).data.likesCount > 0
           && getAfter(/databases/$(database)/documents/posts/$(postId)).data.likesCount
@@ -631,7 +641,20 @@ service cloud.firestore {
           allow read: if isAuthenticated();
 
           allow create: if isUser(userId)
+            && exists(/databases/$(database)/documents/posts/$(postId))
+            && exists(
+              /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)
+            )
             && request.resource.data.keys().hasOnly(['likedAt'])
+            && request.resource.data.likedAt is timestamp
+            && get(
+              /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)
+            ).data.authorId is string
+            && exists(
+              /databases/$(database)/documents/users/$(get(
+                /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)
+              ).data.authorId)
+            )
             && getAfter(
               /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)
             ).data.likesCount
@@ -639,7 +662,11 @@ service cloud.firestore {
                 /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)
               ).data.likesCount + 1;
 
+          allow update: if false;
+
           allow delete: if isUser(userId)
+            && resource.data.keys().hasOnly(['likedAt'])
+            && resource.data.likedAt is timestamp
             && get(
               /databases/$(database)/documents/posts/$(postId)/comments/$(commentId)
             ).data.likesCount > 0
