@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.imageviewer
 
 import android.widget.Toast
+import com.thehub.hb.ui.theme.HubBackground
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -64,7 +65,7 @@ fun ImageViewerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(HubBackground)
             .testTag("image_viewer_screen")
     ) {
         // Zoomable & Pannable Image
