@@ -1,6 +1,9 @@
 package com.thehub.hb.ui.likeslist
 
 import android.widget.Toast
+import com.thehub.hb.ui.theme.HubSurface
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -212,8 +215,9 @@ private fun LikerItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(HubCard)
+            .clip(MaterialTheme.shapes.medium)
+            .background(HubSurface)
+            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
