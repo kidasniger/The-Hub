@@ -9,7 +9,13 @@ data class Message(
     val text: String? = null,
     val imageUrl: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
-    val status: String = STATUS_SENT
+    val status: String = STATUS_SENT,
+    val replyToMessageId: String? = null,
+    val replyToText: String? = null,
+    val isDeleted: Boolean = false,
+    val editedAt: Timestamp? = null,
+    val deletedAt: Timestamp? = null,
+    val deletedBy: String? = null
 ) {
     fun isSentBy(uid: String?): Boolean = uid != null && senderId == uid
 
@@ -19,11 +25,19 @@ data class Message(
             "text" to text,
             "imageUrl" to imageUrl,
             "createdAt" to createdAt,
-            "status" to status
+            "status" to status,
+            "replyToMessageId" to replyToMessageId,
+            "replyToText" to replyToText,
+            "isDeleted" to isDeleted,
+            "editedAt" to editedAt,
+            "deletedAt" to deletedAt,
+            "deletedBy" to deletedBy
         )
     }
 
     companion object {
+        const val STATUS_PENDING = "pending"
+        const val STATUS_FAILED = "failed"
         const val STATUS_SENT = "sent"
         const val STATUS_DELIVERED = "delivered"
         const val STATUS_READ = "read"
@@ -36,7 +50,13 @@ data class Message(
                 text = doc.getString("text"),
                 imageUrl = doc.getString("imageUrl"),
                 createdAt = createdAt,
-                status = doc.getString("status") ?: STATUS_SENT
+                status = doc.getString("status") ?: STATUS_SENT,
+                replyToMessageId = doc.getString("replyToMessageId"),
+                replyToText = doc.getString("replyToText"),
+                isDeleted = doc.getBoolean("isDeleted") ?: false,
+                editedAt = doc.getTimestamp("editedAt"),
+                deletedAt = doc.getTimestamp("deletedAt"),
+                deletedBy = doc.getString("deletedBy")
             )
         }
     }
