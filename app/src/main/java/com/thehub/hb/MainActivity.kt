@@ -1,10 +1,14 @@
 package com.thehub.hb
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
@@ -12,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Modifier
 import com.thehub.hb.navigation.HubNavGraph
 import com.thehub.hb.ui.theme.AppThemeMode
@@ -25,13 +30,22 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_UPDATE_DIALOG = "OPEN_UPDATE_DIALOG"
+        const val EXTRA_NOTIFICATION_DEEP_LINK = "NOTIFICATION_DEEP_LINK"
+        private const val PUSH_PERMISSION_PREFS = "push_permission"
+        private const val PUSH_PERMISSION_PROMPTED = "prompted"
     }
 
     private var openUpdateDialogRequest by mutableStateOf(false)
+    private var pendingNotificationDeepLink by mutableStateOf<String?>(null)
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         consumeUpdateIntent(intent)
+        consumeNotificationIntent(intent)
         enableEdgeToEdge()
 
         val appContainer = (application as HubApplication).container
@@ -53,6 +67,13 @@ class MainActivity : ComponentActivity() {
                             openUpdateDialogRequest = openUpdateDialogRequest,
                             onUpdateDialogRequestConsumed = {
                                 openUpdateDialogRequest = false
+                            },
+                            pendingNotificationDeepLink = pendingNotificationDeepLink,
+                            onNotificationDeepLinkConsumed = {
+                                pendingNotificationDeepLink = null
+                            },
+                            onRequestNotificationPermission = {
+                                requestNotificationPermissionIfNeeded()
                             }
                         )
                     }
@@ -65,6 +86,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         consumeUpdateIntent(intent)
+        consumeNotificationIntent(intent)
     }
 
     private fun consumeUpdateIntent(intent: Intent?) {
@@ -72,5 +94,34 @@ class MainActivity : ComponentActivity() {
             openUpdateDialogRequest = true
             intent.removeExtra(EXTRA_OPEN_UPDATE_DIALOG)
         }
+    }
+
+    private fun consumeNotificationIntent(intent: Intent?) {
+        val deepLink = intent?.getStringExtra(EXTRA_NOTIFICATION_DEEP_LINK)
+            ?: intent?.data
+                ?.takeIf { it.scheme == "thehub" }
+                ?.toString()
+
+        if (!deepLink.isNullOrBlank()) {
+            pendingNotificationDeepLink = deepLink
+            intent.removeExtra(EXTRA_NOTIFICATION_DEEP_LINK)
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+
+        val permissionGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (permissionGranted) return
+
+        val prefs = getSharedPreferences(PUSH_PERMISSION_PREFS, MODE_PRIVATE)
+        if (prefs.getBoolean(PUSH_PERMISSION_PROMPTED, false)) return
+
+        prefs.edit().putBoolean(PUSH_PERMISSION_PROMPTED, true).apply()
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
