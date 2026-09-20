@@ -1,0 +1,79 @@
+name: Send Push Notifications
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: the-hub-push-worker
+  cancel-in-progress: false
+
+jobs:
+  push-worker:
+    name: Process Firestore push notifications
+    runs-on: ubuntu-latest
+    timeout-minutes: 295
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Validate Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: GitHub secret FIREBASE_SERVICE_ACCOUNT is required."
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, sys
+          try:
+              data = json.loads(os.environ["FIREBASE_SERVICE_ACCOUNT"])
+          except json.JSONDecodeError as exc:
+              print(f"ERROR: invalid FIREBASE_SERVICE_ACCOUNT JSON: {exc}")
+              sys.exit(1)
+          if data.get("type") != "service_account":
+              print("ERROR: secret is not a service-account JSON key.")
+              sys.exit(1)
+          if data.get("project_id") != "the-hub-f95f4":
+              print(f'ERROR: project_id "{data.get("project_id")}" does not match "the-hub-f95f4".')
+              sys.exit(1)
+          print("SUCCESS: Firebase service-account credentials validated.")
+          PY
+
+      - name: Prepare Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
+          chmod 600 "$CREDENTIALS_FILE"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_FILE" >> "$GITHUB_ENV"
+
+      - name: Install worker dependencies
+        working-directory: tools/push-worker
+        run: npm install --no-package-lock
+
+      - name: Validate worker source
+        working-directory: tools/push-worker
+        run: npm run check
+
+      - name: Run push worker
+        working-directory: tools/push-worker
+        run: npm start
+
+      - name: Remove Firebase credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
