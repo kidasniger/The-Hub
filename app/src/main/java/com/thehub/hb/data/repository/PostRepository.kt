@@ -118,7 +118,7 @@ class PostRepository(
      * Fetch feed posts ordered by createdAt descending with pagination.
      */
     suspend fun getFeed(
-        pageSize: Long = 15,
+        pageSize: Long = 20,
         lastVisible: DocumentSnapshot? = null
     ): Result<Pair<List<Post>, DocumentSnapshot?>> = withContext(Dispatchers.IO) {
         try {
@@ -140,33 +140,38 @@ class PostRepository(
 
             val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
 
-            // Hydrate like state for current user and originalPost for reposts
-            val hydratedPosts = posts.map { post ->
-                var isLiked = false
-                if (currentUid != null) {
-                    try {
-                        val likeDoc = firestore.collection("posts").document(post.id)
-                            .collection("likes").document(currentUid)
-                            .get().await()
-                        isLiked = likeDoc.exists()
-                    } catch (_: Exception) {}
-                }
-
-                var original: Post? = null
-                if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
-                    try {
-                        val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
-                        if (origDoc.exists()) {
-                            original = Post.fromSnapshot(origDoc, currentUid)
+            // Hydrate only the posts from this page. Run independent Firestore reads in parallel
+            // so loading the next page does not scale linearly with the number of posts.
+            val hydratedPosts = coroutineScope {
+                posts.map { post ->
+                    async {
+                        var isLiked = false
+                        if (currentUid != null) {
+                            try {
+                                val likeDoc = firestore.collection("posts").document(post.id)
+                                    .collection("likes").document(currentUid)
+                                    .get().await()
+                                isLiked = likeDoc.exists()
+                            } catch (_: Exception) {}
                         }
-                    } catch (_: Exception) {}
-                }
 
-                post.copy(
-                    isLikedByCurrentUser = isLiked,
-                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
-                    originalPost = original
-                )
+                        var original: Post? = null
+                        if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                            try {
+                                val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                                if (origDoc.exists()) {
+                                    original = Post.fromSnapshot(origDoc, currentUid)
+                                }
+                            } catch (_: Exception) {}
+                        }
+
+                        post.copy(
+                            isLikedByCurrentUser = isLiked,
+                            isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
+                            originalPost = original
+                        )
+                    }
+                }.awaitAll()
             }
 
             val newLastVisible = snapshot.documents.lastOrNull()
