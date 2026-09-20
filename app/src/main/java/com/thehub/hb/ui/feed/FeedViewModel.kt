@@ -71,6 +71,9 @@ class FeedViewModel(
 
     private fun loadFirstPage(isRefresh: Boolean) {
         feedJob?.cancel()
+
+        val previousCursor = lastFeedVisible
+        val previousHasMore = hasMoreFeedPages
         lastFeedVisible = null
         hasMoreFeedPages = true
 
@@ -114,9 +117,14 @@ class FeedViewModel(
                 }.onFailure { e ->
                     val currentStateAfterFailure = _uiState.value
                     if (currentStateAfterFailure is FeedUiState.Success) {
+                        if (isRefresh) {
+                            lastFeedVisible = previousCursor
+                            hasMoreFeedPages = previousHasMore
+                        }
                         _uiState.value = currentStateAfterFailure.copy(
                             isRefreshing = false,
-                            isLoadingMore = false
+                            isLoadingMore = false,
+                            hasMore = if (isRefresh) previousHasMore else currentStateAfterFailure.hasMore
                         )
                     } else {
                         _uiState.value = FeedUiState.Error(
@@ -129,9 +137,14 @@ class FeedViewModel(
             } catch (e: Exception) {
                 val currentStateAfterFailure = _uiState.value
                 if (currentStateAfterFailure is FeedUiState.Success) {
+                    if (isRefresh) {
+                        lastFeedVisible = previousCursor
+                        hasMoreFeedPages = previousHasMore
+                    }
                     _uiState.value = currentStateAfterFailure.copy(
                         isRefreshing = false,
-                        isLoadingMore = false
+                        isLoadingMore = false,
+                        hasMore = if (isRefresh) previousHasMore else currentStateAfterFailure.hasMore
                     )
                 } else {
                     _uiState.value = FeedUiState.Error(
