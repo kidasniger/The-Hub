@@ -122,8 +122,8 @@ fun VideoViewerScreen(
                     }
                 },
                 update = { webView ->
-                    if (webView.url != prepared.url && reloadToken == 0) {
-                        webView.loadPreparedVideo(prepared, context.packageName)
+                    if (!prepared.isInlineHtml && webView.url != prepared.url && reloadToken == 0) {
+                        webView.loadPreparedVideo(prepared)
                     }
                 },
                 modifier = Modifier.fillMaxSize()
