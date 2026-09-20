@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -66,10 +67,18 @@ fun HubNavGraph(
     appContainer: AppContainer,
     navController: NavHostController = rememberNavController(),
     openUpdateDialogRequest: Boolean = false,
-    onUpdateDialogRequestConsumed: () -> Unit = {}
+    onUpdateDialogRequestConsumed: () -> Unit = {},
+    pendingNotificationDeepLink: String? = null,
+    onNotificationDeepLinkConsumed: () -> Unit = {},
+    onRequestNotificationPermission: () -> Unit = {}
 ) {
     val authRepository = appContainer.authRepository
     val dataStoreManager = appContainer.dataStoreManager
+    val currentUser by authRepository.currentUserFlow.collectAsState(
+        initial = authRepository.currentFirebaseUser
+    )
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = UpdateViewModel.Factory(
