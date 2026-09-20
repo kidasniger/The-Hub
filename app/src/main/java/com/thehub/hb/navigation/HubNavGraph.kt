@@ -64,7 +64,9 @@ import com.thehub.hb.ui.welcome.WelcomeScreen
 @Composable
 fun HubNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    openUpdateDialogRequest: Boolean = false,
+    onUpdateDialogRequestConsumed: () -> Unit = {}
 ) {
     val authRepository = appContainer.authRepository
     val dataStoreManager = appContainer.dataStoreManager
@@ -78,6 +80,13 @@ fun HubNavGraph(
 
     // Global in-app update bottom sheet
     UpdateBottomSheet(viewModel = updateViewModel)
+
+    LaunchedEffect(openUpdateDialogRequest) {
+        if (openUpdateDialogRequest) {
+            updateViewModel.openUpdateDialog()
+            onUpdateDialogRequestConsumed()
+        }
+    }
 
     NavHost(
         navController = navController,
