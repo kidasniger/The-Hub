@@ -773,7 +773,7 @@ async function testAdvancedMessengerSecurity() {
     advancedMessageRef,
     {
       text: "edited",
-      editedAt: new Date(),
+      editedAt: serverTimestamp(),
     }
   ));
 
@@ -783,7 +783,7 @@ async function testAdvancedMessengerSecurity() {
       text: null,
       imageUrl: null,
       isDeleted: true,
-      deletedAt: new Date(),
+      deletedAt: serverTimestamp(),
       deletedBy: "alice",
     }
   ));
