@@ -201,7 +201,7 @@ class MessageRepository(
 
     suspend fun loadOlderMessages(
         conversationId: String,
-        before: DocumentSnapshot?,
+        beforeMessageId: String?,
         limit: Long = 50
     ): Result<OlderMessagesPage> = withContext(Dispatchers.IO) {
         try {
@@ -211,8 +211,19 @@ class MessageRepository(
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .limit(limit)
 
-            if (before != null) {
-                query = query.startAfter(before)
+            if (!beforeMessageId.isNullOrBlank()) {
+                val beforeDoc = firestore.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .document(beforeMessageId)
+                    .get()
+                    .await()
+                if (!beforeDoc.exists()) {
+                    return@withContext Result.success(
+                        OlderMessagesPage(emptyList(), null, false)
+                    )
+                }
+                query = query.startAfter(beforeDoc)
             }
 
             val snapshot = query.get().await()
