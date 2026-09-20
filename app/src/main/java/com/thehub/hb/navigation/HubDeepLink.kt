@@ -1,7 +1,5 @@
 package com.thehub.hb.navigation
 
-import android.net.Uri
-
 object HubDeepLink {
 
     fun toRoute(rawUri: String?): String? {
@@ -22,7 +20,7 @@ object HubDeepLink {
             .filter { it.isNotBlank() }
 
         val target = segments.firstOrNull()?.lowercase() ?: return null
-        val id = segments.getOrNull(1)?.let(Uri::decode)
+        val id = segments.getOrNull(1)?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8.name()) }
 
         return when (target) {
             "feed" -> Screen.Feed.route
