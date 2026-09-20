@@ -99,7 +99,8 @@ jobs:
           import json
           import sys
 
-          path = "/home/runner/work/_temp/firebase-functions.json"
+          import os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "firebase-functions.json")
           with open(path, "r", encoding="utf-8") as fh:
               data = json.load(fh)
 
