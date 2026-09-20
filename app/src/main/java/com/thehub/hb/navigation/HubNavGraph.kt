@@ -27,6 +27,7 @@ import com.thehub.hb.ui.feed.FeedViewModel
 import com.thehub.hb.ui.friends.FriendsScreen
 import com.thehub.hb.ui.friends.FriendsViewModel
 import com.thehub.hb.ui.imageviewer.ImageViewerScreen
+import com.thehub.hb.ui.videoviewer.VideoViewerScreen
 import com.thehub.hb.ui.likeslist.LikesListScreen
 import com.thehub.hb.ui.likeslist.LikesListViewModel
 import com.thehub.hb.ui.login.LoginScreen
@@ -270,6 +271,9 @@ fun HubNavGraph(
                 onImageClick = { imageUrl ->
                     navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
                 },
+                onVideoClick = { videoUrl ->
+                    navController.navigate(Screen.VideoViewer.createRoute(videoUrl))
+                },
                 onOpenComments = { postId ->
                     navController.navigate(Screen.Comments.createRoute(postId))
                 },
@@ -374,6 +378,9 @@ fun HubNavGraph(
                 onImageClick = { imageUrl ->
                     navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
                 },
+                onVideoClick = { videoUrl ->
+                    navController.navigate(Screen.VideoViewer.createRoute(videoUrl))
+                },
                 onOpenComments = { pid ->
                     navController.navigate(Screen.Comments.createRoute(pid))
                 },
@@ -456,6 +463,24 @@ fun HubNavGraph(
 
             ImageViewerScreen(
                 imageUrl = decodedUrl,
+                onClose = { navController.popBackStack() }
+            )
+        }
+
+        // Video Viewer
+        composable(
+            route = Screen.VideoViewer.route,
+            arguments = listOf(navArgument("videoUrl") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val rawVideoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
+            val decodedUrl = try {
+                java.net.URLDecoder.decode(rawVideoUrl, "UTF-8")
+            } catch (_: Exception) {
+                rawVideoUrl
+            }
+
+            VideoViewerScreen(
+                videoUrl = decodedUrl,
                 onClose = { navController.popBackStack() }
             )
         }
@@ -604,6 +629,9 @@ fun HubNavGraph(
                 },
                 onImageClick = { imageUrl ->
                     navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
+                },
+                onVideoClick = { videoUrl ->
+                    navController.navigate(Screen.VideoViewer.createRoute(videoUrl))
                 },
                 isBottomTab = false
             )
@@ -799,6 +827,9 @@ fun HubNavGraph(
                 },
                 onImageClick = { imageUrl ->
                     navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
+                },
+                onVideoClick = { videoUrl ->
+                    navController.navigate(Screen.VideoViewer.createRoute(videoUrl))
                 },
                 onOpenComments = { postId ->
                     navController.navigate(Screen.Comments.createRoute(postId))
