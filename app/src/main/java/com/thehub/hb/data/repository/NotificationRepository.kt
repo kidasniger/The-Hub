@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.messaging.FirebaseMessaging
 import com.thehub.hb.data.model.NotificationItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -50,6 +51,78 @@ class NotificationRepository(
         }
 
         return Triple(uid, username, photoUrl)
+    }
+
+    /**
+     * Register the current Android device for push notifications.
+     * The token is stored under the authenticated user and identified by a
+     * one-way SHA-256 document id so the raw token is never used as a path.
+     */
+    suspend fun registerCurrentFcmToken(): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId
+            ?: return@withContext Result.success(Unit)
+
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            if (auth.currentUser?.uid != uid) {
+                return@withContext Result.success(Unit)
+            }
+            if (token.isBlank()) {
+                return@withContext Result.failure(Exception("Token FCM vide."))
+            }
+
+            val tokenId = fcmTokenDocumentId(token)
+            firestore.collection("users")
+                .document(uid)
+                .collection("fcmTokens")
+                .document(tokenId)
+                .set(
+                    mapOf(
+                        "token" to token,
+                        "platform" to "android",
+                        "updatedAt" to Timestamp.now()
+                    ),
+                    SetOptions.merge()
+                )
+                .await()
+
+            Log.d("NotificationRepository", "FCM token registered for user "+uid)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w("NotificationRepository", "FCM token registration failed: "+e.message)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Remove the current Android device token from a specific user.
+     * Used during logout so a signed-out account stops receiving pushes on this device.
+     */
+    suspend fun unregisterFcmTokenForUser(userId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        if (userId.isBlank()) return@withContext Result.success(Unit)
+
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            if (token.isBlank()) return@withContext Result.success(Unit)
+
+            firestore.collection("users")
+                .document(userId)
+                .collection("fcmTokens")
+                .document(fcmTokenDocumentId(token))
+                .delete()
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w("NotificationRepository", "FCM token removal failed: "+e.message)
+            Result.failure(e)
+        }
+    }
+
+    private fun fcmTokenDocumentId(token: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(token.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { byte -> "%02x".format(byte) }
     }
 
     /**
