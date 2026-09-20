@@ -222,7 +222,8 @@ class NotificationRepository(
         postId: String? = null,
         commentText: String? = null,
         commentId: String? = null,
-        conversationId: String? = null
+        conversationId: String? = null,
+        messageId: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val (actorUid, actorUsername, actorPhotoUrl) = getCurrentActorInfo()
@@ -243,6 +244,7 @@ class NotificationRepository(
                 commentText = commentText,
                 commentId = commentId,
                 conversationId = conversationId,
+                messageId = messageId,
                 createdAt = Timestamp.now(),
                 isRead = false
             )
