@@ -1313,9 +1313,9 @@ try {
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
-  await testAdvancedMessengerSecurity();
   await testMessageAccessIsLimitedToParticipants();
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
+  await testAdvancedMessengerSecurity();
   await testSensitiveCollectionWrites();
 
   console.log("Firestore security tests (counters + messages): PASS");
