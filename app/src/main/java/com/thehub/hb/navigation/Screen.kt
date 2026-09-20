@@ -26,6 +26,13 @@ sealed class Screen(val route: String) {
             return "image_viewer?imageUrl=$encoded"
         }
     }
+
+    data object VideoViewer : Screen("video_viewer?videoUrl={videoUrl}") {
+        fun createRoute(videoUrl: String): String {
+            val encoded = java.net.URLEncoder.encode(videoUrl, "UTF-8")
+            return "video_viewer?videoUrl=$encoded"
+        }
+    }
     data object Messenger : Screen("messenger")
     data object NewMessage : Screen("new_message")
     data object Chat : Screen("chat/{conversationId}") {
