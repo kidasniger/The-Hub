@@ -48,63 +48,88 @@ class FeedViewModel(
             initialValue = 0
         ) ?: MutableStateFlow(0).asStateFlow()
 
+    private companion object {
+        const val PAGE_SIZE = 20L
+    }
+
     private var feedJob: Job? = null
-    private var feedLimit: Long = 30L
+    private var lastFeedVisible: DocumentSnapshot? = null
+    private var hasMoreFeedPages = true
 
     init {
-        startObservingFeed(isRefresh = false)
+        loadFirstPage(isRefresh = false)
     }
 
     fun refresh() {
         HubApplication.clearImageCache()
-        startObservingFeed(isRefresh = true)
+        loadFirstPage(isRefresh = true)
     }
 
     fun loadFeed(isRefresh: Boolean = false) {
-        startObservingFeed(isRefresh = isRefresh)
+        loadFirstPage(isRefresh = isRefresh)
     }
 
-    fun startObservingFeed(isRefresh: Boolean = false) {
+    private fun loadFirstPage(isRefresh: Boolean) {
         feedJob?.cancel()
-        if (isRefresh) {
-            val currentPosts = (_uiState.value as? FeedUiState.Success)?.posts ?: emptyList()
-            if (currentPosts.isNotEmpty()) {
-                _uiState.value = FeedUiState.Success(
-                    posts = currentPosts,
-                    isRefreshing = true,
-                    isLoadingMore = false,
-                    hasMore = true
-                )
-            }
-        } else if (_uiState.value !is FeedUiState.Success) {
+        lastFeedVisible = null
+        hasMoreFeedPages = true
+
+        val currentPosts = (_uiState.value as? FeedUiState.Success)?.posts ?: emptyList()
+        if (isRefresh && currentPosts.isNotEmpty()) {
+            _uiState.value = FeedUiState.Success(
+                posts = currentPosts,
+                isRefreshing = true,
+                isLoadingMore = false,
+                hasMore = true
+            )
+        } else if (!isRefresh) {
             _uiState.value = FeedUiState.Loading
         }
 
         feedJob = viewModelScope.launch {
             try {
-                postRepository.observeFeed(limit = feedLimit).collect { posts ->
+                val result = postRepository.getFeed(
+                    pageSize = PAGE_SIZE,
+                    lastVisible = null
+                )
+
+                result.onSuccess { (posts, lastVisible) ->
                     val authorIds = posts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
                     com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
 
+                    lastFeedVisible = lastVisible
+                    hasMoreFeedPages = posts.size.toLong() == PAGE_SIZE && lastVisible != null
+
                     if (posts.isEmpty()) {
                         _uiState.value = FeedUiState.Empty
+                        hasMoreFeedPages = false
                     } else {
                         _uiState.value = FeedUiState.Success(
                             posts = posts,
                             isRefreshing = false,
                             isLoadingMore = false,
-                            hasMore = posts.size.toLong() >= feedLimit
+                            hasMore = hasMoreFeedPages
+                        )
+                    }
+                }.onFailure { e ->
+                    val currentStateAfterFailure = _uiState.value
+                    if (currentStateAfterFailure is FeedUiState.Success) {
+                        _uiState.value = currentStateAfterFailure.copy(
+                            isRefreshing = false,
+                            isLoadingMore = false
+                        )
+                    } else {
+                        _uiState.value = FeedUiState.Error(
+                            e.message ?: "Impossible de charger les publications."
                         )
                     }
                 }
             } catch (e: CancellationException) {
-                // Cancelled due to refresh cancellation - rethrow so coroutine terminates cleanly without error UI
                 throw e
             } catch (e: Exception) {
-                val currentState = _uiState.value
-                if (currentState is FeedUiState.Success) {
-                    // Do not flash "Oups !" error screen if posts were already displayed
-                    _uiState.value = currentState.copy(
+                val currentStateAfterFailure = _uiState.value
+                if (currentStateAfterFailure is FeedUiState.Success) {
+                    _uiState.value = currentStateAfterFailure.copy(
                         isRefreshing = false,
                         isLoadingMore = false
                     )
@@ -119,11 +144,60 @@ class FeedViewModel(
 
     fun loadMore() {
         val currentState = _uiState.value as? FeedUiState.Success ?: return
-        if (currentState.isLoadingMore || !currentState.hasMore) return
+        if (currentState.isLoadingMore || !currentState.hasMore || !hasMoreFeedPages) return
 
-        feedLimit += 20L
+        val cursor = lastFeedVisible ?: return
         _uiState.value = currentState.copy(isLoadingMore = true)
-        startObservingFeed(isRefresh = false)
+
+        feedJob?.cancel()
+        feedJob = viewModelScope.launch {
+            try {
+                val result = postRepository.getFeed(
+                    pageSize = PAGE_SIZE,
+                    lastVisible = cursor
+                )
+
+                result.onSuccess { (newPosts, newLastVisible) ->
+                    val authorIds = newPosts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
+                    com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
+
+                    lastFeedVisible = newLastVisible
+                    hasMoreFeedPages = newPosts.size.toLong() == PAGE_SIZE && newLastVisible != null
+
+                    val latestState = _uiState.value
+                    if (latestState is FeedUiState.Success) {
+                        _uiState.value = latestState.copy(
+                            posts = latestState.posts + newPosts,
+                            isLoadingMore = false,
+                            isRefreshing = false,
+                            hasMore = hasMoreFeedPages
+                        )
+                    }
+                }.onFailure { e ->
+                    val latestState = _uiState.value
+                    if (latestState is FeedUiState.Success) {
+                        _uiState.value = latestState.copy(
+                            isLoadingMore = false,
+                            isRefreshing = false
+                        )
+                    } else {
+                        _uiState.value = FeedUiState.Error(
+                            e.message ?: "Impossible de charger les publications."
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val latestState = _uiState.value
+                if (latestState is FeedUiState.Success) {
+                    _uiState.value = latestState.copy(
+                        isLoadingMore = false,
+                        isRefreshing = false
+                    )
+                }
+            }
+        }
     }
 
     fun toggleLike(postId: String) {
