@@ -2,9 +2,11 @@ package com.thehub.hb.data.repository
 
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Query
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.model.Message
 import com.thehub.hb.data.model.MessageReaction
@@ -681,7 +683,9 @@ class MessageRepository(
     suspend fun sendMessage(
         conversationId: String,
         text: String?,
-        imageUrl: String?
+        imageUrl: String?,
+        replyToMessageId: String? = null,
+        replyToText: String? = null
     ): Result<Message> = withContext(Dispatchers.IO) {
         val currentUid = currentUserId
             ?: return@withContext Result.failure(Exception("Utilisateur non connecté."))
