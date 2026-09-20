@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.Modifier
+import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.navigation.HubNavGraph
 import com.thehub.hb.ui.theme.AppThemeMode
 import com.thehub.hb.ui.theme.FrenchHubStrings
@@ -25,6 +26,11 @@ import com.thehub.hb.ui.theme.HubBackground
 import com.thehub.hb.ui.theme.HubTextPrimary
 import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.ui.theme.TheHubTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -37,10 +43,35 @@ class MainActivity : ComponentActivity() {
 
     private var openUpdateDialogRequest by mutableStateOf(false)
     private var pendingNotificationDeepLink by mutableStateOf<String?>(null)
+    private val presenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val messageRepository = MessageRepository()
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+
+    override fun onStart() {
+        super.onStart()
+        presenceScope.launch {
+            if (messageRepository.currentUserId != null) {
+                messageRepository.setPresence(true)
+            }
+        }
+    }
+
+    override fun onStop() {
+        presenceScope.launch {
+            if (messageRepository.currentUserId != null) {
+                messageRepository.setPresence(false)
+            }
+        }
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        presenceScope.cancel()
+        super.onDestroy()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
