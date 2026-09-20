@@ -246,6 +246,7 @@ fun PostCard(
                 EmbeddedOriginalPost(
                     originalPost = post.originalPost,
                     onImageClick = onImageClick,
+                    onVideoClick = onVideoClick,
                     onPostClick = onPostClick
                 )
             }
@@ -346,6 +347,7 @@ fun PostCard(
 private fun EmbeddedOriginalPost(
     originalPost: Post,
     onImageClick: (String) -> Unit,
+    onVideoClick: ((String) -> Unit)?,
     onPostClick: (String) -> Unit
 ) {
     val origAuthor = rememberLiveUser(
