@@ -327,10 +327,12 @@ fun PostDetailScreen(
                                 color = HubWhite,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            LinkPreviewCard(
-                                text = post.text,
-                                modifier = Modifier.padding(top = 10.dp)
-                            )
+                            if (post.videoUrl.isNullOrBlank()) {
+                                LinkPreviewCard(
+                                    text = post.text,
+                                    modifier = Modifier.padding(top = 10.dp)
+                                )
+                            }
                         }
 
                         // Full Post Image
