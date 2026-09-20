@@ -4,47 +4,48 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.net.Uri
 import android.media.ExifInterface
+import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import kotlin.math.max
 
 object ImageCompressor {
 
     /**
-     * Reads an image Uri, handles EXIF orientation, resizes if larger than [maxDimension],
-     * and compresses to JPEG with [quality].
+     * Reads a local image Uri, corrects EXIF orientation, resizes it for the Feed,
+     * and compresses it to JPEG. The output is kept below [maxBytes] whenever possible.
      */
     suspend fun compressImageFromUri(
         context: Context,
         uri: Uri,
         maxDimension: Int = 1600,
-        quality: Int = 82
+        quality: Int = 82,
+        maxBytes: Int = 4 * 1024 * 1024
     ): ByteArray? = withContext(Dispatchers.IO) {
         try {
-            // First decode bounds only to calculate sample size
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            val bounds = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+
             context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, options)
+                BitmapFactory.decodeStream(stream, null, bounds)
             }
 
-            if (options.outWidth <= 0 || options.outHeight <= 0) {
-                // Fallback to raw bytes if decoding bounds failed
-                return@withContext context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return@withContext null
             }
 
-            var inSampleSize = 1
-            val maxSide = max(options.outWidth, options.outHeight)
-            while (maxSide / (inSampleSize * 2) >= maxDimension) {
-                inSampleSize *= 2
+            var sampleSize = 1
+            val maxSide = max(bounds.outWidth, bounds.outHeight)
+
+            while (maxSide / (sampleSize * 2) >= maxDimension) {
+                sampleSize *= 2
             }
 
-            // Decode bitmap with inSampleSize
             val decodeOptions = BitmapFactory.Options().apply {
-                this.inSampleSize = inSampleSize
+                inSampleSize = sampleSize
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }
 
@@ -52,7 +53,6 @@ object ImageCompressor {
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
             } ?: return@withContext null
 
-            // Read EXIF orientation to correct rotated photos
             try {
                 context.contentResolver.openInputStream(uri)?.use { stream ->
                     val exif = ExifInterface(stream)
@@ -62,39 +62,88 @@ object ImageCompressor {
                     )
                     bitmap = rotateBitmapIfNeeded(bitmap, orientation)
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // Keep the decoded bitmap if EXIF metadata cannot be read.
+            }
 
-            // Scale down further if still exceeds maxDimension
-            val currentMax = max(bitmap.width, bitmap.height)
-            if (currentMax > maxDimension) {
-                val ratio = maxDimension.toFloat() / currentMax
-                val newW = (bitmap.width * ratio).toInt()
-                val newH = (bitmap.height * ratio).toInt()
-                val scaled = Bitmap.createScaledBitmap(bitmap, newW, newH, true)
-                if (scaled != bitmap) {
+            bitmap = scaleToMaxDimension(bitmap, maxDimension)
+
+            var currentQuality = quality.coerceIn(40, 100)
+            var encoded = encodeJpeg(bitmap, currentQuality)
+
+            // Reduce JPEG quality first.
+            while (encoded.size > maxBytes && currentQuality > 50) {
+                currentQuality = (currentQuality - 8).coerceAtLeast(50)
+                encoded = encodeJpeg(bitmap, currentQuality)
+            }
+
+            // If quality reduction is insufficient, progressively scale down.
+            repeat(3) {
+                if (encoded.size <= maxBytes) return@repeat
+
+                val smallerMax = (max(bitmap.width, bitmap.height) * 0.85f)
+                    .toInt()
+                    .coerceAtLeast(800)
+
+                if (smallerMax >= max(bitmap.width, bitmap.height)) return@repeat
+
+                val scaled = scaleToMaxDimension(bitmap, smallerMax)
+                if (scaled !== bitmap) {
                     bitmap.recycle()
                     bitmap = scaled
                 }
+
+                encoded = encodeJpeg(bitmap, currentQuality)
             }
 
-            // Compress to JPEG
-            val outputStream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
             bitmap.recycle()
 
-            outputStream.toByteArray()
+            // Do not silently upload the original full-resolution asset.
+            if (encoded.isEmpty()) null else encoded
         } catch (_: Exception) {
-            // Fallback to direct raw bytes
-            try {
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            } catch (_: Exception) {
-                null
-            }
+            null
         }
     }
 
-    private fun rotateBitmapIfNeeded(bitmap: Bitmap, orientation: Int): Bitmap {
+    private fun scaleToMaxDimension(
+        bitmap: Bitmap,
+        maxDimension: Int
+    ): Bitmap {
+        val currentMax = max(bitmap.width, bitmap.height)
+        if (currentMax <= maxDimension) return bitmap
+
+        val ratio = maxDimension.toFloat() / currentMax
+        val newWidth = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+        val newHeight = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+
+        return Bitmap.createScaledBitmap(
+            bitmap,
+            newWidth,
+            newHeight,
+            true
+        )
+    }
+
+    private fun encodeJpeg(
+        bitmap: Bitmap,
+        quality: Int
+    ): ByteArray {
+        return ByteArrayOutputStream().use { output ->
+            bitmap.compress(
+                Bitmap.CompressFormat.JPEG,
+                quality,
+                output
+            )
+            output.toByteArray()
+        }
+    }
+
+    private fun rotateBitmapIfNeeded(
+        bitmap: Bitmap,
+        orientation: Int
+    ): Bitmap {
         val matrix = Matrix()
+
         when (orientation) {
             ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
             ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
@@ -103,10 +152,21 @@ object ImageCompressor {
             ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
             else -> return bitmap
         }
-        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        if (rotated != bitmap) {
+
+        val rotated = Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
+
+        if (rotated !== bitmap) {
             bitmap.recycle()
         }
+
         return rotated
     }
 }
