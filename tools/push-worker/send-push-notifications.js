@@ -4,19 +4,21 @@
 // Cherche les notifications Firestore avec pushSent == false, envoie un push FCM au
 // destinataire si un token est connu, puis marque la notification comme traitée.
 
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 const fs = require('fs');
 
 const serviceAccount = JSON.parse(
   fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8')
 );
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+const app = initializeApp({
+  credential: cert(serviceAccount),
 });
 
-const db = admin.firestore();
-const messaging = admin.messaging();
+const db = getFirestore(app);
+const messaging = getMessaging(app);
 
 function notificationText(n) {
   switch (n.type) {
@@ -110,7 +112,7 @@ async function run() {
 
     await doc.ref.update({
       pushSent: true,
-      pushSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      pushSentAt: FieldValue.serverTimestamp(),
       pushSentDeviceCount: sentCount,
       ...(sentCount === 0 && lastError ? { pushSkippedReason: 'send_error' } : {}),
     });
