@@ -29,7 +29,8 @@ data class NotificationItem(
             "commentId" to commentId,
             "conversationId" to conversationId,
             "createdAt" to createdAt,
-            "isRead" to isRead
+            "isRead" to isRead,
+            "pushSent" to false
         )
     }
 
