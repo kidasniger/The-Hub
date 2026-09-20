@@ -20,19 +20,48 @@ const app = initializeApp({
 const db = getFirestore(app);
 const messaging = getMessaging(app);
 
-function notificationText(n) {
+function notificationContent(n) {
+  const actor = n.actorUsername || 'Quelqu\'un';
   switch (n.type) {
     case 'like':
-      return `${n.actorUsername || 'Quelqu\'un'} a aimé votre publication`;
+      return { title: 'Nouveau j\'aime', body: actor + ' a aimé votre publication.' };
     case 'comment':
-      return `${n.actorUsername || 'Quelqu\'un'} a commenté : ${n.commentText || ''}`;
+      return { title: 'Nouveau commentaire', body: n.commentText ? actor + ' a commenté : ' + n.commentText : actor + ' a commenté votre publication.' };
     case 'follow':
-      return `${n.actorUsername || 'Quelqu\'un'} a commencé à vous suivre`;
+      return { title: 'Nouvel abonné', body: actor + ' a commencé à vous suivre.' };
     case 'message':
-      return `${n.actorUsername || 'Quelqu\'un'} vous a envoyé un message`;
+      return { title: 'Nouveau message', body: actor + ' vous a envoyé un message.' };
+    case 'like_comment':
+      return { title: 'J\'aime sur votre commentaire', body: actor + ' a aimé votre commentaire.' };
+    case 'reply_comment':
+      return { title: 'Réponse à votre commentaire', body: actor + ' a répondu à votre commentaire.' };
     default:
-      return 'Nouvelle notification';
+      return { title: 'The Hub', body: 'Vous avez une nouvelle notification.' };
   }
+}
+
+function buildDeepLink(n) {
+  if (n.type === 'follow' && n.actorId) {
+    return 'thehub://profile/' + encodeURIComponent(n.actorId);
+  }
+  if (n.type === 'message' && n.conversationId) {
+    return 'thehub://chat/' + encodeURIComponent(n.conversationId);
+  }
+  if (
+    (n.type === 'comment' || n.type === 'like_comment' || n.type === 'reply_comment') &&
+    n.postId
+  ) {
+    return 'thehub://comments/' + encodeURIComponent(n.postId);
+  }
+  if (n.postId) {
+    return 'thehub://post/' + encodeURIComponent(n.postId);
+  }
+  return 'thehub://feed';
+}
+
+function sanitizeData(value) {
+  const text = value == null ? '' : String(value);
+  return text.length > 3500 ? text.slice(0, 3500) : text;
 }
 
 async function run() {
@@ -83,16 +112,21 @@ async function run() {
       if (!token) continue;
 
       try {
+        const content = notificationContent(notif);
+        const deepLink = buildDeepLink(notif);
         await messaging.send({
           token,
-          notification: {
-            title: 'The Hub',
-            body: notificationText(notif),
-          },
           data: {
-            type: notif.type || '',
-            postId: notif.postId || '',
-            notificationId: doc.id,
+            notificationId: sanitizeData(doc.id),
+            type: sanitizeData(notif.type || ''),
+            title: sanitizeData(content.title),
+            body: sanitizeData(content.body),
+            actorId: sanitizeData(notif.actorId || ''),
+            actorUsername: sanitizeData(notif.actorUsername || ''),
+            postId: sanitizeData(notif.postId || ''),
+            commentId: sanitizeData(notif.commentId || ''),
+            conversationId: sanitizeData(notif.conversationId || ''),
+            deepLink: sanitizeData(deepLink),
           },
           android: { priority: 'high' },
         });
