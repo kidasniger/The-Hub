@@ -317,8 +317,6 @@ service cloud.firestore {
 
         allow delete: if isUser(userId);
       }
-    }
-
       match /fcmTokens/{tokenId} {
         // Tokens are private device credentials. They are never readable by
         // clients and can only be created/updated/deleted by their owner.
