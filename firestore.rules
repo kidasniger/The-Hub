@@ -799,6 +799,16 @@ service cloud.firestore {
           && request.resource.data.lastMessageAt is timestamp;
       }
 
+      function canAccessConversation() {
+        let conversation = get(
+          /databases/$(database)/documents/conversations/$(conversationId)
+        );
+        return isAuthenticated()
+          && conversation != null
+          && conversation.data.participantIds is list
+          && conversation.data.participantIds.hasAny([request.auth.uid]);
+      }
+
       function messagePath(messageId) {
         return /databases/$(database)/documents/conversations/$(conversationId)/messages/$(messageId);
       }
@@ -966,22 +976,22 @@ service cloud.firestore {
       }
 
       match /typing/{typingUserId} {
-        allow read: if isParticipant();
+        allow read: if canAccessConversation();
 
-        allow create, update: if isParticipant()
+        allow create, update: if canAccessConversation()
           && typingUserId == request.auth.uid
           && request.resource.data.keys().hasOnly(['userId', 'typing', 'updatedAt'])
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.typing is bool
           && request.resource.data.updatedAt is timestamp;
 
-        allow delete: if isParticipant() && typingUserId == request.auth.uid;
+        allow delete: if canAccessConversation() && typingUserId == request.auth.uid;
       }
 
       match /reactions/{reactionId} {
-        allow read: if isParticipant();
+        allow read: if canAccessConversation();
 
-        allow create, update: if isParticipant()
+        allow create, update: if canAccessConversation()
           && request.resource.data.keys().hasOnly([
             'messageId',
             'userId',
@@ -996,7 +1006,7 @@ service cloud.firestore {
           && request.resource.data.emoji in ['👍', '❤️', '😂', '😮', '😢', '🔥']
           && request.resource.data.updatedAt is timestamp;
 
-        allow delete: if isParticipant()
+        allow delete: if canAccessConversation()
           && resource.data.userId == request.auth.uid;
       }
 
