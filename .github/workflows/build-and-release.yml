@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: the-hub-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-and-release:
