@@ -14,7 +14,7 @@ object VideoLinkDetector {
     private val urlRegex = Regex("""https?://[^\s<>]+""", RegexOption.IGNORE_CASE)
 
     private val directVideoExtensions = listOf(
-        ".mp4", ".webm", ".m4v", ".mov", ".m3u8", ".mkv", ".avi"
+        ".mp4", ".webm", ".m4v", ".mov", ".m3u8", ".mkv", ".avi", ".3gp"
     )
 
     private val videoPathMarkers = setOf(
@@ -36,7 +36,11 @@ object VideoLinkDetector {
         val scheme = uri.scheme?.lowercase()
         val host = uri.host
 
-        return if ((scheme == "https" || scheme == "http") && !host.isNullOrBlank()) {
+        return if (
+            (scheme == "https" || scheme == "http") &&
+            !host.isNullOrBlank() &&
+            isKnownVideoUrl(value)
+        ) {
             value
         } else {
             null
@@ -60,6 +64,7 @@ object VideoLinkDetector {
             host == "youtube.com" ||
             host == "www.youtube.com" ||
             host == "m.youtube.com" ||
+            host == "music.youtube.com" ||
             host == "youtu.be" ||
             host.endsWith(".youtube.com") ||
             host == "vimeo.com" ||
@@ -112,6 +117,7 @@ object VideoLinkDetector {
             host == "youtube.com" ||
                 host == "www.youtube.com" ||
                 host == "m.youtube.com" ||
+                host == "music.youtube.com" ||
                 host == "youtu.be" ||
                 host.endsWith(".youtube.com") -> VideoSourceType.YOUTUBE
             host == "vimeo.com" ||
@@ -126,7 +132,9 @@ object VideoLinkDetector {
 
     fun isDirectMediaUrl(url: String): Boolean {
         val path = parseUri(url)?.path?.lowercase().orEmpty()
-        return directVideoExtensions.any { path.endsWith(it) }
+        return directVideoExtensions.any { extension ->
+            path.endsWith(extension)
+        }
     }
 
     fun providerLabel(url: String): String {
