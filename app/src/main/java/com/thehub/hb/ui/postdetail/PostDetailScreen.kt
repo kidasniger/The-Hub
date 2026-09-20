@@ -59,6 +59,7 @@ import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostMediaImage
+import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
@@ -92,6 +93,7 @@ fun PostDetailScreen(
     viewModel: PostDetailViewModel,
     onNavigateBack: () -> Unit,
     onImageClick: (String) -> Unit,
+    onVideoClick: ((String) -> Unit)? = null,
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onAuthorClick: ((String) -> Unit)? = null,
@@ -342,6 +344,14 @@ fun PostDetailScreen(
                                 saveButtonTag = "post_detail_save_image_button",
                                 onImageClick = onImageClick
                             )
+
+                            if (!post.videoUrl.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                VideoLinkCard(
+                                    videoUrl = post.videoUrl!!,
+                                    onClick = onVideoClick
+                                )
+                            }
                         }
 
                         // Original Post if Repost
