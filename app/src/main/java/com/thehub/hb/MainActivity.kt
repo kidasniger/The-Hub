@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
 
         if (!deepLink.isNullOrBlank()) {
             pendingNotificationDeepLink = deepLink
-            intent.removeExtra(EXTRA_NOTIFICATION_DEEP_LINK)
+            intent?.removeExtra(EXTRA_NOTIFICATION_DEEP_LINK)
         }
     }
 
