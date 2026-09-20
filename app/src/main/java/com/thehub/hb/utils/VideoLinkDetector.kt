@@ -1,6 +1,6 @@
 package com.thehub.hb.utils
 
-import java.net.URI
+import android.net.Uri
 
 enum class VideoSourceType {
     YOUTUBE,
@@ -199,9 +199,9 @@ object VideoLinkDetector {
         }
     }
 
-    private fun parseUri(value: String): URI? {
+    private fun parseUri(value: String): Uri? {
         return try {
-            URI(value)
+            Uri.parse(value)
         } catch (_: Exception) {
             null
         }
