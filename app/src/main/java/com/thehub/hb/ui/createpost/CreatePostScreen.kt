@@ -34,9 +34,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,6 +67,8 @@ import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.LinkPreviewCard
+import com.thehub.hb.ui.components.VideoLinkCard
+import com.thehub.hb.utils.VideoLinkDetector
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubDarkGray
@@ -89,6 +95,9 @@ fun CreatePostScreen(
     val coroutineScope = rememberCoroutineScope()
     val textBringIntoViewRequester = remember { BringIntoViewRequester() }
     var textFieldFocused by remember { mutableStateOf(false) }
+    var showVideoDialog by remember { mutableStateOf(false) }
+    var videoDialogUrl by remember { mutableStateOf("") }
+    var videoDialogError by remember { mutableStateOf<String?>(null) }
 
     // Native Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -299,9 +308,40 @@ fun CreatePostScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
                 }
+
+                if (!uiState.videoUrl.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("create_post_video_preview")
+                    ) {
+                        VideoLinkCard(
+                            videoUrl = uiState.videoUrl!!,
+                            onClick = null
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearVideoUrl() },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp)
+                                .background(Color(0x99000000), CircleShape)
+                                .testTag("create_post_remove_video")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Retirer la vidéo",
+                                tint = HubWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
-            // Bottom Attachment Bar (hidden in edit mode since only text can be edited)
+            // Bottom Attachment Bar
             if (!uiState.isEditMode) {
                 Row(
                     modifier = Modifier
@@ -310,7 +350,8 @@ fun CreatePostScreen(
                         .border(width = 1.dp, color = HubBorder)
                         .imePadding()
                         .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -339,8 +380,89 @@ fun CreatePostScreen(
                             color = HubWhite
                         )
                     }
+
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(HubDarkGray)
+                            .clickable {
+                                videoDialogUrl = uiState.videoUrl.orEmpty()
+                                videoDialogError = null
+                                showVideoDialog = true
+                            }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .testTag("create_post_add_video_link_button"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.VideoLibrary,
+                            contentDescription = "Ajouter un lien vidéo",
+                            tint = HubWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Vidéo par lien",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HubWhite
+                        )
+                    }
                 }
             }
+        if (showVideoDialog) {
+            AlertDialog(
+                onDismissRequest = { showVideoDialog = false },
+                title = { Text("Ajouter une vidéo", color = HubWhite) },
+                text = {
+                    Column {
+                        Text(
+                            text = "Colle le lien d'une vidéo YouTube, Vimeo, Dailymotion ou d'une vidéo directe.",
+                            color = HubSecondary,
+                            fontSize = 13.sp
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = videoDialogUrl,
+                            onValueChange = {
+                                videoDialogUrl = it
+                                videoDialogError = null
+                            },
+                            singleLine = true,
+                            label = { Text("Lien vidéo") },
+                            isError = videoDialogError != null,
+                            supportingText = {
+                                videoDialogError?.let { Text(it, color = HubError) }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("create_post_video_link_input")
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val normalized = VideoLinkDetector.normalizeManualUrl(videoDialogUrl)
+                            if (normalized == null) {
+                                videoDialogError = "Entre une URL http:// ou https:// valide."
+                            } else {
+                                viewModel.setVideoUrl(normalized)
+                                showVideoDialog = false
+                            }
+                        },
+                        modifier = Modifier.testTag("create_post_video_link_confirm")
+                    ) {
+                        Text("Ajouter", color = HubWhite)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showVideoDialog = false }) {
+                        Text("Annuler", color = HubSecondary)
+                    }
+                },
+                containerColor = HubSurfaceElevated
+            )
         }
     }
 }
