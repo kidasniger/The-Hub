@@ -2,6 +2,14 @@ package com.thehub.hb.utils
 
 import java.net.URI
 
+enum class VideoSourceType {
+    YOUTUBE,
+    VIMEO,
+    DAILYMOTION,
+    DIRECT_MEDIA,
+    EXTERNAL_VIDEO_PAGE
+}
+
 object VideoLinkDetector {
     private val urlRegex = Regex("""https?://[^\s<>]+""", RegexOption.IGNORE_CASE)
 
@@ -84,7 +92,6 @@ object VideoLinkDetector {
             return true
         }
 
-        // Generic video-page detection for links outside the known providers.
         val pathSegments = normalizedPath
             .split('/')
             .filter { it.isNotBlank() }
@@ -93,6 +100,27 @@ object VideoLinkDetector {
             segment in videoPathMarkers ||
                 segment.startsWith("video") ||
                 segment.startsWith("watch")
+        }
+    }
+
+    fun sourceType(url: String): VideoSourceType {
+        val uri = parseUri(url) ?: return VideoSourceType.EXTERNAL_VIDEO_PAGE
+        val host = uri.host?.lowercase().orEmpty()
+
+        return when {
+            isDirectMediaUrl(url) -> VideoSourceType.DIRECT_MEDIA
+            host == "youtube.com" ||
+                host == "www.youtube.com" ||
+                host == "m.youtube.com" ||
+                host == "youtu.be" ||
+                host.endsWith(".youtube.com") -> VideoSourceType.YOUTUBE
+            host == "vimeo.com" ||
+                host == "www.vimeo.com" ||
+                host == "player.vimeo.com" -> VideoSourceType.VIMEO
+            host == "dailymotion.com" ||
+                host == "www.dailymotion.com" ||
+                host == "dai.ly" -> VideoSourceType.DAILYMOTION
+            else -> VideoSourceType.EXTERNAL_VIDEO_PAGE
         }
     }
 
