@@ -63,6 +63,55 @@ class VideoLinkDetectorTest {
     }
 
     @Test
+    fun extractsYouTubeIdsAndShortsFormat() {
+        assertEquals(
+            "abc123",
+            VideoLinkDetector.youtubeVideoId("https://www.youtube.com/watch?v=abc123")
+        )
+        assertEquals(
+            "xyz789",
+            VideoLinkDetector.youtubeVideoId("https://youtube.com/shorts/xyz789?si=test")
+        )
+        assertEquals(
+            "short123",
+            VideoLinkDetector.youtubeVideoId("https://youtu.be/short123")
+        )
+
+        assertTrue(
+            VideoLinkDetector.isYouTubeShorts(
+                "https://www.youtube.com/shorts/xyz789"
+            )
+        )
+        assertFalse(
+            VideoLinkDetector.isYouTubeShorts(
+                "https://www.youtube.com/watch?v=xyz789"
+            )
+        )
+    }
+
+    @Test
+    fun buildsYouTubeThumbnailUrl() {
+        assertEquals(
+            "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+            VideoLinkDetector.thumbnailUrl(
+                "https://www.youtube.com/watch?v=abc123"
+            )
+        )
+        assertEquals(
+            "https://i.ytimg.com/vi/xyz789/hqdefault.jpg",
+            VideoLinkDetector.thumbnailUrl(
+                "https://youtube.com/shorts/xyz789"
+            )
+        )
+        assertEquals(
+            null,
+            VideoLinkDetector.thumbnailUrl(
+                "https://www.tiktok.com/@creator/video/123456"
+            )
+        )
+    }
+
+    @Test
     fun classifiesVideoSourcesForViewer() {
         assertEquals(
             VideoSourceType.YOUTUBE,
