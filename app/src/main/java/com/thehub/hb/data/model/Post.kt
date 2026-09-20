@@ -11,6 +11,7 @@ data class Post(
     val text: String = "",
     val imageUrl: String? = null,
     val videoUrl: String? = null,
+    val mediaType: PostMediaType = PostMediaType.NONE,
     val createdAt: Timestamp = Timestamp.now(),
     val likesCount: Int = 0,
     val commentsCount: Int = 0,
@@ -30,6 +31,7 @@ data class Post(
             "text" to text,
             "imageUrl" to imageUrl,
             "videoUrl" to videoUrl,
+            "mediaType" to mediaType.name,
             "createdAt" to createdAt,
             "likesCount" to likesCount,
             "commentsCount" to commentsCount,
@@ -51,14 +53,25 @@ data class Post(
             @Suppress("UNCHECKED_CAST")
             val hashtags = (doc.get("hashtags") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
 
+            val imageUrl = doc.getString("imageUrl")
+            val videoUrl = doc.getString("videoUrl")
+            val storedMediaType = PostMediaType.fromStoredValue(
+                doc.getString("mediaType")
+            )
+            val mediaType = storedMediaType ?: PostMediaType.fromUrls(
+                imageUrl = imageUrl,
+                videoUrl = videoUrl
+            )
+
             return Post(
                 id = doc.id,
                 authorId = doc.getString("authorId") ?: "",
                 authorUsername = doc.getString("authorUsername") ?: "thehub_user",
                 authorPhotoUrl = doc.getString("authorPhotoUrl"),
                 text = doc.getString("text") ?: "",
-                imageUrl = doc.getString("imageUrl"),
-                videoUrl = doc.getString("videoUrl"),
+                imageUrl = imageUrl,
+                videoUrl = videoUrl,
+                mediaType = mediaType,
                 createdAt = createdAt,
                 likesCount = if (likesCount < 0) 0 else likesCount,
                 commentsCount = if (commentsCount < 0) 0 else commentsCount,
