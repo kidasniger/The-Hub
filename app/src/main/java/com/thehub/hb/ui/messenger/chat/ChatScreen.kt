@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,8 @@ import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHost
@@ -102,6 +105,7 @@ fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val inputBringIntoViewRequester = remember { BringIntoViewRequester() }
     var inputFieldFocused by remember { mutableStateOf(false) }
+    var initialScrollDone by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -115,8 +119,26 @@ fun ChatScreen(
     }
 
     LaunchedEffect(uiState.messages.size) {
-        if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.size - 1)
+        if (!initialScrollDone && uiState.messages.isNotEmpty()) {
+            listState.scrollToItem(uiState.messages.lastIndex)
+            initialScrollDone = true
+        }
+    }
+
+    LaunchedEffect(uiState.messages.lastOrNull()?.id) {
+        val last = uiState.messages.lastOrNull() ?: return@LaunchedEffect
+        if (initialScrollDone && last.senderId == viewModel.currentUserId) {
+            listState.animateScrollToItem(uiState.messages.lastIndex)
+        }
+    }
+
+    LaunchedEffect(listState) {
+        androidx.compose.runtime.snapshotFlow {
+            listState.firstVisibleItemIndex to listState.isScrollInProgress
+        }.collect { (firstIndex, scrolling) ->
+            if (scrolling && firstIndex <= 2 && uiState.hasMoreOlderMessages) {
+                viewModel.loadOlderMessages()
+            }
         }
     }
 
@@ -195,6 +217,17 @@ fun ChatScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        val statusText = when {
+                            uiState.isOtherTyping -> "écrit..."
+                            uiState.presence.isFresh(System.currentTimeMillis() / 1000L) -> "En ligne"
+                            uiState.presence.lastSeen != null -> "Vu " + RelativeTime.format(uiState.presence.lastSeen)
+                            else -> "Hors ligne"
+                        }
+                        Text(
+                            text = statusText,
+                            fontSize = 12.sp,
+                            color = if (uiState.isOtherTyping || statusText == "En ligne") HubSecondary else HubMuted
+                        )
                     }
                 }
 
@@ -243,6 +276,21 @@ fun ChatScreen(
                     contentPadding = PaddingValues(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    if (uiState.isLoadingOlderMessages) {
+                        item(key = "loading_older_messages") {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = HubMuted,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+
                     itemsIndexed(
                         items = uiState.messages,
                         key = { _, msg -> msg.id.ifEmpty { msg.createdAt.seconds.toString() } }
@@ -261,8 +309,41 @@ fun ChatScreen(
                             isCurrentUser = isCurrentUser,
                             showTime = showTime,
                             isLastSent = isLastSent,
-                            onImageClick = onImageClick
+                            onImageClick = onImageClick,
+                            reactionList = uiState.reactions.filter { it.messageId == message.id },
+                            currentUserId = viewModel.currentUserId,
+                            onReact = { viewModel.react(message.id, it) },
+                            onReply = { viewModel.startReply(message) },
+                            onEdit = { viewModel.startEdit(message) },
+                            onDelete = { viewModel.deleteMessage(message.id) },
+                            onRetry = { viewModel.retryMessage(message) }
                         )
+                    }
+                }
+            }
+
+            if (uiState.replyingTo != null || uiState.editingMessageId != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(HubSurfaceElevated).padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (uiState.editingMessageId != null) "Modification" else "Réponse",
+                            color = HubSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = uiState.replyingTo?.text ?: "Photo",
+                            color = HubWhite,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(onClick = { viewModel.cancelComposerMode() }) {
+                        Icon(Icons.Default.Close, contentDescription = "Annuler", tint = HubMuted)
                     }
                 }
             }
@@ -348,7 +429,11 @@ fun ChatScreen(
                 ) {
                     if (uiState.inputText.isEmpty()) {
                         Text(
-                            text = "Votre message...",
+                            text = when {
+                                uiState.editingMessageId != null -> "Modifier le message..."
+                                uiState.replyingTo != null -> "Répondre..."
+                                else -> "Votre message..."
+                            },
                             color = HubMuted,
                             fontSize = 15.sp
                         )
@@ -373,7 +458,11 @@ fun ChatScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                val canSend = (uiState.inputText.isNotBlank() || uiState.selectedImageBytes != null) && !uiState.isSending
+                val canSend = (
+                    uiState.inputText.isNotBlank() ||
+                        uiState.selectedImageBytes != null ||
+                        uiState.editingMessageId != null
+                    ) && !uiState.isSending
 
                 // Send button
                 IconButton(
@@ -412,75 +501,186 @@ fun ChatScreen(
     }
 }
 
+
 @Composable
 private fun MessageBubble(
     message: Message,
     isCurrentUser: Boolean,
     showTime: Boolean,
     isLastSent: Boolean,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    reactionList: List<com.thehub.hb.data.model.MessageReaction>,
+    currentUserId: String,
+    onReact: (String) -> Unit,
+    onReply: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onRetry: () -> Unit
 ) {
+    var menuExpanded by remember(message.id) { mutableStateOf(false) }
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
     ) {
         val bubbleShape = if (isCurrentUser) {
-            RoundedCornerShape(
-                topStart = 18.dp,
-                topEnd = 18.dp,
-                bottomStart = 18.dp,
-                bottomEnd = 4.dp
-            )
+            RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp)
         } else {
-            RoundedCornerShape(
-                topStart = 18.dp,
-                topEnd = 18.dp,
-                bottomStart = 4.dp,
-                bottomEnd = 18.dp
-            )
+            RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 4.dp, bottomEnd = 18.dp)
         }
-
         val bubbleBackground = if (isCurrentUser) HubWhite else HubCard
         val textColor = if (isCurrentUser) HubBlack else HubWhite
 
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(bubbleShape)
-                .background(bubbleBackground)
-                .testTag("message_bubble_${message.id}")
-        ) {
-            Column {
-                if (!message.imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = message.imageUrl,
-                        contentDescription = "Photo envoyée",
+        Box {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .clip(bubbleShape)
+                    .background(bubbleBackground)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = { menuExpanded = true }
+                    )
+                    .testTag("message_bubble_" + message.id)
+            ) {
+                if (!message.replyToText.isNullOrBlank() || !message.replyToMessageId.isNullOrBlank()) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
-                            .clickable { onImageClick(message.imageUrl) },
-                        contentScale = ContentScale.Crop
-                    )
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isCurrentUser) HubBlack.copy(alpha = 0.08f) else HubWhite.copy(alpha = 0.08f))
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = message.replyToText ?: "Photo",
+                            color = textColor.copy(alpha = 0.75f),
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                if (!message.text.isNullOrBlank()) {
+                if (message.isDeleted) {
                     Text(
-                        text = message.text,
-                        color = textColor,
-                        fontSize = 15.sp,
+                        text = "Message supprimé",
+                        color = textColor.copy(alpha = 0.55f),
+                        fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                     )
-                    LinkPreviewCard(
-                        text = message.text,
-                        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
+                } else {
+                    if (!message.imageUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = message.imageUrl,
+                            contentDescription = "Photo envoyée",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clickable { onImageClick(message.imageUrl) },
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    if (!message.text.isNullOrBlank()) {
+                        Text(
+                            text = message.text,
+                            color = textColor,
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                        )
+                        LinkPreviewCard(
+                            text = message.text,
+                            modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
+                        )
+                    }
+                }
+            }
+
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                Text(
+                    text = "Réagir",
+                    color = HubMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+                listOf("👍", "❤️", "😂", "😮", "😢", "🔥").forEach { emoji ->
+                    DropdownMenuItem(
+                        text = { Text(emoji) },
+                        onClick = {
+                            menuExpanded = false
+                            onReact(emoji)
+                        }
+                    )
+                }
+                if (!message.isDeleted) {
+                    DropdownMenuItem(
+                        text = { Text("Répondre") },
+                        onClick = {
+                            menuExpanded = false
+                            onReply()
+                        }
+                    )
+                }
+                if (isCurrentUser && !message.isDeleted &&
+                    message.status != Message.STATUS_PENDING &&
+                    message.status != Message.STATUS_FAILED
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Modifier") },
+                        onClick = {
+                            menuExpanded = false
+                            onEdit()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Supprimer") },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        }
+                    )
+                }
+                if (message.status == Message.STATUS_FAILED) {
+                    DropdownMenuItem(
+                        text = { Text("Réessayer") },
+                        onClick = {
+                            menuExpanded = false
+                            onRetry()
+                        }
                     )
                 }
             }
         }
 
-        // Time and status indicator
+        if (reactionList.isNotEmpty() && !message.isDeleted) {
+            val grouped = reactionList.groupingBy { it.emoji }.eachCount()
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                grouped.forEach { (emoji, count) ->
+                    Text(
+                        text = emoji + " " + count,
+                        fontSize = 11.sp,
+                        color = if (reactionList.any { it.userId == currentUserId && it.emoji == emoji }) HubSecondary else HubMuted
+                    )
+                }
+            }
+        }
+
+        if (message.editedAt != null && !message.isDeleted) {
+            Text(
+                text = "modifié",
+                fontSize = 10.sp,
+                color = HubMuted,
+                modifier = Modifier.padding(top = 1.dp)
+            )
+        }
+
         if (showTime || (isCurrentUser && isLastSent)) {
             Row(
                 modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp),
@@ -496,21 +696,22 @@ private fun MessageBubble(
                 }
 
                 if (isCurrentUser && isLastSent) {
-                    if (message.status == Message.STATUS_READ) {
-                        Text(
-                            text = "Vu à ${RelativeTime.formatTimeOnly(message.createdAt)}",
-                            fontSize = 11.sp,
-                            color = HubSecondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Icon(
+                    when (message.status) {
+                        Message.STATUS_PENDING -> Text("…", fontSize = 13.sp, color = HubMuted)
+                        Message.STATUS_FAILED -> Text("Échec", fontSize = 11.sp, color = HubMuted, fontWeight = FontWeight.Medium)
+                        Message.STATUS_READ -> Icon(
                             imageVector = Icons.Default.DoneAll,
                             contentDescription = "Message lu",
                             tint = HubSecondary,
                             modifier = Modifier.size(13.dp)
                         )
-                    } else {
-                        Icon(
+                        Message.STATUS_DELIVERED -> Icon(
+                            imageVector = Icons.Default.DoneAll,
+                            contentDescription = "Message délivré",
+                            tint = HubMuted,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        else -> Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Envoyé",
                             tint = HubMuted,
