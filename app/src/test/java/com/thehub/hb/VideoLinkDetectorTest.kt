@@ -1,6 +1,7 @@
 package com.thehub.hb
 
 import com.thehub.hb.utils.VideoLinkDetector
+import com.thehub.hb.utils.VideoSourceType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -52,6 +53,34 @@ class VideoLinkDetectorTest {
         assertEquals(
             "https://videos.example.com/watch/abc",
             VideoLinkDetector.normalizeManualUrl(" https://videos.example.com/watch/abc ")
+        )
+    }
+
+    @Test
+    fun classifiesVideoSourcesForViewer() {
+        assertEquals(
+            VideoSourceType.YOUTUBE,
+            VideoLinkDetector.sourceType("https://www.youtube.com/watch?v=abc123")
+        )
+        assertEquals(
+            VideoSourceType.VIMEO,
+            VideoLinkDetector.sourceType("https://vimeo.com/123456")
+        )
+        assertEquals(
+            VideoSourceType.DAILYMOTION,
+            VideoLinkDetector.sourceType("https://www.dailymotion.com/video/x123")
+        )
+        assertEquals(
+            VideoSourceType.DIRECT_MEDIA,
+            VideoLinkDetector.sourceType("https://cdn.example.com/movie.mp4")
+        )
+        assertEquals(
+            VideoSourceType.EXTERNAL_VIDEO_PAGE,
+            VideoLinkDetector.sourceType("https://www.tiktok.com/@creator/video/123456")
+        )
+        assertEquals(
+            VideoSourceType.EXTERNAL_VIDEO_PAGE,
+            VideoLinkDetector.sourceType("https://video.example.com/watch/abc")
         )
     }
 }
