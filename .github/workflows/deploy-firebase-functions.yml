@@ -1,0 +1,117 @@
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".github/workflows/deploy-firebase-functions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: the-hub-firebase-functions-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Firebase Cloud Functions to production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Validate Firebase deployment credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: GitHub secret FIREBASE_SERVICE_ACCOUNT is required."
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json, os, sys
+
+          raw = os.environ["FIREBASE_SERVICE_ACCOUNT"]
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as exc:
+              print(f"ERROR: FIREBASE_SERVICE_ACCOUNT is not valid JSON: {exc}")
+              sys.exit(1)
+
+          if data.get("type") != "service_account":
+              print("ERROR: FIREBASE_SERVICE_ACCOUNT must be a service-account JSON key.")
+              sys.exit(1)
+
+          if data.get("project_id") != "the-hub-f95f4":
+              print(
+                  f'ERROR: service-account project_id="{data.get("project_id")}" '
+                  'does not match "the-hub-f95f4".'
+              )
+              sys.exit(1)
+
+          print("SUCCESS: Firebase deployment credentials validated.")
+          PY
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@latest
+
+      - name: Prepare Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
+          chmod 600 "$CREDENTIALS_FILE"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_FILE" >> "$GITHUB_ENV"
+
+      - name: Validate Firebase Functions source
+        working-directory: functions
+        run: |
+          set -euo pipefail
+          npm install --no-package-lock
+          npm run check
+
+      - name: Deploy Firebase Functions
+        run: |
+          set -euo pipefail
+          firebase deploy             --only functions             --project the-hub-f95f4             --non-interactive
+
+      - name: Verify deployed push function
+        run: |
+          set -euo pipefail
+          firebase functions:list             --project the-hub-f95f4             --json > "$RUNNER_TEMP/firebase-functions.json"
+
+          python3 - <<'PY'
+          import json
+          import sys
+
+          path = "/home/runner/work/_temp/firebase-functions.json"
+          with open(path, "r", encoding="utf-8") as fh:
+              data = json.load(fh)
+
+          raw = json.dumps(data)
+          if "pushNotificationOnCreate" not in raw:
+              print("ERROR: pushNotificationOnCreate was not found in the deployed functions list.")
+              sys.exit(1)
+
+          print("SUCCESS: pushNotificationOnCreate is present in the deployed Firebase Functions.")
+          PY
+
+      - name: Remove Firebase credentials
+        if: always()
+        run: |
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
