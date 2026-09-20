@@ -673,6 +673,39 @@ async function testMessageRecipientCanMarkReadOnly() {
 }
 
 async function testAdvancedMessengerSecurity() {
+  const advancedMessageRef = doc(
+    aliceDb,
+    "conversations/alice_bob/messages/advanced-message"
+  );
+  const advancedSend = writeBatch(aliceDb);
+  advancedSend.set(advancedMessageRef, {
+    senderId: "alice",
+    text: "advanced messenger test",
+    imageUrl: null,
+    createdAt: serverTimestamp(),
+    status: "sent",
+    replyToMessageId: "message-1",
+    replyToText: "hello",
+    isDeleted: false,
+  });
+  advancedSend.set(
+    doc(aliceDb, "conversations/alice_bob/messageOps/alice"),
+    {
+      type: "send",
+      targetId: "advanced-message",
+    }
+  );
+  advancedSend.update(
+    doc(aliceDb, "conversations/alice_bob"),
+    {
+      lastMessageText: "advanced messenger test",
+      lastMessageAt: serverTimestamp(),
+      lastMessageSenderId: "alice",
+      "unreadCount.bob": 1,
+    }
+  );
+  await assertSucceeds(advancedSend.commit());
+
   const presenceRef = doc(aliceDb, "users/alice/presence/current");
   await assertSucceeds(setDoc(presenceRef, {
     userId: "alice",
@@ -709,10 +742,10 @@ async function testAdvancedMessengerSecurity() {
 
   const reactionRef = doc(
     aliceDb,
-    "conversations/alice_bob/reactions/message-1_alice"
+    "conversations/alice_bob/reactions/advanced-message_alice"
   );
   await assertSucceeds(setDoc(reactionRef, {
-    messageId: "message-1",
+    messageId: "advanced-message",
     userId: "alice",
     emoji: "👍",
     updatedAt: new Date(),
@@ -722,7 +755,7 @@ async function testAdvancedMessengerSecurity() {
     updatedAt: new Date(),
   }));
   await assertFails(updateDoc(
-    doc(bobDb, "conversations/alice_bob/reactions/message-1_alice"),
+    doc(bobDb, "conversations/alice_bob/reactions/advanced-message_alice"),
     { emoji: "🔥" }
   ));
   await assertSucceeds(deleteDoc(reactionRef));
@@ -737,7 +770,7 @@ async function testAdvancedMessengerSecurity() {
   ));
 
   await assertSucceeds(updateDoc(
-    doc(aliceDb, "conversations/alice_bob/messages/message-1"),
+    advancedMessageRef,
     {
       text: "edited",
       editedAt: new Date(),
@@ -745,7 +778,7 @@ async function testAdvancedMessengerSecurity() {
   ));
 
   await assertSucceeds(updateDoc(
-    doc(aliceDb, "conversations/alice_bob/messages/message-1"),
+    advancedMessageRef,
     {
       text: null,
       imageUrl: null,
@@ -756,7 +789,7 @@ async function testAdvancedMessengerSecurity() {
   ));
 
   await assertFails(updateDoc(
-    doc(bobDb, "conversations/alice_bob/messages/message-1"),
+    doc(bobDb, "conversations/alice_bob/messages/advanced-message"),
     {
       text: null,
       imageUrl: null,
@@ -766,6 +799,7 @@ async function testAdvancedMessengerSecurity() {
     }
   ));
 }
+
 
 async function testMessageAccessIsLimitedToParticipants() {
   await assertFails(getDoc(doc(charlieDb, "conversations/alice_bob")));
@@ -1313,9 +1347,9 @@ try {
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
+  await testAdvancedMessengerSecurity();
   await testMessageAccessIsLimitedToParticipants();
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
-  await testAdvancedMessengerSecurity();
   await testSensitiveCollectionWrites();
 
   console.log("Firestore security tests (counters + messages): PASS");
