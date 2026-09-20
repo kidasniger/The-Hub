@@ -61,12 +61,12 @@ fun VideoViewerScreen(
                         }
                     }
                     webChromeClient = WebChromeClient()
-                    loadPreparedUrl(preparedUrl)
+                    loadPreparedUrl(preparedUrl, context.packageName)
                 }
             },
             update = { webView ->
                 if (webView.url != preparedUrl) {
-                    webView.loadPreparedUrl(preparedUrl)
+                    webView.loadPreparedUrl(preparedUrl, webView.context.packageName)
                 }
             },
             modifier = Modifier.fillMaxSize()
@@ -91,11 +91,25 @@ fun VideoViewerScreen(
     }
 }
 
-private fun WebView.loadPreparedUrl(url: String) {
+private fun WebView.loadPreparedUrl(url: String, packageName: String) {
     if (url.startsWith("data:text/html")) {
-        loadDataWithBaseURL(null, url.removePrefix("data:text/html,"), "text/html", "UTF-8", null)
+        loadDataWithBaseURL(
+            null,
+            url.removePrefix("data:text/html,"),
+            "text/html",
+            "UTF-8",
+            "https://$packageName"
+        )
     } else {
-        loadUrl(url)
+        // YouTube error 153 occurs when the embedded player receives no HTTP Referer.
+        // Android WebView does not provide one by default. YouTube documents
+        // android-app://<package> as the app identity for this WebView integration.
+        val headers = if (url.contains("youtube.com/embed/")) {
+            mapOf("Referer" to "android-app://$packageName")
+        } else {
+            emptyMap()
+        }
+        loadUrl(url, headers)
     }
 }
 
