@@ -13,6 +13,7 @@ class VideoLinkDetectorTest {
     fun detectsSupportedVideoProviders() {
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.youtube.com/watch?v=abc123"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://youtu.be/abc123"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://music.youtube.com/watch?v=abc123"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://vimeo.com/123456"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.dailymotion.com/video/x123"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.tiktok.com/@creator/video/123456"))
@@ -25,6 +26,7 @@ class VideoLinkDetectorTest {
     @Test
     fun detectsDirectVideoFiles() {
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://cdn.example.com/video.mp4"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://cdn.example.com/video.mp4?token=abc"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://cdn.example.com/video.webm"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://cdn.example.com/stream.m3u8"))
         assertFalse(VideoLinkDetector.isKnownVideoUrl("https://example.com/photo.jpg"))
@@ -49,10 +51,14 @@ class VideoLinkDetectorTest {
     }
 
     @Test
-    fun acceptsGenericHttpsVideoLinksManually() {
+    fun acceptsOnlyDetectableVideoLinksManually() {
         assertEquals(
             "https://videos.example.com/watch/abc",
             VideoLinkDetector.normalizeManualUrl(" https://videos.example.com/watch/abc ")
+        )
+        assertEquals(
+            null,
+            VideoLinkDetector.normalizeManualUrl("https://example.com/article/abc")
         )
     }
 
