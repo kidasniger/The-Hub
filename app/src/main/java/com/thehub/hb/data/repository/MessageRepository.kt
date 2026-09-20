@@ -284,23 +284,30 @@ class MessageRepository(
             )
 
             try {
-                convRef.create(newConversation.toMap()).await()
+                // Android Firestore SDK: set() creates the document when absent.
+                // The security rules reject a full overwrite of an existing
+                // conversation, so an accidental race cannot bypass validation.
+                convRef.set(newConversation.toMap()).await()
                 Result.success(newConversation)
             } catch (e: FirebaseFirestoreException) {
                 when (e.code) {
-                    FirebaseFirestoreException.Code.ALREADY_EXISTS -> {
-                        val racedDoc = convRef.get().await()
-                        if (racedDoc.exists()) {
+                    FirebaseFirestoreException.Code.PERMISSION_DENIED -> {
+                        // Another client may have created the conversation in the
+                        // meantime, or the relationship changed. Re-read and use
+                        // the existing conversation only when it is now readable.
+                        val racedDoc = try {
+                            convRef.get().await()
+                        } catch (_: Exception) {
+                            null
+                        }
+
+                        if (racedDoc?.exists() == true) {
                             Result.success(Conversation.fromSnapshot(racedDoc))
                         } else {
-                            Result.failure(Exception("Conversation introuvable."))
+                            Result.failure(
+                                Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
+                            )
                         }
-                    }
-
-                    FirebaseFirestoreException.Code.PERMISSION_DENIED -> {
-                        Result.failure(
-                            Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
-                        )
                     }
 
                     else -> throw e
