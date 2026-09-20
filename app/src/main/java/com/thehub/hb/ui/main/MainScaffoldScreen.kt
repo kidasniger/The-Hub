@@ -264,10 +264,12 @@ fun MainScaffoldScreen(
                     NotificationsScreen(
                         viewModel = notificationsViewModel,
                         onPostClick = onPostClick,
+                        onOpenComments = onOpenComments,
                         onUserClick = { actorId, _ ->
                             onNavigateToProfile(actorId)
                         },
-                        onOpenMessenger = onOpenMessenger
+                        onOpenMessenger = onOpenMessenger,
+                        onOpenChat = onNavigateToChat
                     )
                 }
 
