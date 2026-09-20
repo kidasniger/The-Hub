@@ -203,7 +203,11 @@ fun PostCard(
             }
 
             // Post Text
-            if (post.text.isNotBlank()) {
+            val hasVideo = !post.videoUrl.isNullOrBlank()
+            val textIsOnlyVideoUrl = hasVideo &&
+                post.text.trim().equals(post.videoUrl?.trim(), ignoreCase = true)
+
+            if (post.text.isNotBlank() && !textIsOnlyVideoUrl) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = post.text,
@@ -211,7 +215,7 @@ fun PostCard(
                     lineHeight = 22.sp,
                     color = HubWhite
                 )
-                if (post.videoUrl.isNullOrBlank()) {
+                if (!hasVideo) {
                     LinkPreviewCard(
                         text = post.text,
                         modifier = Modifier.padding(top = 10.dp)
