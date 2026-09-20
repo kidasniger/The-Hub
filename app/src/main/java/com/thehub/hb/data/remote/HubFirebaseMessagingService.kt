@@ -15,6 +15,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.thehub.hb.MainActivity
 import com.thehub.hb.R
+import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.NotificationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,14 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
 
         val data = message.data
         val notificationPayload = message.notification
+
+        val conversationId = data["conversationId"].orEmpty()
+        val messageId = data["messageId"].orEmpty()
+        if (conversationId.isNotBlank() && messageId.isNotBlank()) {
+            serviceScope.launch {
+                MessageRepository().markDelivered(conversationId, listOf(messageId))
+            }
+        }
 
         if (data.isEmpty() && notificationPayload == null) return
 
