@@ -7,23 +7,22 @@ object HubDeepLink {
     fun toRoute(rawUri: String?): String? {
         if (rawUri.isNullOrBlank()) return null
 
-        val uri = try {
-            Uri.parse(rawUri)
-        } catch (_: Exception) {
-            return null
-        }
+        val normalized = rawUri.trim()
+        if (!normalized.startsWith("thehub://", ignoreCase = true)) return null
 
-        if (uri.scheme != "thehub") return null
+        val payload = normalized
+            .substring("thehub://".length)
+            .substringBefore('?')
+            .trim('/')
 
-        val segments = uri.pathSegments.filter { it.isNotBlank() }
-        val target = uri.host?.takeIf { it.isNotBlank() }
-            ?: segments.firstOrNull()
-            ?: return null
-        val id = if (uri.host?.isNotBlank() == true) {
-            segments.firstOrNull()
-        } else {
-            segments.drop(1).firstOrNull()
-        }
+        if (payload.isBlank()) return null
+
+        val segments = payload
+            .split('/')
+            .filter { it.isNotBlank() }
+
+        val target = segments.firstOrNull()?.lowercase() ?: return null
+        val id = segments.getOrNull(1)?.let(Uri::decode)
 
         return when (target) {
             "feed" -> Screen.Feed.route
