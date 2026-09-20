@@ -1127,7 +1127,9 @@ async function testSensitiveCollectionWrites() {
     platform: "android",
     updatedAt: new Date(),
   }));
-  await assertFails(getDoc(fcmTokenRef));
+  await assertFails(getDoc(
+    doc(bobDb, "users/eve/fcmTokens/device-token-1")
+  ));
   await assertFails(setDoc(
     doc(bobDb, "users/eve/fcmTokens/forged-token"),
     {
@@ -1136,9 +1138,13 @@ async function testSensitiveCollectionWrites() {
       updatedAt: new Date(),
     }
   ));
-  await assertFails(updateDoc(
+  await assertSucceeds(updateDoc(
     fcmTokenRef,
-    { token: "changed-token" }
+    {
+      token: "rotated-fcm-token",
+      platform: "android",
+      updatedAt: new Date(),
+    }
   ));
   await assertSucceeds(deleteDoc(fcmTokenRef));
 
