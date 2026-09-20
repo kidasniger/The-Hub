@@ -1,6 +1,6 @@
 package com.thehub.hb.utils
 
-import android.net.Uri
+import java.net.URI
 
 object VideoLinkDetector {
     private val urlRegex = Regex("""https?://[^\s<>]+""", RegexOption.IGNORE_CASE)
@@ -11,7 +11,7 @@ object VideoLinkDetector {
 
     private val videoPathMarkers = setOf(
         "video", "videos", "watch", "reel", "reels", "short", "shorts",
-        "clip", "clips", "embed", "player", "live"
+        "clip", "clips", "embed", "player", "live", "stream", "streams"
     )
 
     fun extractVideoUrl(text: String): String? {
@@ -24,14 +24,10 @@ object VideoLinkDetector {
         val value = input.trim()
         if (value.isBlank()) return null
 
-        val uri = try {
-            Uri.parse(value)
-        } catch (_: Exception) {
-            return null
-        }
-
+        val uri = parseUri(value) ?: return null
         val scheme = uri.scheme?.lowercase()
         val host = uri.host
+
         return if ((scheme == "https" || scheme == "http") && !host.isNullOrBlank()) {
             value
         } else {
@@ -40,19 +36,15 @@ object VideoLinkDetector {
     }
 
     fun isKnownVideoUrl(url: String): Boolean {
-        val uri = try {
-            Uri.parse(url)
-        } catch (_: Exception) {
-            return false
-        }
-
-        if (uri.scheme?.lowercase() !in setOf("http", "https")) return false
+        val uri = parseUri(url) ?: return false
+        val scheme = uri.scheme?.lowercase()
+        if (scheme !in setOf("http", "https")) return false
 
         val host = uri.host?.lowercase() ?: return false
         val path = uri.path?.lowercase().orEmpty()
         val normalizedPath = path.trim('/')
 
-        if (directVideoExtensions.any { path.substringBefore('?').endsWith(it) }) {
+        if (directVideoExtensions.any { path.endsWith(it) }) {
             return true
         }
 
@@ -92,32 +84,25 @@ object VideoLinkDetector {
             return true
         }
 
-        // Also detect generic video pages such as:
-        // example.com/watch/..., example.com/video/..., cdn.example.com/stream/...
+        // Generic video-page detection for links outside the known providers.
         val pathSegments = normalizedPath
             .split('/')
             .filter { it.isNotBlank() }
 
         return pathSegments.any { segment ->
-            segment in videoPathMarkers || segment.startsWith("video")
+            segment in videoPathMarkers ||
+                segment.startsWith("video") ||
+                segment.startsWith("watch")
         }
     }
 
     fun isDirectMediaUrl(url: String): Boolean {
-        val path = try {
-            Uri.parse(url).path?.lowercase().orEmpty()
-        } catch (_: Exception) {
-            ""
-        }
+        val path = parseUri(url)?.path?.lowercase().orEmpty()
         return directVideoExtensions.any { path.endsWith(it) }
     }
 
     fun providerLabel(url: String): String {
-        val host = try {
-            Uri.parse(url).host?.lowercase().orEmpty()
-        } catch (_: Exception) {
-            ""
-        }
+        val host = parseUri(url)?.host?.lowercase().orEmpty()
 
         return when {
             host.contains("youtube") || host == "youtu.be" -> "YouTube"
@@ -132,6 +117,14 @@ object VideoLinkDetector {
             host.contains("twitter") || host == "x.com" -> "X"
             isDirectMediaUrl(url) -> "Vidéo directe"
             else -> "Lien vidéo"
+        }
+    }
+
+    private fun parseUri(value: String): URI? {
+        return try {
+            URI(value)
+        } catch (_: Exception) {
+            null
         }
     }
 }
