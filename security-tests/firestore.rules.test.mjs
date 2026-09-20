@@ -672,6 +672,101 @@ async function testMessageRecipientCanMarkReadOnly() {
   await assertFails(updateDoc(messageRef, { text: "recipient edit" }));
 }
 
+async function testAdvancedMessengerSecurity() {
+  const presenceRef = doc(aliceDb, "users/alice/presence/current");
+  await assertSucceeds(setDoc(presenceRef, {
+    userId: "alice",
+    online: true,
+    lastSeen: new Date(),
+  }));
+  await assertSucceeds(updateDoc(presenceRef, {
+    online: false,
+    lastSeen: new Date(),
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "users/alice/presence/current"),
+    { online: true }
+  ));
+
+  const typingRef = doc(
+    aliceDb,
+    "conversations/alice_bob/typing/alice"
+  );
+  await assertSucceeds(setDoc(typingRef, {
+    userId: "alice",
+    typing: true,
+    updatedAt: new Date(),
+  }));
+  await assertSucceeds(deleteDoc(typingRef));
+  await assertFails(setDoc(
+    doc(bobDb, "conversations/alice_bob/typing/alice"),
+    {
+      userId: "bob",
+      typing: true,
+      updatedAt: new Date(),
+    }
+  ));
+
+  const reactionRef = doc(
+    aliceDb,
+    "conversations/alice_bob/reactions/message-1_alice"
+  );
+  await assertSucceeds(setDoc(reactionRef, {
+    messageId: "message-1",
+    userId: "alice",
+    emoji: "👍",
+    updatedAt: new Date(),
+  }));
+  await assertSucceeds(updateDoc(reactionRef, {
+    emoji: "❤️",
+    updatedAt: new Date(),
+  }));
+  await assertFails(updateDoc(
+    doc(bobDb, "conversations/alice_bob/reactions/message-1_alice"),
+    { emoji: "🔥" }
+  ));
+  await assertSucceeds(deleteDoc(reactionRef));
+
+  await assertSucceeds(updateDoc(
+    doc(bobDb, "conversations/alice_bob/messages/message-1"),
+    { status: "delivered" }
+  ));
+  await assertSucceeds(updateDoc(
+    doc(bobDb, "conversations/alice_bob/messages/message-1"),
+    { status: "read" }
+  ));
+
+  await assertSucceeds(updateDoc(
+    doc(aliceDb, "conversations/alice_bob/messages/message-1"),
+    {
+      text: "edited",
+      editedAt: new Date(),
+    }
+  ));
+
+  await assertSucceeds(updateDoc(
+    doc(aliceDb, "conversations/alice_bob/messages/message-1"),
+    {
+      text: null,
+      imageUrl: null,
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: "alice",
+    }
+  ));
+
+  await assertFails(updateDoc(
+    doc(bobDb, "conversations/alice_bob/messages/message-1"),
+    {
+      text: null,
+      imageUrl: null,
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: "bob",
+    }
+  ));
+}
+
 async function testMessageAccessIsLimitedToParticipants() {
   await assertFails(getDoc(doc(charlieDb, "conversations/alice_bob")));
   await assertFails(getDoc(
@@ -1218,6 +1313,7 @@ try {
   await testMessageSecurityAndAtomicSend();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
+  await testAdvancedMessengerSecurity();
   await testMessageAccessIsLimitedToParticipants();
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
   await testSensitiveCollectionWrites();
