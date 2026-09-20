@@ -136,7 +136,7 @@ fun ChatScreen(
         androidx.compose.runtime.snapshotFlow {
             listState.firstVisibleItemIndex to listState.isScrollInProgress
         }.collect { (firstIndex, scrolling) ->
-            if (scrolling && firstIndex <= 2 && uiState.hasMoreOlderMessages) {
+            if (scrolling && firstIndex <= 2 && viewModel.uiState.value.hasMoreOlderMessages) {
                 viewModel.loadOlderMessages()
             }
         }
@@ -502,6 +502,7 @@ fun ChatScreen(
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: Message,
