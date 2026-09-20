@@ -71,6 +71,15 @@ class UpdateViewModel(
         }
     }
 
+    fun openUpdateDialog() {
+        val current = _updateInfo.value
+        if (current != null) {
+            downloadManager.restoreCachedDownload(current)
+        } else {
+            checkForUpdates(silent = true)
+        }
+    }
+
     fun startDownload(updateInfo: AppUpdateInfo) {
         downloadManager.startDownload(
             apkUrl = updateInfo.apkDownloadUrl,
