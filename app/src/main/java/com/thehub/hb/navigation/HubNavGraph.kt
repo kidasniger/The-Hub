@@ -87,6 +87,11 @@ fun HubNavGraph(
         )
     )
 
+    LaunchedEffect(currentUser?.uid) {
+        if (currentUser?.uid != null) {
+            onRequestNotificationPermission()
+        }
+    }
     // Global in-app update bottom sheet
     UpdateBottomSheet(viewModel = updateViewModel)
 
