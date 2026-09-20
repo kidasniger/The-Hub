@@ -317,6 +317,19 @@ service cloud.firestore {
 
         allow delete: if isUser(userId);
       }
+      match /presence/{presenceId} {
+        allow read: if isAuthenticated();
+
+        allow create, update: if isUser(userId)
+          && presenceId == 'current'
+          && request.resource.data.keys().hasOnly(['userId', 'online', 'lastSeen'])
+          && request.resource.data.userId == userId
+          && request.resource.data.online is bool
+          && request.resource.data.lastSeen is timestamp;
+
+        allow delete: if isUser(userId) && presenceId == 'current';
+      }
+
       match /fcmTokens/{tokenId} {
         // Tokens are private device credentials. They are never readable by
         // clients and can only be created/updated/deleted by their owner.
@@ -952,6 +965,41 @@ service cloud.firestore {
           && getAfter(messagePath(request.resource.data.targetId)).data.senderId == request.auth.uid;
       }
 
+      match /typing/{typingUserId} {
+        allow read: if isParticipant();
+
+        allow create, update: if isParticipant()
+          && typingUserId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['userId', 'typing', 'updatedAt'])
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.typing is bool
+          && request.resource.data.updatedAt is timestamp;
+
+        allow delete: if isParticipant() && typingUserId == request.auth.uid;
+      }
+
+      match /reactions/{reactionId} {
+        allow read: if isParticipant();
+
+        allow create, update: if isParticipant()
+          && request.resource.data.keys().hasOnly([
+            'messageId',
+            'userId',
+            'emoji',
+            'updatedAt'
+          ])
+          && request.resource.data.messageId is string
+          && exists(
+            /databases/$(database)/documents/conversations/$(conversationId)/messages/$(request.resource.data.messageId)
+          )
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.emoji in ['👍', '❤️', '😂', '😮', '😢', '🔥']
+          && request.resource.data.updatedAt is timestamp;
+
+        allow delete: if isParticipant()
+          && resource.data.userId == request.auth.uid;
+      }
+
       match /messages/{messageId} {
         function parentConversationIsAccessible() {
           let conversation = get(
@@ -969,11 +1017,21 @@ service cloud.firestore {
             'text',
             'imageUrl',
             'createdAt',
-            'status'
+            'status',
+            'replyToMessageId',
+            'replyToText',
+            'isDeleted',
+            'editedAt',
+            'deletedAt',
+            'deletedBy'
           ])
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.createdAt == request.time
           && request.resource.data.status == 'sent'
+          && request.resource.data.get('isDeleted', false) == false
+          && request.resource.data.get('editedAt', null) == null
+          && request.resource.data.get('deletedAt', null) == null
+          && request.resource.data.get('deletedBy', null) == null
           && (
             request.resource.data.text == null
             || request.resource.data.text is string
@@ -981,6 +1039,14 @@ service cloud.firestore {
           && (
             request.resource.data.imageUrl == null
             || request.resource.data.imageUrl is string
+          )
+          && (
+            request.resource.data.get('replyToMessageId', null) == null
+            || request.resource.data.get('replyToMessageId', null) is string
+          )
+          && (
+            request.resource.data.get('replyToText', null) == null
+            || request.resource.data.get('replyToText', null) is string
           )
           && (
             (
@@ -1024,8 +1090,13 @@ service cloud.firestore {
             && request.resource.data.senderId == resource.data.senderId
             && request.resource.data.createdAt == resource.data.createdAt
             && request.resource.data.status == resource.data.status
+            && request.resource.data.get('isDeleted', false) == false
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['text', 'imageUrl'])
+              .hasOnly(['text', 'imageUrl', 'editedAt'])
+            && (
+              request.resource.data.get('editedAt', null) == null
+              || request.resource.data.get('editedAt', null) == request.time
+            )
             && (
               request.resource.data.text == null
               || request.resource.data.text is string
@@ -1046,14 +1117,33 @@ service cloud.firestore {
             )
           )
           || (
+            resource.data.senderId == request.auth.uid
+            && request.resource.data.senderId == resource.data.senderId
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'text',
+              'imageUrl',
+              'isDeleted',
+              'deletedAt',
+              'deletedBy'
+            ])
+            && request.resource.data.isDeleted == true
+            && request.resource.data.deletedBy == request.auth.uid
+            && request.resource.data.deletedAt == request.time
+            && request.resource.data.text == null
+            && request.resource.data.imageUrl == null
+          )
+          || (
             resource.data.senderId != request.auth.uid
             && request.resource.data.senderId == resource.data.senderId
             && request.resource.data.createdAt == resource.data.createdAt
             && request.resource.data.text == resource.data.text
             && request.resource.data.imageUrl == resource.data.imageUrl
-            && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status'])
-            && request.resource.data.status == 'read'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && (
+              request.resource.data.status == 'delivered'
+              || request.resource.data.status == 'read'
+            )
             && (
               resource.data.status == 'sent'
               || resource.data.status == 'delivered'
