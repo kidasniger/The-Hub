@@ -27,6 +27,14 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <service
+            android:name=".data.remote.HubFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,6 +45,17 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="thehub" android:host="feed" />
+                <data android:scheme="thehub" android:host="post" />
+                <data android:scheme="thehub" android:host="comments" />
+                <data android:scheme="thehub" android:host="chat" />
+                <data android:scheme="thehub" android:host="profile" />
+                <data android:scheme="thehub" android:host="messenger" />
             </intent-filter>
         </activity>
     </application>
