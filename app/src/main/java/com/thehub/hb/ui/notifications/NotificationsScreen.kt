@@ -141,11 +141,13 @@ fun NotificationsScreen(
                                         onClick = {
                                             viewModel.onNotificationClicked(notification)
                                             when (notification.type) {
-                                                NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT,
-                                                NotificationItem.TYPE_LIKE_COMMENT, NotificationItem.TYPE_REPLY_COMMENT -> {
-                                                    notification.postId?.let { postId ->
-                                                        onOpenComments(postId)
-                                                    }
+                                                NotificationItem.TYPE_LIKE -> {
+                                                    notification.postId?.let(onPostClick)
+                                                }
+                                                NotificationItem.TYPE_COMMENT,
+                                                NotificationItem.TYPE_LIKE_COMMENT,
+                                                NotificationItem.TYPE_REPLY_COMMENT -> {
+                                                    notification.postId?.let(onOpenComments)
                                                 }
                                                 NotificationItem.TYPE_FOLLOW -> {
                                                     onUserClick(notification.actorId, notification.actorUsername)
