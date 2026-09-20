@@ -465,6 +465,7 @@ fun CreatePostScreen(
             )
         }
     }
+    }
 }
 
 private suspend fun readBytesFromUri(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
