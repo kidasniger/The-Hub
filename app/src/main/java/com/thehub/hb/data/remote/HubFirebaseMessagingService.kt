@@ -43,11 +43,25 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
 
         val data = message.data
-        if (data.isEmpty()) return
+        val notificationPayload = message.notification
 
-        val title = data["title"]?.takeIf { it.isNotBlank() } ?: "The Hub"
-        val body = data["body"]?.takeIf { it.isNotBlank() } ?: return
-        val deepLink = data["deepLink"]?.takeIf { it.isNotBlank() } ?: "thehub://feed"
+        if (data.isEmpty() && notificationPayload == null) return
+
+        val title = data["title"]
+            ?.takeIf { it.isNotBlank() }
+            ?: notificationPayload?.title
+            ?.takeIf { it.isNotBlank() }
+            ?: "The Hub"
+
+        val body = data["body"]
+            ?.takeIf { it.isNotBlank() }
+            ?: notificationPayload?.body
+            ?.takeIf { it.isNotBlank() }
+            ?: buildFallbackBody(data)
+
+        val deepLink = data["deepLink"]
+            ?.takeIf { it.isNotBlank() }
+            ?: buildFallbackDeepLink(data)
 
         showNotification(
             title = title,
@@ -58,6 +72,46 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         )
     }
 
+    private fun buildFallbackBody(data: Map<String, String>): String {
+        val actor = data["actorUsername"]?.takeIf { it.isNotBlank() } ?: "Quelqu'un"
+        return when (data["type"]) {
+            "like" -> actor + " a aimé votre publication"
+            "comment" -> actor + " a commenté votre publication"
+            "follow" -> actor + " a commencé à vous suivre"
+            "message" -> actor + " vous a envoyé un message"
+            "like_comment" -> actor + " a aimé votre commentaire"
+            "reply_comment" -> actor + " a répondu à votre commentaire"
+            else -> "Vous avez une nouvelle notification"
+        }
+    }
+
+    private fun buildFallbackDeepLink(data: Map<String, String>): String {
+        val type = data["type"].orEmpty()
+        val actorId = data["actorId"].orEmpty()
+        val postId = data["postId"].orEmpty()
+        val conversationId = data["conversationId"].orEmpty()
+
+        if (type == "follow" && actorId.isNotBlank()) {
+            return "thehub://profile/" + Uri.encode(actorId)
+        }
+
+        if (type == "message" && conversationId.isNotBlank()) {
+            return "thehub://chat/" + Uri.encode(conversationId)
+        }
+
+        if (
+            (type == "comment" || type == "like_comment" || type == "reply_comment") &&
+            postId.isNotBlank()
+        ) {
+            return "thehub://comments/" + Uri.encode(postId)
+        }
+
+        if (postId.isNotBlank()) {
+            return "thehub://post/" + Uri.encode(postId)
+        }
+
+        return "thehub://feed"
+    }
     private fun showNotification(
         title: String,
         body: String,
