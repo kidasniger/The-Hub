@@ -135,7 +135,7 @@ exports.pushNotificationOnCreate = onDocumentCreated(
 
     const tokenDocs = tokenSnapshot.docs;
     const tokens = tokenDocs
-      .map((doc) => doc.getString("token"))
+      .map((doc) => doc.get("token"))
       .filter((token) => typeof token === "string" && token.length > 0);
 
     if (tokens.length === 0) {
@@ -170,7 +170,7 @@ exports.pushNotificationOnCreate = onDocumentCreated(
         ) {
           const token = chunk[index];
           const tokenDoc = tokenDocs.find(
-            (doc) => doc.getString("token") === token
+            (doc) => doc.get("token") === token
           );
           if (tokenDoc) {
             await deleteInvalidToken(tokenDoc.ref, token);
