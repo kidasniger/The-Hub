@@ -14,6 +14,11 @@ class VideoLinkDetectorTest {
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://youtu.be/abc123"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://vimeo.com/123456"))
         assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.dailymotion.com/video/x123"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.tiktok.com/@creator/video/123456"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.instagram.com/reel/ABC123/"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.facebook.com/reel/123456"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://www.twitch.tv/videos/123456"))
+        assertTrue(VideoLinkDetector.isKnownVideoUrl("https://x.com/example/status/123456"))
     }
 
     @Test
@@ -30,6 +35,16 @@ class VideoLinkDetectorTest {
             "Regarde cette vidéo https://youtu.be/abc123 maintenant."
         )
         assertEquals("https://youtu.be/abc123", url)
+    }
+
+    @Test
+    fun extractsGenericVideoPageLinks() {
+        assertEquals(
+            "https://video.example.com/watch/abc123",
+            VideoLinkDetector.extractVideoUrl(
+                "Regarde https://video.example.com/watch/abc123 maintenant."
+            )
+        )
     }
 
     @Test
