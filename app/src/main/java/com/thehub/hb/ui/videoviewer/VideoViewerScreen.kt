@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.text.TextUtils
+import android.view.View
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -31,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +45,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.thehub.hb.ui.theme.HubBackground
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubWhite
@@ -49,7 +57,6 @@ import com.thehub.hb.utils.VideoLinkDetector
 import com.thehub.hb.utils.VideoSourceType
 import java.util.Locale
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun VideoViewerScreen(
     videoUrl: String,
@@ -57,8 +64,135 @@ fun VideoViewerScreen(
 ) {
     val context = LocalContext.current
     val cleanedUrl = remember(videoUrl) { videoUrl.trim() }
+    val sourceType = remember(cleanedUrl) {
+        VideoLinkDetector.sourceType(cleanedUrl)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HubBackground)
+    ) {
+        if (sourceType == VideoSourceType.YOUTUBE) {
+            val videoId = remember(cleanedUrl) {
+                VideoLinkDetector.youtubeVideoId(cleanedUrl)
+            }
+
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .background(Color.Black)
+                        .padding(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(Color(0x99000000), CircleShape)
+                            .align(Alignment.CenterStart)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Fermer",
+                            tint = HubWhite,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "YouTube",
+                        color = HubWhite,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                if (videoId.isNullOrBlank()) {
+                    VideoPlaybackError(
+                        sourceType = sourceType,
+                        onRetry = { },
+                        onOpenExternally = { openExternally(context, cleanedUrl) },
+                        showRetry = false
+                    )
+                } else {
+                    YouTubePlayerContent(
+                        videoId = videoId,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
+                }
+            }
+        } else {
+            GenericVideoViewer(
+                videoUrl = cleanedUrl,
+                onClose = onClose
+            )
+        }
+    }
+}
+
+@Composable
+private fun YouTubePlayerContent(
+    videoId: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val playerView = remember(videoId, context) {
+        YouTubePlayerView(context).apply {
+            enableAutomaticInitialization = false
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, playerView) {
+        lifecycleOwner.lifecycle.addObserver(playerView)
+
+        val options = IFramePlayerOptions.Builder(context)
+            .origin("https://" + context.packageName.lowercase(Locale.ROOT))
+            .controls(1)
+            .fullscreen(1)
+            .autoplay(0)
+            .build()
+
+        playerView.initialize(
+            object : AbstractYouTubePlayerListener() {
+                override fun onReady(player: YouTubePlayer) {
+                    player.cueVideo(videoId, 0f)
+                }
+            },
+            true,
+            options
+        )
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(playerView)
+            playerView.release()
+        }
+    }
+
+    AndroidView(
+        factory = { playerView },
+        modifier = modifier
+            .background(Color.Black)
+    )
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun GenericVideoViewer(
+    videoUrl: String,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    val cleanedUrl = remember(videoUrl) { videoUrl.trim() }
     val prepared = remember(cleanedUrl, context.packageName) {
-        prepareVideoUrl(cleanedUrl, context.packageName)
+        prepareGenericVideoUrl(cleanedUrl, context.packageName)
     }
 
     var isLoading by remember(prepared) { mutableStateOf(true) }
@@ -66,15 +200,18 @@ fun VideoViewerScreen(
     var reloadToken by remember(prepared) { mutableStateOf(0) }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HubBackground)
+        modifier = Modifier.fillMaxSize()
     ) {
         key(prepared.cacheKey, reloadToken) {
             AndroidView(
                 factory = { androidContext ->
                     WebView(androidContext).apply {
                         setBackgroundColor(android.graphics.Color.BLACK)
+                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = false
@@ -110,11 +247,6 @@ fun VideoViewerScreen(
                                 }
                                 super.onReceivedError(view, request, error)
                             }
-
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView,
-                                request: WebResourceRequest
-                            ): Boolean = false
                         }
 
                         webChromeClient = WebChromeClient()
@@ -122,7 +254,7 @@ fun VideoViewerScreen(
                     }
                 },
                 update = { webView ->
-                    if (!prepared.isInlineHtml && webView.url != prepared.url && reloadToken == 0) {
+                    if (webView.url != prepared.url && reloadToken == 0) {
                         webView.loadPreparedVideo(prepared)
                     }
                 },
@@ -183,7 +315,7 @@ private data class PreparedVideo(
             .joinToString(separator = "&") { entry -> entry.key + "=" + entry.value }
 }
 
-private fun prepareVideoUrl(
+private fun prepareGenericVideoUrl(
     url: String,
     packageName: String
 ): PreparedVideo {
@@ -198,7 +330,7 @@ private fun prepareVideoUrl(
         )
 
         VideoSourceType.YOUTUBE -> {
-            val id = extractYouTubeId(Uri.parse(cleaned))
+            val id = VideoLinkDetector.youtubeVideoId(cleaned)
             if (id.isNullOrBlank()) {
                 PreparedVideo(cleaned, sourceType)
             } else {
@@ -359,9 +491,7 @@ private fun buildDirectMediaHtml(mediaUrl: String): String {
     """.trimIndent()
 }
 
-private fun WebView.loadPreparedVideo(
-    prepared: PreparedVideo
-) {
+private fun WebView.loadPreparedVideo(prepared: PreparedVideo) {
     if (prepared.isInlineHtml) {
         loadDataWithBaseURL(
             "https://" + context.packageName.lowercase(Locale.ROOT) + "/",
@@ -377,25 +507,12 @@ private fun WebView.loadPreparedVideo(
     }
 }
 
-private fun extractYouTubeId(uri: Uri): String? {
-    if (uri.host?.lowercase(Locale.ROOT) == "youtu.be") {
-        return uri.pathSegments.firstOrNull()
-    }
-
-    uri.getQueryParameter("v")
-        ?.takeIf { it.isNotBlank() }
-        ?.let { return it }
-
-    val segments = uri.pathSegments
-    val markerIndex = segments.indexOfFirst { it == "shorts" || it == "embed" }
-    return if (markerIndex >= 0) segments.getOrNull(markerIndex + 1) else null
-}
-
 @Composable
 private fun VideoPlaybackError(
     sourceType: VideoSourceType,
     onRetry: () -> Unit,
-    onOpenExternally: () -> Unit
+    onOpenExternally: () -> Unit,
+    showRetry: Boolean = true
 ) {
     Box(
         modifier = Modifier
@@ -424,13 +541,15 @@ private fun VideoPlaybackError(
                 color = HubSecondary
             )
 
-            Button(onClick = onRetry) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(" Réessayer")
+            if (showRetry) {
+                Button(onClick = onRetry) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(" Réessayer")
+                }
             }
 
             Button(onClick = onOpenExternally) {
