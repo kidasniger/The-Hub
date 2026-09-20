@@ -137,6 +137,49 @@ object VideoLinkDetector {
         }
     }
 
+    fun youtubeVideoId(url: String): String? {
+        val uri = parseUri(url) ?: return null
+        val host = uri.host?.lowercase().orEmpty()
+
+        if (
+            host == "youtu.be"
+        ) {
+            return uri.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
+        }
+
+        uri.getQueryParameter("v")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
+        val segments = uri.pathSegments
+        val markerIndex = segments.indexOfFirst {
+            it.equals("shorts", ignoreCase = true) ||
+                it.equals("embed", ignoreCase = true)
+        }
+
+        return segments.getOrNull(markerIndex + 1)
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    fun isYouTubeShorts(url: String): Boolean {
+        val uri = parseUri(url) ?: return false
+        return uri.host?.lowercase().let { host ->
+            (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com") &&
+                uri.pathSegments.any { it.equals("shorts", ignoreCase = true) }
+        }
+    }
+
+    fun thumbnailUrl(url: String): String? {
+        return when (sourceType(url)) {
+            VideoSourceType.YOUTUBE -> {
+                youtubeVideoId(url)?.let { id ->
+                    "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+                }
+            }
+            else -> null
+        }
+    }
+
     fun providerLabel(url: String): String {
         val host = parseUri(url)?.host?.lowercase().orEmpty()
 
