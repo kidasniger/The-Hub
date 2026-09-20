@@ -49,6 +49,7 @@ import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.PostMediaImage
+import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBorder
@@ -75,6 +76,7 @@ fun PostCard(
     post: Post,
     onPostClick: (String) -> Unit,
     onImageClick: (String) -> Unit,
+    onVideoClick: ((String) -> Unit)? = null,
     onToggleLike: (String) -> Unit,
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
@@ -225,6 +227,14 @@ fun PostCard(
                     showSaveButton = true,
                     saveButtonTag = "post_card_save_image_button",
                     onImageClick = onImageClick
+                )
+            }
+
+            if (!post.videoUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                VideoLinkCard(
+                    videoUrl = post.videoUrl!!,
+                    onClick = onVideoClick
                 )
             }
 
@@ -388,6 +398,14 @@ private fun EmbeddedOriginalPost(
                 cornerRadius = 8.dp,
                 showSaveButton = false,
                 onImageClick = onImageClick
+            )
+        }
+
+        if (!originalPost.videoUrl.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            VideoLinkCard(
+                videoUrl = originalPost.videoUrl!!,
+                onClick = onVideoClick
             )
         }
     }
