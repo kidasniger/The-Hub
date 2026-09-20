@@ -4,8 +4,14 @@ import android.net.Uri
 
 object VideoLinkDetector {
     private val urlRegex = Regex("""https?://[^\s<>]+""", RegexOption.IGNORE_CASE)
+
     private val directVideoExtensions = listOf(
-        ".mp4", ".webm", ".m4v", ".mov", ".m3u8", ".mkv"
+        ".mp4", ".webm", ".m4v", ".mov", ".m3u8", ".mkv", ".avi"
+    )
+
+    private val videoPathMarkers = setOf(
+        "video", "videos", "watch", "reel", "reels", "short", "shorts",
+        "clip", "clips", "embed", "player", "live"
     )
 
     fun extractVideoUrl(text: String): String? {
@@ -44,12 +50,14 @@ object VideoLinkDetector {
 
         val host = uri.host?.lowercase() ?: return false
         val path = uri.path?.lowercase().orEmpty()
+        val normalizedPath = path.trim('/')
 
         if (directVideoExtensions.any { path.substringBefore('?').endsWith(it) }) {
             return true
         }
 
-        return host == "youtube.com" ||
+        if (
+            host == "youtube.com" ||
             host == "www.youtube.com" ||
             host == "m.youtube.com" ||
             host == "youtu.be" ||
@@ -63,7 +71,36 @@ object VideoLinkDetector {
             host == "streamable.com" ||
             host == "www.streamable.com" ||
             host == "wistia.com" ||
-            host.endsWith(".wistia.com")
+            host.endsWith(".wistia.com") ||
+            host == "tiktok.com" ||
+            host == "www.tiktok.com" ||
+            host.endsWith(".tiktok.com") ||
+            host == "facebook.com" ||
+            host == "www.facebook.com" ||
+            host == "m.facebook.com" ||
+            host == "fb.watch" ||
+            host == "instagram.com" ||
+            host == "www.instagram.com" ||
+            host == "twitch.tv" ||
+            host == "www.twitch.tv" ||
+            host == "clips.twitch.tv" ||
+            host == "x.com" ||
+            host == "www.x.com" ||
+            host == "twitter.com" ||
+            host == "www.twitter.com"
+        ) {
+            return true
+        }
+
+        // Also detect generic video pages such as:
+        // example.com/watch/..., example.com/video/..., cdn.example.com/stream/...
+        val pathSegments = normalizedPath
+            .split('/')
+            .filter { it.isNotBlank() }
+
+        return pathSegments.any { segment ->
+            segment in videoPathMarkers || segment.startsWith("video")
+        }
     }
 
     fun isDirectMediaUrl(url: String): Boolean {
@@ -76,13 +113,23 @@ object VideoLinkDetector {
     }
 
     fun providerLabel(url: String): String {
-        val host = try { Uri.parse(url).host?.lowercase().orEmpty() } catch (_: Exception) { "" }
+        val host = try {
+            Uri.parse(url).host?.lowercase().orEmpty()
+        } catch (_: Exception) {
+            ""
+        }
+
         return when {
             host.contains("youtube") || host == "youtu.be" -> "YouTube"
             host.contains("vimeo") -> "Vimeo"
             host.contains("dailymotion") || host == "dai.ly" -> "Dailymotion"
             host.contains("streamable") -> "Streamable"
             host.contains("wistia") -> "Wistia"
+            host.contains("tiktok") -> "TikTok"
+            host.contains("facebook") || host == "fb.watch" -> "Facebook"
+            host.contains("instagram") -> "Instagram"
+            host.contains("twitch") -> "Twitch"
+            host.contains("twitter") || host == "x.com" -> "X"
             isDirectMediaUrl(url) -> "Vidéo directe"
             else -> "Lien vidéo"
         }
