@@ -466,7 +466,8 @@ class MessageRepository(
                 notificationRepository.createNotification(
                     recipientId = otherUid,
                     type = NotificationItem.TYPE_MESSAGE,
-                    commentText = previewText
+                    commentText = previewText,
+                    conversationId = conversationId
                 )
             } catch (_: Exception) {}
 
