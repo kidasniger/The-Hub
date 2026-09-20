@@ -69,8 +69,10 @@ import com.thehub.hb.utils.RelativeTime
 fun NotificationsScreen(
     viewModel: NotificationsViewModel,
     onPostClick: (String) -> Unit,
+    onOpenComments: (String) -> Unit,
     onUserClick: (String, String) -> Unit,
     onOpenMessenger: () -> Unit,
+    onOpenChat: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -142,14 +144,17 @@ fun NotificationsScreen(
                                                 NotificationItem.TYPE_LIKE, NotificationItem.TYPE_COMMENT,
                                                 NotificationItem.TYPE_LIKE_COMMENT, NotificationItem.TYPE_REPLY_COMMENT -> {
                                                     notification.postId?.let { postId ->
-                                                        onPostClick(postId)
+                                                        onOpenComments(postId)
                                                     }
                                                 }
                                                 NotificationItem.TYPE_FOLLOW -> {
                                                     onUserClick(notification.actorId, notification.actorUsername)
                                                 }
                                                 NotificationItem.TYPE_MESSAGE -> {
-                                                    onOpenMessenger()
+                                                    notification.conversationId
+                                                        ?.takeIf { it.isNotBlank() }
+                                                        ?.let(onOpenChat)
+                                                        ?: onOpenMessenger()
                                                 }
                                                 else -> {
                                                     notification.postId?.let { onPostClick(it) }
