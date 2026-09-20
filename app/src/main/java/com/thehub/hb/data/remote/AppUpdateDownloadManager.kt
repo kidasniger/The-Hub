@@ -1,16 +1,24 @@
 package com.thehub.hb.data.remote
 
+import android.Manifest
 import android.app.DownloadManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.thehub.hb.MainActivity
+import com.thehub.hb.R
 import com.thehub.hb.data.model.AppUpdateInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,11 +48,23 @@ class AppUpdateDownloadManager(
     companion object {
         private const val TAG = "AppUpdateDownload"
         private const val CACHED_DOWNLOAD_ID = -1L
+        private const val UPDATE_NOTIFICATION_CHANNEL_ID = "app_updates"
+        private const val UPDATE_NOTIFICATION_ID = 4108
+        private const val NOTIFICATION_PREFS = "app_update_notification"
+        private const val LAST_NOTIFIED_VERSION = "last_notified_version"
     }
 
     private val downloadManager =
         context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val notificationPrefs = context.getSharedPreferences(
+        NOTIFICATION_PREFS,
+        Context.MODE_PRIVATE
+    )
+
+    init {
+        createUpdateNotificationChannel()
+    }
 
     private val _status = MutableStateFlow<DownloadStatus>(DownloadStatus.Idle)
     val status: StateFlow<DownloadStatus> = _status.asStateFlow()
@@ -97,6 +117,9 @@ class AppUpdateDownloadManager(
             file = cachedFile,
             downloadId = CACHED_DOWNLOAD_ID
         )
+        notifyUpdateReadyIfNeeded(
+            versionName = updateInfo.latestVersion
+        )
         return true
     }
 
@@ -136,7 +159,9 @@ class AppUpdateDownloadManager(
         val request = DownloadManager.Request(uri).apply {
             setTitle("The Hub $versionName")
             setDescription("Téléchargement de la mise à jour...")
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            // DownloadManager handles progress; the app posts its own final
+            // notification so its click can reopen the update BottomSheet.
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
             setMimeType("application/vnd.android.package-archive")
             setAllowedOverMetered(true)
             setAllowedOverRoaming(true)
@@ -335,6 +360,7 @@ class AppUpdateDownloadManager(
             currentDownloadId = -1L
             targetApkFile = validFile
             _status.value = DownloadStatus.Completed(validFile, downloadId)
+            notifyUpdateReadyIfNeeded(expectedVersion)
         } else {
             if (validFile?.exists() == true) {
                 try {
@@ -380,6 +406,75 @@ class AppUpdateDownloadManager(
             .removePrefix("v")
             .removePrefix("V")
             .substringBefore("-")
+    }
+
+    private fun createUpdateNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            UPDATE_NOTIFICATION_CHANNEL_ID,
+            "Mises à jour",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Notifications lorsque The Hub a terminé de télécharger une mise à jour."
+        }
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun notifyUpdateReadyIfNeeded(versionName: String) {
+        if (versionName.isBlank()) return
+
+        val alreadyNotified = notificationPrefs.getString(LAST_NOTIFIED_VERSION, null) == versionName
+        if (alreadyNotified) return
+
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TAG, "POST_NOTIFICATIONS permission is not granted; update-ready notification skipped.")
+            return
+        }
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_OPEN_UPDATE_DIALOG, true)
+        }
+
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            context,
+            UPDATE_NOTIFICATION_ID,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(
+            context,
+            UPDATE_NOTIFICATION_CHANNEL_ID
+        )
+            .setSmallIcon(R.drawable.ic_hub_logo)
+            .setContentTitle("Mise à jour prête")
+            .setContentText("Appuyez pour ouvrir l'installation de la nouvelle version")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        try {
+            NotificationManagerCompat.from(context).notify(
+                UPDATE_NOTIFICATION_ID,
+                notification
+            )
+            notificationPrefs.edit()
+                .putString(LAST_NOTIFIED_VERSION, versionName)
+                .apply()
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Unable to post update notification.", e)
+        }
     }
 
     fun cancelDownload() {
