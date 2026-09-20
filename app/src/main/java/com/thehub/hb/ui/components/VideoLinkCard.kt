@@ -76,12 +76,12 @@ fun VideoLinkCard(
             SubcomposeAsyncImage(
                 model = thumbnailUrl,
                 contentDescription = "Aperçu vidéo $provider",
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 loading = {
                     Box(
                         modifier = Modifier
-                            .matchParentSize()
+                            .fillMaxSize()
                             .background(HubSurfaceElevated),
                         contentAlignment = Alignment.Center
                     ) {
@@ -94,28 +94,28 @@ fun VideoLinkCard(
                 },
                 success = {
                     SubcomposeAsyncImageContent(
-                        modifier = Modifier.matchParentSize(),
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 },
                 error = {
                     VideoThumbnailFallback(
                         provider = provider,
-                        modifier = Modifier.matchParentSize()
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             )
         } else {
             VideoThumbnailFallback(
                 provider = provider,
-                modifier = Modifier.matchParentSize()
+                modifier = Modifier.fillMaxSize()
             )
         }
 
         // Subtle readability scrim.
         Box(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.20f))
         )
 
