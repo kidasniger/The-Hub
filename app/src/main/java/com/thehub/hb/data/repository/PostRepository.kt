@@ -358,7 +358,7 @@ class PostRepository(
     /**
      * Create a new post document in Firestore.
      */
-    suspend fun createPost(text: String, imageUrl: String? = null): Result<Post> = withContext(Dispatchers.IO) {
+    suspend fun createPost(text: String, imageUrl: String? = null, videoUrl: String? = null): Result<Post> = withContext(Dispatchers.IO) {
         try {
             val (uid, username, photoUrl) = getCurrentAuthorInfo()
             if (uid.isEmpty()) {
@@ -382,6 +382,7 @@ class PostRepository(
                 authorPhotoUrl = photoUrl,
                 text = text.trim(),
                 imageUrl = imageUrl,
+                videoUrl = videoUrl,
                 createdAt = now,
                 likesCount = 0,
                 commentsCount = 0,
@@ -408,7 +409,7 @@ class PostRepository(
     /**
      * Update the text and hashtags of an existing post authored by the current user.
      */
-    suspend fun updatePostText(postId: String, newText: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun updatePostText(postId: String, newText: String, videoUrl: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
 
         try {
@@ -430,6 +431,7 @@ class PostRepository(
                 mapOf(
                     "text" to trimmed,
                     "hashtags" to hashtags,
+                    "videoUrl" to videoUrl,
                     "updatedAt" to Timestamp.now()
                 )
             ).await()
