@@ -403,6 +403,14 @@ fun PostDetailScreen(
                                         onImageClick = onImageClick
                                     )
                                 }
+
+                                if (!orig.videoUrl.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    VideoLinkCard(
+                                        videoUrl = orig.videoUrl!!,
+                                        onClick = onVideoClick
+                                    )
+                                }
                             }
                         }
 
