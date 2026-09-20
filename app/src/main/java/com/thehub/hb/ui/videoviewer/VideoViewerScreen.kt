@@ -57,7 +57,9 @@ fun VideoViewerScreen(
 ) {
     val context = LocalContext.current
     val cleanedUrl = remember(videoUrl) { videoUrl.trim() }
-    val prepared = remember(cleanedUrl) { prepareVideoUrl(cleanedUrl) }
+    val prepared = remember(cleanedUrl, context.packageName) {
+        prepareVideoUrl(cleanedUrl, context.packageName)
+    }
 
     var isLoading by remember(prepared) { mutableStateOf(true) }
     var hasError by remember(prepared) { mutableStateOf(false) }
@@ -68,7 +70,7 @@ fun VideoViewerScreen(
             .fillMaxSize()
             .background(HubBackground)
     ) {
-        key(prepared.url, reloadToken) {
+        key(prepared.cacheKey, reloadToken) {
             AndroidView(
                 factory = { androidContext ->
                     WebView(androidContext).apply {
@@ -116,7 +118,7 @@ fun VideoViewerScreen(
                         }
 
                         webChromeClient = WebChromeClient()
-                        loadPreparedVideo(prepared, context.packageName)
+                        loadPreparedVideo(prepared)
                     }
                 },
                 update = { webView ->
@@ -172,17 +174,27 @@ fun VideoViewerScreen(
 
 private data class PreparedVideo(
     val url: String,
-    val sourceType: VideoSourceType
-)
+    val sourceType: VideoSourceType,
+    val additionalHeaders: Map<String, String> = emptyMap(),
+    val isInlineHtml: Boolean = false
+) {
+    val cacheKey: String
+        get() = url + additionalHeaders.entries.sortedBy { it.key }
+            .joinToString(separator = "&") { entry -> entry.key + "=" + entry.value }
+}
 
-private fun prepareVideoUrl(url: String): PreparedVideo {
+private fun prepareVideoUrl(
+    url: String,
+    packageName: String
+): PreparedVideo {
     val cleaned = url.trim()
     val sourceType = VideoLinkDetector.sourceType(cleaned)
 
     return when (sourceType) {
         VideoSourceType.DIRECT_MEDIA -> PreparedVideo(
             url = buildDirectMediaHtml(cleaned),
-            sourceType = sourceType
+            sourceType = sourceType,
+            isInlineHtml = true
         )
 
         VideoSourceType.YOUTUBE -> {
@@ -190,12 +202,14 @@ private fun prepareVideoUrl(url: String): PreparedVideo {
             if (id.isNullOrBlank()) {
                 PreparedVideo(cleaned, sourceType)
             } else {
+                val appReferrer = "https://" + packageName.lowercase(Locale.ROOT)
                 PreparedVideo(
-                    url = buildEmbedHtml(
-                        iframeUrl = "https://www.youtube.com/embed/$id?autoplay=1&rel=0&playsinline=1",
-                        title = "YouTube"
+                    url = buildYouTubeEmbedUrl(
+                        videoId = id,
+                        appReferrer = appReferrer
                     ),
-                    sourceType = sourceType
+                    sourceType = sourceType,
+                    additionalHeaders = mapOf("Referer" to appReferrer)
                 )
             }
         }
@@ -210,7 +224,8 @@ private fun prepareVideoUrl(url: String): PreparedVideo {
                         iframeUrl = "https://player.vimeo.com/video/$id?autoplay=1",
                         title = "Vimeo"
                     ),
-                    sourceType = sourceType
+                    sourceType = sourceType,
+                    isInlineHtml = true
                 )
             }
         }
@@ -226,7 +241,8 @@ private fun prepareVideoUrl(url: String): PreparedVideo {
                         iframeUrl = "https://www.dailymotion.com/embed/video/$id?autoplay=1",
                         title = "Dailymotion"
                     ),
-                    sourceType = sourceType
+                    sourceType = sourceType,
+                    isInlineHtml = true
                 )
             }
         }
@@ -236,6 +252,24 @@ private fun prepareVideoUrl(url: String): PreparedVideo {
             sourceType = sourceType
         )
     }
+}
+
+private fun buildYouTubeEmbedUrl(
+    videoId: String,
+    appReferrer: String
+): String {
+    return Uri.Builder()
+        .scheme("https")
+        .authority("www.youtube.com")
+        .appendPath("embed")
+        .appendPath(videoId)
+        .appendQueryParameter("autoplay", "1")
+        .appendQueryParameter("rel", "0")
+        .appendQueryParameter("playsinline", "1")
+        .appendQueryParameter("origin", appReferrer)
+        .appendQueryParameter("widget_referrer", appReferrer)
+        .build()
+        .toString()
 }
 
 private fun buildEmbedHtml(
@@ -326,19 +360,20 @@ private fun buildDirectMediaHtml(mediaUrl: String): String {
 }
 
 private fun WebView.loadPreparedVideo(
-    prepared: PreparedVideo,
-    packageName: String
+    prepared: PreparedVideo
 ) {
-    if (prepared.url.startsWith("<!doctype html>", ignoreCase = true)) {
+    if (prepared.isInlineHtml) {
         loadDataWithBaseURL(
-            "https://$packageName/",
+            "https://" + context.packageName.lowercase(Locale.ROOT) + "/",
             prepared.url,
             "text/html",
             "UTF-8",
             null
         )
-    } else {
+    } else if (prepared.additionalHeaders.isEmpty()) {
         loadUrl(prepared.url)
+    } else {
+        loadUrl(prepared.url, prepared.additionalHeaders)
     }
 }
 
