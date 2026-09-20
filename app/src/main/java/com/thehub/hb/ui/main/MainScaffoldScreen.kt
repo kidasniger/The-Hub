@@ -126,6 +126,7 @@ fun MainScaffoldScreen(
     authRepository: AuthRepository,
     onPostClick: (String) -> Unit,
     onImageClick: (String) -> Unit,
+    onVideoClick: (String) -> Unit,
     onOpenComments: (String) -> Unit,
     onOpenLikes: (String) -> Unit,
     onOpenMessenger: () -> Unit,
@@ -202,6 +203,7 @@ fun MainScaffoldScreen(
                         viewModel = feedViewModel,
                         onPostClick = onPostClick,
                         onImageClick = onImageClick,
+                        onVideoClick = onVideoClick,
                         onOpenComments = onOpenComments,
                         onOpenLikes = onOpenLikes,
                         onCreatePost = {
@@ -229,6 +231,7 @@ fun MainScaffoldScreen(
                         viewModel = searchViewModel,
                         onPostClick = onPostClick,
                         onImageClick = onImageClick,
+                        onVideoClick = onVideoClick,
                         onOpenComments = onOpenComments,
                         onOpenLikes = onOpenLikes,
                         onOpenShare = { post ->
@@ -287,6 +290,7 @@ fun MainScaffoldScreen(
                         onOpenComments = onOpenComments,
                         onOpenLikes = onOpenLikes,
                         onImageClick = onImageClick,
+                        onVideoClick = onVideoClick,
                         isBottomTab = true
                     )
                 }
