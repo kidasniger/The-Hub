@@ -417,7 +417,7 @@ fun CreatePostScreen(
                 text = {
                     Column {
                         Text(
-                            text = "Colle le lien d'une vidéo YouTube, Vimeo, Dailymotion ou d'une vidéo directe.",
+                            text = "Colle le lien d'une vidéo YouTube, TikTok, Instagram, Facebook, Vimeo, Dailymotion, Twitch ou une URL vidéo directe.",
                             color = HubSecondary,
                             fontSize = 13.sp
                         )
