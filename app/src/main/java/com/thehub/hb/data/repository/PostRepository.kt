@@ -383,6 +383,10 @@ class PostRepository(
                 text = text.trim(),
                 imageUrl = imageUrl,
                 videoUrl = videoUrl,
+                mediaType = com.thehub.hb.data.model.PostMediaType.fromUrls(
+                    imageUrl = imageUrl,
+                    videoUrl = videoUrl
+                ),
                 createdAt = now,
                 likesCount = 0,
                 commentsCount = 0,
@@ -426,12 +430,18 @@ class PostRepository(
 
             val trimmed = newText.trim()
             val hashtags = extractHashtags(trimmed)
+            val existingImageUrl = postDoc.getString("imageUrl")
+            val mediaType = com.thehub.hb.data.model.PostMediaType.fromUrls(
+                imageUrl = existingImageUrl,
+                videoUrl = videoUrl
+            )
 
             postRef.update(
                 mapOf(
                     "text" to trimmed,
                     "hashtags" to hashtags,
                     "videoUrl" to videoUrl,
+                    "mediaType" to mediaType.name,
                     "updatedAt" to Timestamp.now()
                 )
             ).await()
