@@ -116,6 +116,7 @@ fun ProfileScreen(
     onOpenComments: (String) -> Unit = {},
     onOpenLikes: (String) -> Unit = {},
     onImageClick: (String) -> Unit = {},
+    onVideoClick: ((String) -> Unit)? = null,
     isBottomTab: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -398,6 +399,7 @@ fun ProfileScreen(
                                         post = post,
                                         onPostClick = onPostClick,
                                         onImageClick = onImageClick,
+                                        onVideoClick = onVideoClick,
                                         onToggleLike = { viewModel.toggleLike(it) },
                                         onOpenComments = onOpenComments,
                                         onOpenLikes = onOpenLikes,
