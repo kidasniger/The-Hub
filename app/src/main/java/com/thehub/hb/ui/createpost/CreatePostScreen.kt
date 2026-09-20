@@ -245,7 +245,7 @@ fun CreatePostScreen(
                     )
                 }
 
-                if (uiState.text.isNotBlank()) {
+                if (uiState.text.isNotBlank() && uiState.videoUrl.isNullOrBlank()) {
                     LinkPreviewCard(
                         text = uiState.text,
                         modifier = Modifier.padding(top = 10.dp)
