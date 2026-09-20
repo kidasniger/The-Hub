@@ -113,48 +113,72 @@ class ChatViewModel(
             )
     }
 
-    private val conversationInputFlow = combine(
-        _inputText,
-        _isSending,
-        _selectedImageUri,
-        _selectedImageBytes,
+    private val textSendingFlow = combine(_inputText, _isSending) { text, sending ->
+        text to sending
+    }
+
+    private val selectedImageFlow = combine(_selectedImageUri, _selectedImageBytes) { uri, bytes ->
+        uri to bytes
+    }
+
+    private val composerModeFlow = combine(
         _replyingTo,
         _editingMessageId,
         _isLoadingOlder
-    ) { inputText, isSending, selectedUri, selectedBytes, replying, editingId, loadingOlder ->
+    ) { replying, editingId, loadingOlder ->
+        Triple(replying, editingId, loadingOlder)
+    }
+
+    private val conversationInputFlow = combine(
+        textSendingFlow,
+        selectedImageFlow,
+        composerModeFlow
+    ) { textSending, imageState, composer ->
         ComposerState(
-            inputText,
-            isSending,
-            selectedUri,
-            selectedBytes,
-            replying,
-            editingId,
-            loadingOlder
+            inputText = textSending.first,
+            isSending = textSending.second,
+            selectedUri = imageState.first,
+            selectedBytes = imageState.second,
+            replyingTo = composer.first,
+            editingId = composer.second,
+            loadingOlder = composer.third
         )
     }
 
-    val uiState: StateFlow<ChatUiState> = combine(
+    private val realtimeBaseFlow = combine(
         conversationFlow,
         mergedMessagesFlow,
         reactionsFlow,
         typingFlow,
-        presenceFlow,
+        presenceFlow
+    ) { conv, messages, reactions, typing, presence ->
+        RealtimeBase(
+            conversation = conv,
+            messages = messages,
+            reactions = reactions,
+            typing = typing,
+            presence = presence
+        )
+    }
+
+    val uiState: StateFlow<ChatUiState> = combine(
+        realtimeBaseFlow,
         conversationInputFlow,
         _hasMoreOlderMessages,
         _errorMessage
-    ) { conv, messages, reactions, typing, presence, input, hasMore, error ->
-        val otherId = conv?.getOtherParticipantId(currentUserId).orEmpty()
-        val otherInfo = conv?.getOtherParticipantInfo(currentUserId) ?: ParticipantInfo()
+    ) { base, input, hasMore, error ->
+        val otherId = base.conversation?.getOtherParticipantId(currentUserId).orEmpty()
+        val otherInfo = base.conversation?.getOtherParticipantInfo(currentUserId) ?: ParticipantInfo()
 
         ChatUiState(
-            conversation = conv,
+            conversation = base.conversation,
             otherParticipantInfo = otherInfo,
             otherUserId = otherId,
-            messages = messages,
-            reactions = reactions,
-            isOtherTyping = typing,
-            presence = presence,
-            isLoading = conv == null && messages.isEmpty(),
+            messages = base.messages,
+            reactions = base.reactions,
+            isOtherTyping = base.typing,
+            presence = base.presence,
+            isLoading = base.conversation == null && base.messages.isEmpty(),
             isSending = input.isSending,
             inputText = input.inputText,
             selectedImageUri = input.selectedUri,
@@ -169,6 +193,14 @@ class ChatViewModel(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         ChatUiState()
+    )
+
+        private data class RealtimeBase(
+        val conversation: Conversation?,
+        val messages: List<Message>,
+        val reactions: List<MessageReaction>,
+        val typing: Boolean,
+        val presence: PresenceState
     )
 
     private data class ComposerState(
