@@ -66,7 +66,11 @@ object ImageCompressor {
                 // Keep the decoded bitmap if EXIF metadata cannot be read.
             }
 
-            bitmap = scaleToMaxDimension(bitmap, maxDimension)
+            val initiallyScaled = scaleToMaxDimension(bitmap, maxDimension)
+            if (initiallyScaled !== bitmap) {
+                bitmap.recycle()
+                bitmap = initiallyScaled
+            }
 
             var currentQuality = quality.coerceIn(40, 100)
             var encoded = encodeJpeg(bitmap, currentQuality)
