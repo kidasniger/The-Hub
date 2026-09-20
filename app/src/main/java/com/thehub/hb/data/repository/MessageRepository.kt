@@ -7,8 +7,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.model.Message
+import com.thehub.hb.data.model.MessageReaction
 import com.thehub.hb.data.model.NotificationItem
 import com.thehub.hb.data.model.ParticipantInfo
+import com.thehub.hb.data.model.PresenceState
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.remote.ImgbbService
 import kotlinx.coroutines.Dispatchers
@@ -158,6 +160,317 @@ class MessageRepository(
 
         awaitClose { listener.remove() }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Real-time stream of the latest messages only. Older messages are loaded explicitly
+     * with loadOlderMessages so long conversations do not reload their entire history.
+     */
+    fun getLatestMessages(
+        conversationId: String,
+        limit: Long = 50
+    ): Flow<List<Message>> = callbackFlow {
+        val query = firestore.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.w("MessageRepository", "Latest message listener error: " + error.message)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val messages = snapshot.documents
+                    .asReversed()
+                    .mapNotNull { doc ->
+                        try { Message.fromSnapshot(doc) } catch (_: Exception) { null }
+                    }
+                trySend(messages)
+            }
+        }
+
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
+    data class OlderMessagesPage(
+        val messages: List<Message>,
+        val cursor: DocumentSnapshot?,
+        val hasMore: Boolean
+    )
+
+    suspend fun loadOlderMessages(
+        conversationId: String,
+        before: DocumentSnapshot?,
+        limit: Long = 50
+    ): Result<OlderMessagesPage> = withContext(Dispatchers.IO) {
+        try {
+            var query = firestore.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(limit)
+
+            if (before != null) {
+                query = query.startAfter(before)
+            }
+
+            val snapshot = query.get().await()
+            val messages = snapshot.documents
+                .asReversed()
+                .mapNotNull { doc ->
+                    try { Message.fromSnapshot(doc) } catch (_: Exception) { null }
+                }
+            Result.success(
+                OlderMessagesPage(
+                    messages = messages,
+                    cursor = snapshot.documents.lastOrNull(),
+                    hasMore = snapshot.size() == limit.toInt()
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun observeTyping(
+        conversationId: String,
+        otherUserId: String
+    ): Flow<Boolean> = callbackFlow {
+        if (otherUserId.isBlank()) {
+            trySend(false)
+            close()
+            return@callbackFlow
+        }
+
+        val ref = firestore.collection("conversations")
+            .document(conversationId)
+            .collection("typing")
+            .document(otherUserId)
+
+        val listener = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(false)
+                return@addSnapshotListener
+            }
+            val online = snapshot?.getBoolean("typing") == true
+            val updatedAt = snapshot?.getTimestamp("updatedAt")
+            val fresh = updatedAt != null &&
+                (Timestamp.now().seconds - updatedAt.seconds) <= 5
+            trySend(online && fresh)
+        }
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
+    suspend fun setTyping(conversationId: String, isTyping: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val uid = currentUserId ?: return@withContext Result.success(Unit)
+            try {
+                val ref = firestore.collection("conversations")
+                    .document(conversationId)
+                    .collection("typing")
+                    .document(uid)
+                if (isTyping) {
+                    ref.set(
+                        mapOf(
+                            "userId" to uid,
+                            "typing" to true,
+                            "updatedAt" to Timestamp.now()
+                        )
+                    ).await()
+                } else {
+                    ref.delete().await()
+                }
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    fun observePresence(userId: String): Flow<PresenceState> = callbackFlow {
+        if (userId.isBlank()) {
+            trySend(PresenceState())
+            close()
+            return@callbackFlow
+        }
+
+        val ref = firestore.collection("users")
+            .document(userId)
+            .collection("presence")
+            .document("current")
+
+        val listener = ref.addSnapshotListener { snapshot, error ->
+            if (error != null || snapshot == null || !snapshot.exists()) {
+                trySend(PresenceState())
+                return@addSnapshotListener
+            }
+            trySend(
+                PresenceState(
+                    online = snapshot.getBoolean("online") == true,
+                    lastSeen = snapshot.getTimestamp("lastSeen")
+                )
+            )
+        }
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
+    suspend fun setPresence(online: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.success(Unit)
+        try {
+            firestore.collection("users")
+                .document(uid)
+                .collection("presence")
+                .document("current")
+                .set(
+                    mapOf(
+                        "userId" to uid,
+                        "online" to online,
+                        "lastSeen" to Timestamp.now()
+                    )
+                )
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun observeMessageReactions(conversationId: String): Flow<List<MessageReaction>> = callbackFlow {
+        val listener = firestore.collection("conversations")
+            .document(conversationId)
+            .collection("reactions")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                trySend(
+                    snapshot?.documents?.mapNotNull {
+                        try { MessageReaction.fromSnapshot(it) } catch (_: Exception) { null }
+                    } ?: emptyList()
+                )
+            }
+        awaitClose { listener.remove() }
+    }.flowOn(Dispatchers.IO)
+
+    suspend fun setMessageReaction(
+        conversationId: String,
+        messageId: String,
+        emoji: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        if (emoji !in setOf("👍", "❤️", "😂", "😮", "😢", "🔥")) {
+            return@withContext Result.failure(Exception("Réaction invalide."))
+        }
+        try {
+            firestore.collection("conversations")
+                .document(conversationId)
+                .collection("reactions")
+                .document(messageId + "_" + uid)
+                .set(
+                    mapOf(
+                        "messageId" to messageId,
+                        "userId" to uid,
+                        "emoji" to emoji,
+                        "updatedAt" to Timestamp.now()
+                    )
+                ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeMessageReaction(
+        conversationId: String,
+        messageId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            firestore.collection("conversations")
+                .document(conversationId)
+                .collection("reactions")
+                .document(messageId + "_" + uid)
+                .delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun markDelivered(conversationId: String, messageIds: List<String>): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val uid = currentUserId ?: return@withContext Result.success(Unit)
+            val ids = messageIds.filter { it.isNotBlank() }.distinct().take(50)
+            if (ids.isEmpty()) return@withContext Result.success(Unit)
+            try {
+                val batch = firestore.batch()
+                ids.forEach { id ->
+                    val ref = firestore.collection("conversations")
+                        .document(conversationId)
+                        .collection("messages")
+                        .document(id)
+                    batch.update(ref, "status", Message.STATUS_DELIVERED)
+                }
+                batch.commit().await()
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun editMessage(
+        conversationId: String,
+        messageId: String,
+        text: String?,
+        imageUrl: String?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val cleanText = text?.trim()?.takeIf { it.isNotBlank() }
+            if (cleanText == null && imageUrl.isNullOrBlank()) {
+                return@withContext Result.failure(Exception("Le message ne peut pas être vide."))
+            }
+            firestore.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .document(messageId)
+                .update(
+                    mapOf(
+                        "text" to cleanText,
+                        "imageUrl" to imageUrl?.takeIf { it.isNotBlank() },
+                        "editedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMessage(
+        conversationId: String,
+        messageId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.failure(Exception("Non connecté"))
+        try {
+            firestore.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .document(messageId)
+                .update(
+                    mapOf(
+                        "text" to null,
+                        "imageUrl" to null,
+                        "isDeleted" to true,
+                        "deletedAt" to FieldValue.serverTimestamp(),
+                        "deletedBy" to uid
+                    )
+                ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     /**
      * Fetches user profile for a given uid.
@@ -426,7 +739,13 @@ class MessageRepository(
                 "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
                 "imageUrl" to (if (imageUrl.isNullOrBlank()) null else imageUrl),
                 "createdAt" to FieldValue.serverTimestamp(),
-                "status" to Message.STATUS_SENT
+                "status" to Message.STATUS_SENT,
+                "replyToMessageId" to replyToMessageId,
+                "replyToText" to replyToText,
+                "isDeleted" to false,
+                "editedAt" to null,
+                "deletedAt" to null,
+                "deletedBy" to null
             )
 
             val previewText = when {
@@ -467,7 +786,8 @@ class MessageRepository(
                     recipientId = otherUid,
                     type = NotificationItem.TYPE_MESSAGE,
                     commentText = previewText,
-                    conversationId = conversationId
+                    conversationId = conversationId,
+                    messageId = message.id
                 )
             } catch (_: Exception) {}
 
