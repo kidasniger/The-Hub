@@ -126,6 +126,7 @@ async function run() {
             postId: sanitizeData(notif.postId || ''),
             commentId: sanitizeData(notif.commentId || ''),
             conversationId: sanitizeData(notif.conversationId || ''),
+            messageId: sanitizeData(notif.messageId || ''),
             deepLink: sanitizeData(deepLink),
           },
           android: { priority: 'high' },
