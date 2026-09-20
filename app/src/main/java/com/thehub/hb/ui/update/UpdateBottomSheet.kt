@@ -1,5 +1,8 @@
 package com.thehub.hb.ui.update
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
 import com.thehub.hb.ui.theme.HubOutline
 import com.thehub.hb.ui.theme.HubSurface
@@ -42,6 +45,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,6 +91,35 @@ fun UpdateBottomSheet(
     val userMessage by viewModel.userMessage.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.startDownload(updateInfo!!)
+        } else {
+            Toast.makeText(
+                context,
+                "Les notifications sont désactivées ; le téléchargement va continuer.",
+                Toast.LENGTH_SHORT
+            ).show()
+            viewModel.startDownload(updateInfo!!)
+        }
+    }
+
+    val startDownloadWithNotificationPermission = {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.startDownload(updateInfo!!)
+        }
+    }
+
     LaunchedEffect(userMessage) {
         userMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -111,7 +146,7 @@ fun UpdateBottomSheet(
             UpdateContent(
                 info = updateInfo!!,
                 status = downloadStatus,
-                onStartDownload = { viewModel.startDownload(updateInfo!!) },
+                onStartDownload = startDownloadWithNotificationPermission,
                 onDismiss = onDismissRequest
             )
         }
