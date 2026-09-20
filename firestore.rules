@@ -1028,10 +1028,22 @@ service cloud.firestore {
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.createdAt == request.time
           && request.resource.data.status == 'sent'
-          && request.resource.data.get('isDeleted', false) == false
-          && request.resource.data.get('editedAt', null) == null
-          && request.resource.data.get('deletedAt', null) == null
-          && request.resource.data.get('deletedBy', null) == null
+          && (
+            !request.resource.data.keys().hasAny(['isDeleted'])
+            || request.resource.data.isDeleted == false
+          )
+          && (
+            !request.resource.data.keys().hasAny(['editedAt'])
+            || request.resource.data.editedAt == null
+          )
+          && (
+            !request.resource.data.keys().hasAny(['deletedAt'])
+            || request.resource.data.deletedAt == null
+          )
+          && (
+            !request.resource.data.keys().hasAny(['deletedBy'])
+            || request.resource.data.deletedBy == null
+          )
           && (
             request.resource.data.text == null
             || request.resource.data.text is string
@@ -1041,12 +1053,12 @@ service cloud.firestore {
             || request.resource.data.imageUrl is string
           )
           && (
-            request.resource.data.get('replyToMessageId', null) == null
-            || request.resource.data.get('replyToMessageId', null) is string
+            !request.resource.data.keys().hasAny(['replyToMessageId'])
+            || request.resource.data.replyToMessageId is string
           )
           && (
-            request.resource.data.get('replyToText', null) == null
-            || request.resource.data.get('replyToText', null) is string
+            !request.resource.data.keys().hasAny(['replyToText'])
+            || request.resource.data.replyToText is string
           )
           && (
             (
@@ -1090,12 +1102,16 @@ service cloud.firestore {
             && request.resource.data.senderId == resource.data.senderId
             && request.resource.data.createdAt == resource.data.createdAt
             && request.resource.data.status == resource.data.status
-            && request.resource.data.get('isDeleted', false) == false
+            && (
+              !request.resource.data.keys().hasAny(['isDeleted'])
+              || request.resource.data.isDeleted == false
+            )
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['text', 'imageUrl', 'editedAt'])
             && (
-              request.resource.data.get('editedAt', null) == null
-              || request.resource.data.get('editedAt', null) == request.time
+              !request.resource.data.keys().hasAny(['editedAt'])
+              || request.resource.data.editedAt == null
+              || request.resource.data.editedAt == request.time
             )
             && (
               request.resource.data.text == null
