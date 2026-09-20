@@ -13,6 +13,7 @@ data class NotificationItem(
     val postId: String? = null,
     val commentText: String? = null,
     val commentId: String? = null,
+    val conversationId: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
     val isRead: Boolean = false
 ) {
@@ -26,6 +27,7 @@ data class NotificationItem(
             "postId" to postId,
             "commentText" to commentText,
             "commentId" to commentId,
+            "conversationId" to conversationId,
             "createdAt" to createdAt,
             "isRead" to isRead
         )
@@ -50,6 +52,7 @@ data class NotificationItem(
                 postId = doc.getString("postId"),
                 commentText = doc.getString("commentText"),
                 commentId = doc.getString("commentId"),
+                conversationId = doc.getString("conversationId"),
                 createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now(),
                 isRead = doc.getBoolean("isRead") ?: false
             )
