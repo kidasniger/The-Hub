@@ -15,6 +15,7 @@ import com.thehub.hb.di.DefaultAppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
@@ -24,6 +25,7 @@ class HubApplication : Application(), ImageLoaderFactory {
 
     private var currentImageLoader: ImageLoader? = null
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var pushRegistrationUserId: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -32,6 +34,23 @@ class HubApplication : Application(), ImageLoaderFactory {
         container = DefaultAppContainer(this)
         applicationScope.launch {
             cleanupDownloadedUpdateApks(this@HubApplication)
+        }
+
+        applicationScope.launch {
+            container.authRepository.currentUserFlow.collect { firebaseUser ->
+                val previousUserId = pushRegistrationUserId
+                val currentUserId = firebaseUser?.uid
+
+                if (previousUserId != null && previousUserId != currentUserId) {
+                    container.notificationRepository.unregisterFcmTokenForUser(previousUserId)
+                }
+
+                if (currentUserId != null) {
+                    container.notificationRepository.registerCurrentFcmToken()
+                }
+
+                pushRegistrationUserId = currentUserId
+            }
         }
     }
 
