@@ -4,6 +4,7 @@ import com.thehub.hb.data.model.PostMediaType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+// Regression coverage for backward-compatible post media metadata.
 class PostMediaTypeTest {
 
     @Test
