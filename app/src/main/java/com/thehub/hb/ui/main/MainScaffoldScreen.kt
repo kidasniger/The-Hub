@@ -219,7 +219,7 @@ fun MainScaffoldScreen(
                         },
                         onAuthorClick = onNavigateToProfile,
                         onEditPost = { post ->
-                            createPostViewModel.initForEdit(post.id, post.text)
+                            createPostViewModel.initForEdit(post.id, post.text, post.videoUrl)
                             tabHistory.add(selectedTab)
                             selectedTab = MainTab.CREATE.ordinal
                         }
