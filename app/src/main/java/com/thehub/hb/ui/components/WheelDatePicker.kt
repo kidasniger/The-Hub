@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -253,33 +254,44 @@ private fun <T> WheelColumn(
     itemHeight: Dp = 44.dp
 ) {
     val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current.density
     val coroutineScope = rememberCoroutineScope()
+
+    val safeSelectedIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        initialFirstVisibleItemIndex = safeSelectedIndex
     )
     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
-    // Calculate centered item index
     val centeredIndex by remember {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val visibleItems = layoutInfo.visibleItemsInfo
             if (visibleItems.isEmpty()) {
-                selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+                safeSelectedIndex
             } else {
-                val centerOffset = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
-                val closest = visibleItems.minByOrNull { item ->
-                    val itemCenter = item.offset + item.size / 2
-                    abs(itemCenter - centerOffset)
-                }
-                closest?.index?.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-                    ?: selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+                val viewportCenter =
+                    (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
+                visibleItems
+                    .minByOrNull { itemInfo ->
+                        abs(
+                            (itemInfo.offset + itemInfo.size / 2f) - viewportCenter
+                        )
+                    }
+                    ?.index
+                    ?.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+                    ?: safeSelectedIndex
             }
         }
     }
 
-    // Keep track of previous index to trigger haptic ticks
-    var lastTriggeredIndex by remember { mutableIntStateOf(selectedIndex) }
+    val visibleItemInfoByIndex by remember {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.associateBy { it.index }
+        }
+    }
+
+    var lastTriggeredIndex by remember { mutableIntStateOf(safeSelectedIndex) }
     var isInitialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(centeredIndex) {
@@ -288,6 +300,7 @@ private fun <T> WheelColumn(
             lastTriggeredIndex = centeredIndex
             return@LaunchedEffect
         }
+
         if (centeredIndex != lastTriggeredIndex) {
             lastTriggeredIndex = centeredIndex
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -295,11 +308,10 @@ private fun <T> WheelColumn(
         }
     }
 
-    // External sync (when month change forces day clamping, etc.)
     LaunchedEffect(selectedIndex, items.size) {
         val target = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
         if (!listState.isScrollInProgress && centeredIndex != target) {
-            listState.scrollToItem(target)
+            listState.animateScrollToItem(target)
             lastTriggeredIndex = target
         }
     }
@@ -312,24 +324,48 @@ private fun <T> WheelColumn(
     ) {
         items(
             count = items.size,
-            key = { index -> items[index].hashCode().toLong() xor (index.toLong() shl 32) }
+            key = { index ->
+                items[index].hashCode().toLong() xor (index.toLong() shl 32)
+            }
         ) { index ->
-            val distance = abs(index - centeredIndex)
-            val isSelected = distance == 0
+            val itemInfo = visibleItemInfoByIndex[index]
+            val layoutInfo = listState.layoutInfo
+            val viewportCenter =
+                (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
+            val itemCenter = itemInfo?.let { it.offset + it.size / 2f } ?: viewportCenter
+            val distanceInItems = (
+                abs(itemCenter - viewportCenter) /
+                    (itemHeight.value * density).coerceAtLeast(1f)
+                ).coerceAtMost(2.75f)
 
-            val alpha = when (distance) {
-                0 -> 1f
-                1 -> 0.52f
-                else -> 0.20f
+            val isSelected = index == centeredIndex
+
+            // Smooth iOS-like wheel falloff instead of three fixed states.
+            val alpha = when {
+                isSelected -> 1f
+                distanceInItems <= 1f -> 0.55f
+                distanceInItems <= 2f -> 0.28f
+                else -> 0.12f
             }
-            val scale = when (distance) {
-                0 -> 1.10f
-                1 -> 0.94f
-                else -> 0.82f
+
+            val scale = (1f - (distanceInItems * 0.075f))
+                .coerceIn(0.80f, 1f)
+
+            val rotationX = (
+                (itemCenter - viewportCenter) /
+                    (itemHeight.value * density).coerceAtLeast(1f) *
+                    11f
+                ).coerceIn(-24f, 24f)
+
+            val fontSize = when {
+                isSelected -> 20.sp
+                distanceInItems <= 1.1f -> 17.sp
+                else -> 16.sp
             }
-            val fontWeight = when (distance) {
-                0 -> FontWeight.Bold
-                1 -> FontWeight.Medium
+
+            val fontWeight = when {
+                isSelected -> FontWeight.Bold
+                distanceInItems <= 1.1f -> FontWeight.Medium
                 else -> FontWeight.Normal
             }
 
@@ -354,7 +390,7 @@ private fun <T> WheelColumn(
                     } else {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
                     },
-                    fontSize = if (isSelected) 20.sp else 17.sp,
+                    fontSize = fontSize,
                     fontWeight = fontWeight,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
@@ -362,6 +398,8 @@ private fun <T> WheelColumn(
                     modifier = Modifier.graphicsLayer {
                         scaleX = scale
                         scaleY = scale
+                        this.rotationX = rotationX
+                        cameraDistance = 8f * density
                     }
                 )
             }
