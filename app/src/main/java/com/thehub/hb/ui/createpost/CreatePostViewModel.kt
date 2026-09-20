@@ -43,9 +43,14 @@ class CreatePostViewModel(
     private val _uiState = MutableStateFlow(CreatePostUiState())
     val uiState: StateFlow<CreatePostUiState> = _uiState.asStateFlow()
 
-    fun initForEdit(postId: String, initialText: String? = null) {
+    fun initForEdit(
+        postId: String,
+        initialText: String? = null,
+        initialVideoUrl: String? = null
+    ) {
         _uiState.value = CreatePostUiState(
             text = initialText ?: "",
+            videoUrl = initialVideoUrl,
             isEditMode = true,
             editPostId = postId,
             isLoading = initialText.isNullOrBlank()
