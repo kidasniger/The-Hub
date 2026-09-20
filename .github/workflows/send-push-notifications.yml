@@ -2,6 +2,9 @@ name: Send Push Notifications
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/push-worker-trigger"
   schedule:
     - cron: "0 */5 * * *"
 
