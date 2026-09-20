@@ -1,6 +1,6 @@
 package com.thehub.hb.utils
 
-import android.net.Uri
+import java.net.URI
 
 enum class VideoSourceType {
     YOUTUBE,
@@ -140,18 +140,31 @@ object VideoLinkDetector {
     fun youtubeVideoId(url: String): String? {
         val uri = parseUri(url) ?: return null
         val host = uri.host?.lowercase().orEmpty()
+        val segments = uri.rawPath
+            .orEmpty()
+            .trim('/')
+            .split('/')
+            .filter { it.isNotBlank() }
 
-        if (
-            host == "youtu.be"
-        ) {
-            return uri.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
+        if (host == "youtu.be") {
+            return segments.firstOrNull()
         }
 
-        uri.getQueryParameter("v")
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
+        val queryVideoId = uri.rawQuery
+            ?.split('&')
+            ?.firstNotNullOfOrNull { parameter ->
+                val parts = parameter.split('=', limit = 2)
+                if (parts.size == 2 && parts[0] == "v" && parts[1].isNotBlank()) {
+                    parts[1]
+                } else {
+                    null
+                }
+            }
 
-        val segments = uri.pathSegments
+        if (!queryVideoId.isNullOrBlank()) {
+            return queryVideoId
+        }
+
         val markerIndex = segments.indexOfFirst {
             it.equals("shorts", ignoreCase = true) ||
                 it.equals("embed", ignoreCase = true)
@@ -163,10 +176,18 @@ object VideoLinkDetector {
 
     fun isYouTubeShorts(url: String): Boolean {
         val uri = parseUri(url) ?: return false
-        return uri.host?.lowercase().let { host ->
-            (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com") &&
-                uri.pathSegments.any { it.equals("shorts", ignoreCase = true) }
-        }
+        val host = uri.host?.lowercase().orEmpty()
+        val segments = uri.rawPath
+            .orEmpty()
+            .trim('/')
+            .split('/')
+            .filter { it.isNotBlank() }
+
+        return (
+            host == "youtube.com" ||
+                host == "www.youtube.com" ||
+                host == "m.youtube.com"
+            ) && segments.any { it.equals("shorts", ignoreCase = true) }
     }
 
     fun thumbnailUrl(url: String): String? {
@@ -199,9 +220,9 @@ object VideoLinkDetector {
         }
     }
 
-    private fun parseUri(value: String): Uri? {
+    private fun parseUri(value: String): URI? {
         return try {
-            Uri.parse(value)
+            URI(value)
         } catch (_: Exception) {
             null
         }
