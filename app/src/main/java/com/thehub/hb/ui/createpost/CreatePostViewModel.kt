@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.PostRepository
+import com.thehub.hb.utils.VideoLinkDetector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ data class CreatePostUiState(
     val text: String = "",
     val selectedImageUri: Uri? = null,
     val selectedImageBytes: ByteArray? = null,
+    val videoUrl: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isPublished: Boolean = false,
@@ -24,7 +26,7 @@ data class CreatePostUiState(
         get() = if (isEditMode) {
             text.isNotBlank() && !isLoading && text.length <= 500
         } else {
-            (text.isNotBlank() || selectedImageBytes != null) && !isLoading && text.length <= 500
+            (text.isNotBlank() || selectedImageBytes != null || videoUrl != null) && !isLoading && text.length <= 500
         }
 
     val charCount: Int
@@ -54,6 +56,7 @@ class CreatePostViewModel(
                 result.onSuccess { post ->
                     _uiState.value = _uiState.value.copy(
                         text = post.text,
+                        videoUrl = post.videoUrl,
                         isLoading = false
                     )
                 }.onFailure { error ->
@@ -72,8 +75,24 @@ class CreatePostViewModel(
 
     fun updateText(newText: String) {
         if (newText.length <= 500) {
-            _uiState.value = _uiState.value.copy(text = newText, errorMessage = null)
+            val detectedVideoUrl = VideoLinkDetector.extractVideoUrl(newText)
+            _uiState.value = _uiState.value.copy(
+                text = newText,
+                videoUrl = detectedVideoUrl ?: _uiState.value.videoUrl,
+                errorMessage = null
+            )
         }
+    }
+
+    fun setVideoUrl(url: String?) {
+        _uiState.value = _uiState.value.copy(
+            videoUrl = url?.trim()?.takeIf { it.isNotBlank() },
+            errorMessage = null
+        )
+    }
+
+    fun clearVideoUrl() {
+        _uiState.value = _uiState.value.copy(videoUrl = null)
     }
 
     fun setImage(uri: Uri?, bytes: ByteArray?) {
@@ -99,7 +118,11 @@ class CreatePostViewModel(
         if (currentState.isEditMode && currentState.editPostId != null) {
             viewModelScope.launch {
                 _uiState.value = currentState.copy(isLoading = true, errorMessage = null)
-                val updateResult = postRepository.updatePostText(currentState.editPostId, currentState.text)
+                val updateResult = postRepository.updatePostText(
+                    currentState.editPostId,
+                    currentState.text,
+                    currentState.videoUrl
+                )
                 updateResult.onSuccess {
                     val postResult = postRepository.getPost(currentState.editPostId)
                     val post = postResult.getOrNull() ?: Post(
@@ -107,6 +130,7 @@ class CreatePostViewModel(
                         text = currentState.text.trim(),
                         authorId = postRepository.currentUserId ?: "",
                         authorUsername = "",
+                        videoUrl = currentState.videoUrl,
                         createdAt = com.google.firebase.Timestamp.now()
                     )
                     _uiState.value = _uiState.value.copy(
@@ -142,7 +166,8 @@ class CreatePostViewModel(
 
             val result = postRepository.createPost(
                 text = currentState.text,
-                imageUrl = uploadedImageUrl
+                imageUrl = uploadedImageUrl,
+                videoUrl = currentState.videoUrl
             )
 
             result.onSuccess { createdPost ->
