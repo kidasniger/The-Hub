@@ -1118,6 +1118,29 @@ async function testSensitiveCollectionWrites() {
   );
   await assertFails(deleteNotification.commit());
 
+  // FCM device tokens: only the owner can register or delete a token;
+  // clients cannot read token credentials or write another user's tokens.
+  const fcmTokenRef = doc(eveDb, "users/eve/fcmTokens/device-token-1");
+  await assertSucceeds(setDoc(fcmTokenRef, {
+    token: "test-fcm-token",
+    platform: "android",
+    updatedAt: new Date(),
+  }));
+  await assertFails(getDoc(fcmTokenRef));
+  await assertFails(setDoc(
+    doc(bobDb, "users/eve/fcmTokens/forged-token"),
+    {
+      token: "forged-token",
+      platform: "android",
+      updatedAt: new Date(),
+    }
+  ));
+  await assertFails(updateDoc(
+    fcmTokenRef,
+    { token: "changed-token" }
+  ));
+  await assertSucceeds(deleteDoc(fcmTokenRef));
+
   // Representative unauthenticated writes must be denied as well.
   await assertFails(setDoc(
     doc(anonDb, "users/eve"),
