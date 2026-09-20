@@ -94,16 +94,17 @@ fun UpdateBottomSheet(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) {
-            viewModel.startDownload(updateInfo!!)
-        } else {
+        val currentUpdate = updateInfo
+        if (currentUpdate == null) return@rememberLauncherForActivityResult
+
+        if (!granted) {
             Toast.makeText(
                 context,
                 "Les notifications sont désactivées ; le téléchargement va continuer.",
                 Toast.LENGTH_SHORT
             ).show()
-            viewModel.startDownload(updateInfo!!)
         }
+        viewModel.startDownload(currentUpdate)
     }
 
     val startDownloadWithNotificationPermission = {
