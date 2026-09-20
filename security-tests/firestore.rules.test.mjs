@@ -761,11 +761,11 @@ async function testAdvancedMessengerSecurity() {
   await assertSucceeds(deleteDoc(reactionRef));
 
   await assertSucceeds(updateDoc(
-    doc(bobDb, "conversations/alice_bob/messages/message-1"),
+    doc(bobDb, "conversations/alice_bob/messages/advanced-message"),
     { status: "delivered" }
   ));
   await assertSucceeds(updateDoc(
-    doc(bobDb, "conversations/alice_bob/messages/message-1"),
+    doc(bobDb, "conversations/alice_bob/messages/advanced-message"),
     { status: "read" }
   ));
 
