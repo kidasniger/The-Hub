@@ -695,7 +695,6 @@ fun AdminPostsScreen(repository: AdminRepository) {
 fun AdminReportsScreen(repository: AdminRepository) {
     var reports by remember { mutableStateOf<List<AdminReportRow>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    var isSuperAdmin by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun reload() {
@@ -819,6 +818,7 @@ fun AdminAdminsScreen(repository: AdminRepository) {
     var admins by remember { mutableStateOf<List<AdminAccountRow>>(emptyList()) }
     var targetUid by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
+    var isSuperAdmin by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
@@ -920,12 +920,19 @@ fun AdminAdminsScreen(repository: AdminRepository) {
                                 ) {
                                     Text("Retirer l'accès")
                                 }
-                            } else {
+                            } else if (admin.uid == repository.currentUserId) {
                                 Spacer(Modifier.height(10.dp))
                                 AdminPill(
                                     if (admin.role == "superadmin") "Votre compte • protégé" else "Votre compte",
                                     HubBlue,
                                     Icons.Filled.VerifiedUser
+                                )
+                            } else if (!isSuperAdmin) {
+                                Spacer(Modifier.height(10.dp))
+                                AdminPill(
+                                    "Géré par le superadmin",
+                                    HubBlue,
+                                    Icons.Filled.Security
                                 )
                             }
                         }
