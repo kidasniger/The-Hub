@@ -56,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,6 +86,7 @@ import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.RelativeTime
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -103,7 +105,7 @@ fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val inputBringIntoViewRequester = remember { BringIntoViewRequester() }
     var inputFieldFocused by remember { mutableStateOf(false) }
-    var initialScrollDone by remember { mutableStateOf(false) }
+    var initialScrollDone by remember(viewModel.conversationId) { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -120,8 +122,17 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(uiState.messages.size) {
+    LaunchedEffect(
+        viewModel.conversationId,
+        uiState.messages.size,
+        uiState.messages.lastOrNull()?.id
+    ) {
         if (!initialScrollDone && uiState.messages.isNotEmpty()) {
+            // Wait until LazyColumn has actually composed its items before jumping
+            // to the newest message. Otherwise scrollToItem can run while the list
+            // still reports zero items and leave the user at the beginning.
+            snapshotFlow { listState.layoutInfo.totalItemsCount }
+                .first { it >= uiState.messages.size }
             listState.scrollToItem(uiState.messages.lastIndex)
             initialScrollDone = true
         }
