@@ -41,7 +41,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -611,10 +611,10 @@ private fun ProfileHeader(
                 Surface(
                     modifier = Modifier.size(18.dp),
                     shape = CircleShape,
-                    color = HubError
+                    color = Color(0xFFE53935)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.VerifiedUser,
+                        imageVector = Icons.Filled.Check,
                         contentDescription = "Compte officiel certifié",
                         tint = Color.White,
                         modifier = Modifier.padding(2.5.dp)
@@ -751,7 +751,7 @@ private fun ProfileHeader(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.VerifiedUser,
+                                imageVector = Icons.Filled.Check,
                                 contentDescription = null,
                                 tint = HubError,
                                 modifier = Modifier.size(18.dp)

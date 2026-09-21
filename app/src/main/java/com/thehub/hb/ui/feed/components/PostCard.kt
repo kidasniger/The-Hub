@@ -61,7 +61,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.getValue
@@ -177,7 +177,7 @@ fun PostCard(
                                     color = Color(0xFFE53935)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.VerifiedUser,
+                                        imageVector = Icons.Filled.Check,
                                         contentDescription = "Compte officiel certifié",
                                         tint = Color.White,
                                         modifier = Modifier.padding(2.dp)
