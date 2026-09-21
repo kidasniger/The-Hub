@@ -797,7 +797,7 @@ service cloud.firestore {
           && request.resource.data.unreadCount[request.resource.data.participantIds[1]] == 0
           && request.resource.data.lastMessageText == ''
           && request.resource.data.lastMessageSenderId == ''
-          && request.resource.data.lastMessageId == ''
+          && request.resource.data.get('lastMessageId', '') == ''
           && request.resource.data.lastMessageAt is timestamp;
       }
 
