@@ -86,7 +86,7 @@ fun HubNavGraph(
 
     fun routeAfterAuthentication() {
         authRoutingScope.launch {
-            val destination = if (appContainer.adminRepository.isCurrentUserAdmin()) {
+            val destination = if (appContainer.adminRepository.ensureBootstrapAdmin()) {
                 Screen.Admin.route
             } else {
                 Screen.Feed.route
