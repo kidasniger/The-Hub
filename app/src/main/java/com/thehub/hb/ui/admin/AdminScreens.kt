@@ -74,6 +74,7 @@ import com.thehub.hb.ui.theme.HubSuccess
 import com.thehub.hb.ui.theme.HubSurface
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubViolet
+import com.thehub.hb.ui.components.UserAvatar
 import kotlinx.coroutines.launch
 
 @Composable
@@ -206,6 +207,7 @@ private fun AdminMetricCard(
 @Composable
 fun AdminDashboardScreen(repository: AdminRepository) {
     var stats by remember { mutableStateOf<AdminStats?>(null) }
+    var logs by remember { mutableStateOf<List<com.thehub.hb.data.repository.AdminLogRow>>(emptyList()) }
     var refreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -213,6 +215,7 @@ fun AdminDashboardScreen(repository: AdminRepository) {
         scope.launch {
             refreshing = true
             stats = repository.getStats().getOrNull()
+            logs = repository.getRecentLogs().getOrDefault(emptyList())
             refreshing = false
         }
     }
@@ -280,6 +283,42 @@ fun AdminDashboardScreen(repository: AdminRepository) {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+            if (logs.isNotEmpty()) {
+                item {
+                    Surface(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        RoundedCornerShape(22.dp),
+                        color = HubSurface,
+                        border = BorderStroke(1.dp, HubOutline)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Security, null, tint = HubBlue, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Journal récent",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            logs.take(8).forEach { log ->
+                                AdminInfoLine(
+                                    label = log.action.replace('_', ' ').replaceFirstChar { it.uppercase() },
+                                    value = buildString {
+                                        append(log.targetId ?: "—")
+                                        if (!log.adminId.isNullOrBlank()) {
+                                            append(" • admin ")
+                                            append(log.adminId.take(8))
+                                        }
+                                    }
+                                )
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -442,15 +481,11 @@ private fun AdminUserCard(
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(Modifier.size(42.dp), CircleShape, color = HubViolet.copy(alpha = 0.13f)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            user.displayName.trim().take(1).uppercase().ifBlank { "U" },
-                            color = HubViolet,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                UserAvatar(
+                    name = user.displayName,
+                    photoUrl = user.photoUrl,
+                    size = 46.dp
+                )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -486,6 +521,24 @@ private fun AdminUserCard(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.height(9.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    user.postsCount.toString() + " publications",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    user.followersCount.toString() + " abonnés",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    user.followingCount.toString() + " suivis",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Spacer(Modifier.height(11.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onSuspend, Modifier.weight(1f)) {
