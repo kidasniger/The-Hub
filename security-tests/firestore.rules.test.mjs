@@ -605,9 +605,8 @@ async function testMessageSecurityAndAtomicSend() {
 }
 
 async function testCurrentAppMessageBatchWithoutMessageOps() {
-  // testLegacyConversationUnreadCountCompatibility() has already created
-  // and authorized legacy_bob; reusing it avoids turning the following write
-  // into a duplicate relation update.
+  // testLegacyConversationUnreadCountCompatibility() already created
+  // and authorized legacy_bob.
   const conversationRef = doc(legacyDb, "conversations/legacy_bob");
   const messageRef = doc(
     legacyDb,
@@ -617,8 +616,7 @@ async function testCurrentAppMessageBatchWithoutMessageOps() {
   const currentUnread = await getDoc(conversationRef);
   const existingUnread = currentUnread.data()?.unreadCount || {};
 
-  const currentSend = writeBatch(legacyDb);
-  currentSend.set(messageRef, {
+  await assertSucceeds(setDoc(messageRef, {
     senderId: "legacy",
     text: "current app send",
     imageUrl: null,
@@ -630,8 +628,9 @@ async function testCurrentAppMessageBatchWithoutMessageOps() {
     editedAt: null,
     deletedAt: null,
     deletedBy: null,
-  });
-  currentSend.update(conversationRef, {
+  }));
+
+  await assertSucceeds(updateDoc(conversationRef, {
     lastMessageText: "current app send",
     lastMessageAt: serverTimestamp(),
     lastMessageSenderId: "legacy",
@@ -640,9 +639,7 @@ async function testCurrentAppMessageBatchWithoutMessageOps() {
       legacy: existingUnread.legacy || 0,
       bob: (existingUnread.bob || 0) + 1,
     },
-  });
-
-  await assertSucceeds(currentSend.commit());
+  }));
 }
 
 async function testMessageCreationRejectsForgedMetadata() {
@@ -1384,21 +1381,13 @@ try {
   await testRepostDeleteCounterMustMatchDeletion();
   await testLegacyUserFollowCompatibility();
   await testLegacyConversationUnreadCountCompatibility();
-  console.log("TRACE_TEST: testMessageSecurityAndAtomicSend");
   await testMessageSecurityAndAtomicSend();
-  console.log("TRACE_TEST: testCurrentAppMessageBatchWithoutMessageOps");
   await testCurrentAppMessageBatchWithoutMessageOps();
-  console.log("TRACE_TEST: testMessageCreationRejectsForgedMetadata");
   await testMessageCreationRejectsForgedMetadata();
-  console.log("TRACE_TEST: testMessageRecipientCanMarkReadOnly");
   await testMessageRecipientCanMarkReadOnly();
-  console.log("TRACE_TEST: testAdvancedMessengerSecurity");
   await testAdvancedMessengerSecurity();
-  console.log("TRACE_TEST: testMessageAccessIsLimitedToParticipants");
   await testMessageAccessIsLimitedToParticipants();
-  console.log("TRACE_TEST: testMessageDeletionMustBeAtomicWithConversationDeletion");
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
-  console.log("TRACE_TEST: testSensitiveCollectionWrites");
   await testSensitiveCollectionWrites();
 
   console.log("Firestore security tests (counters + messages): PASS");
