@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class HubFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -47,17 +48,6 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         val data = message.data
         val notificationPayload = message.notification
 
-        // Never display a push that belongs to another Firebase account left on
-        // the same physical device after an account switch.
-        val recipientId = data["recipientId"]?.takeIf { it.isNotBlank() }
-        val currentUid = FirebaseAuth.getInstance().currentUser?.uid
-        if (recipientId != null && recipientId != currentUid) {
-            return
-        }
-        if (recipientId == null && currentUid == null) {
-            return
-        }
-
         val conversationId = data["conversationId"].orEmpty()
         val messageId = data["messageId"].orEmpty()
         if (conversationId.isNotBlank() && messageId.isNotBlank()) {
@@ -68,35 +58,115 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
 
         if (data.isEmpty() && notificationPayload == null) return
 
-        val title = data["title"]
-            ?.takeIf { it.isNotBlank() }
-            ?: notificationPayload?.title
-            ?.takeIf { it.isNotBlank() }
-            ?: "The Hub"
+        val currentUid = FirebaseAuth.getInstance().currentUser?.uid
+            ?: return
 
-        val body = data["body"]
-            ?.takeIf { it.isNotBlank() }
-            ?: notificationPayload?.body
-            ?.takeIf { it.isNotBlank() }
-            ?: buildFallbackBody(data)
+        serviceScope.launch {
+            val recipientId = data["recipientId"]?.takeIf { it.isNotBlank() }
+            if (recipientId != null) {
+                if (recipientId != currentUid) {
+                    return@launch
+                }
+            } else {
+                // Backward compatibility with pushes emitted by the previously
+                // deployed Cloud Function: verify ownership through Firestore.
+                val notificationId = data["notificationId"].orEmpty()
+                if (notificationId.isBlank() || !isNotificationForCurrentUser(
+                        notificationId = notificationId,
+                        currentUid = currentUid
+                    )
+                ) {
+                    return@launch
+                }
+            }
 
-        val deepLink = data["deepLink"]
-            ?.takeIf { it.isNotBlank() }
-            ?: buildFallbackDeepLink(data)
+            var actorDisplayName = data["actorDisplayName"]?.takeIf { it.isNotBlank() }
+            if (actorDisplayName == null) {
+                val actorId = data["actorId"].orEmpty()
+                actorDisplayName = resolveActorDisplayName(
+                    actorId = actorId,
+                    fallback = data["actorUsername"]?.takeIf { it.isNotBlank() } ?: "Quelqu'un"
+                )
+            }
 
-        val createdAtMs = data["createdAtMs"]?.toLongOrNull()
-        showNotification(
-            title = title,
-            body = body,
-            deepLink = deepLink,
-            notificationId = message.messageId?.hashCode()
-                ?: (deepLink.hashCode() xor body.hashCode()),
-            createdAtMs = createdAtMs
-        )
+            val title = data["title"]
+                ?.takeIf { it.isNotBlank() }
+                ?: notificationPayload?.title
+                    ?.takeIf { it.isNotBlank() }
+                ?: "The Hub"
+
+            val body = data["body"]
+                ?.takeIf { it.isNotBlank() }
+                ?: notificationPayload?.body
+                    ?.takeIf { it.isNotBlank() }
+                ?: buildFallbackBody(data, actorDisplayName)
+
+            val deepLink = data["deepLink"]
+                ?.takeIf { it.isNotBlank() }
+                ?: buildFallbackDeepLink(data)
+
+            val createdAtMs = data["createdAtMs"]?.toLongOrNull()
+
+            showNotification(
+                title = title,
+                body = body,
+                deepLink = deepLink,
+                notificationId = message.messageId?.hashCode()
+                    ?: (deepLink.hashCode() xor body.hashCode()),
+                createdAtMs = createdAtMs
+            )
+        }
     }
 
-    private fun buildFallbackBody(data: Map<String, String>): String {
-        val actor = data["actorDisplayName"]?.takeIf { it.isNotBlank() }
+    private suspend fun isNotificationForCurrentUser(
+        notificationId: String,
+        currentUid: String
+    ): Boolean {
+        return try {
+            val doc = FirebaseFirestore.getInstance()
+                .collection("notifications")
+                .document(notificationId)
+                .get()
+                .await()
+
+            doc.exists() && doc.getString("recipientId") == currentUid
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private suspend fun resolveActorDisplayName(
+        actorId: String,
+        fallback: String
+    ): String {
+        if (actorId.isBlank()) return fallback
+
+        return try {
+            val doc = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(actorId)
+                .get()
+                .await()
+
+            doc.getString("displayName")
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?: doc.getString("name")
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                ?: fallback
+        } catch (_: Exception) {
+            fallback
+        }
+    }
+
+
+    private fun buildFallbackBody(
+        data: Map<String, String>,
+        actorDisplayName: String? = null
+    ): String {
+        val actor = actorDisplayName
+            ?: data["actorDisplayName"]?.takeIf { it.isNotBlank() }
             ?: data["actorUsername"]?.takeIf { it.isNotBlank() }
             ?: "Quelqu'un"
         return when (data["type"]) {
