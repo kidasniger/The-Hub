@@ -55,6 +55,7 @@ class AdminRepository(
 ) {
     companion object {
         const val BOOTSTRAP_ADMIN_EMAIL = "kidasniger@gmail.com"
+        // Validation branch: bootstrap remains enforced by Firestore rules.
     }
 
     val currentUserId: String?
