@@ -104,7 +104,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val updateRepository: UpdateRepository by lazy {
-        UpdateRepository()
+        UpdateRepository(
+            firestore = firestoreInstance
+        )
     }
 
     override val updateDownloadManager: AppUpdateDownloadManager by lazy {

@@ -9,6 +9,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,15 @@ class AdminControlRepository(
         requireAdmin()
         val doc = firestore.collection("admins").document(currentAdminId).get().await()
         require(doc.getString("role") == "superadmin") { "Action réservée au superadministrateur." }
+    }
+
+    private suspend fun requireRecentReauth() {
+        requireAdmin()
+        val stamp = firestore.collection("adminSecurity").document(currentAdminId)
+            .get().await().getTimestamp("reauthenticatedAt")
+        require(stamp != null && System.currentTimeMillis() - stamp.toDate().time <= 15L * 60L * 1000L) {
+            "Réauthentification administrateur requise (valide 15 minutes)."
+        }
     }
 
     private fun dayKey(offset: Int = 0): String {
@@ -67,7 +77,7 @@ class AdminControlRepository(
             val google = GoogleIdTokenCredential.createFrom(credential.data)
             auth.currentUser?.reauthenticate(GoogleAuthProvider.getCredential(google.idToken, null))?.await()
             firestore.collection("adminSecurity").document(currentAdminId).set(
-                mapOf("reauthenticatedAt" to Timestamp.now(), "uid" to currentAdminId), SetOptions.merge()
+                mapOf("reauthenticatedAt" to FieldValue.serverTimestamp(), "uid" to currentAdminId), SetOptions.merge()
             ).await()
             audit("reauthenticate_admin", currentAdminId, "security", "success")
             Result.success(Unit)
@@ -152,14 +162,17 @@ class AdminControlRepository(
     suspend fun setUserControls(userId: String, note: String, post: Boolean, comment: Boolean, message: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                requireAdmin()
+                requireRecentReauth()
                 firestore.collection("adminUserControls").document(userId).set(
                     mapOf(
                         "userId" to userId,
                         "internalNote" to note.take(2000),
                         "postRestricted" to post,
+                        "postRestrictedUntil" to null,
                         "commentRestricted" to comment,
+                        "commentRestrictedUntil" to null,
                         "messagingRestricted" to message,
+                        "messagingRestrictedUntil" to null,
                         "updatedBy" to currentAdminId,
                         "updatedAt" to Timestamp.now()
                     ), SetOptions.merge()
@@ -171,9 +184,12 @@ class AdminControlRepository(
 
     suspend fun suspendUser(userId: String, value: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireAdmin()
+                requireRecentReauth()
             require(userId != currentAdminId)
-            firestore.collection("users").document(userId).update("isSuspended", value).await()
+            firestore.collection("users").document(userId).set(
+                mapOf("isSuspended" to value, "suspendedUntil" to null),
+                SetOptions.merge()
+            ).await()
             audit(if (value) "suspend_user" else "restore_user", userId, "users", "success")
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
@@ -182,7 +198,7 @@ class AdminControlRepository(
     suspend fun applySanction(userId: String, type: String, reason: String, hours: Long?, proof: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                requireAdmin()
+                requireRecentReauth()
                 require(userId.isNotBlank() && reason.isNotBlank())
                 val expires = hours?.takeIf { it > 0 }?.let { ts(System.currentTimeMillis() + it * 3600000L) }
                 firestore.collection("sanctions").add(
@@ -192,8 +208,35 @@ class AdminControlRepository(
                         "createdAt" to Timestamp.now(), "expiresAt" to expires, "active" to true
                     )
                 ).await()
-                if (type == "suspend" || type == "permanent_suspension")
-                    firestore.collection("users").document(userId).update("isSuspended", true).await()
+                val controls = mutableMapOf<String, Any?>(
+                    "userId" to userId,
+                    "updatedBy" to currentAdminId,
+                    "updatedAt" to Timestamp.now()
+                )
+                when (type) {
+                    "post_restriction" -> {
+                        controls["postRestricted"] = true
+                        controls["postRestrictedUntil"] = expires
+                    }
+                    "comment_restriction" -> {
+                        controls["commentRestricted"] = true
+                        controls["commentRestrictedUntil"] = expires
+                    }
+                    "messaging_restriction" -> {
+                        controls["messagingRestricted"] = true
+                        controls["messagingRestrictedUntil"] = expires
+                    }
+                    "suspend", "permanent_suspension" -> {
+                        controls["suspendedUntil"] = expires
+                        firestore.collection("users").document(userId).set(
+                            mapOf("isSuspended" to true, "suspendedUntil" to expires),
+                            SetOptions.merge()
+                        ).await()
+                    }
+                }
+                if (controls.size > 3) {
+                    firestore.collection("adminUserControls").document(userId).set(controls, SetOptions.merge()).await()
+                }
                 audit("apply_sanction", userId, "sanctions", "success")
                 Result.success(Unit)
             } catch (e: Exception) { Result.failure(e) }
@@ -234,7 +277,7 @@ class AdminControlRepository(
 
     suspend fun updateQueue(id: String, status: String, priority: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireAdmin()
+                requireRecentReauth()
             firestore.collection("moderationQueue").document(id).set(
                 mapOf("status" to status, "priority" to priority, "updatedAt" to Timestamp.now(), "updatedBy" to currentAdminId),
                 SetOptions.merge()
@@ -247,7 +290,7 @@ class AdminControlRepository(
     suspend fun moderatePost(postId: String, hidden: Boolean, deleted: Boolean, commentsLocked: Boolean, pinned: Boolean, official: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                requireAdmin()
+                requireRecentReauth()
                 val patch = mapOf(
                     "postId" to postId, "isHidden" to hidden, "isDeletedByAdmin" to deleted,
                     "commentsLocked" to commentsLocked, "isPinned" to pinned, "isOfficial" to official,
@@ -277,7 +320,8 @@ class AdminControlRepository(
 
     suspend fun updateRole(target: String, role: String, permissions: Set<String>): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireSuperAdmin()
+                requireRecentReauth()
+                requireSuperAdmin()
             require(target != currentAdminId)
             require(role in setOf("superadmin", "admin", "moderator", "support", "analyst", "community_manager"))
             firestore.collection("admins").document(target).set(
@@ -308,7 +352,8 @@ class AdminControlRepository(
 
     suspend fun revokeSessions(target: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireSuperAdmin()
+                requireRecentReauth()
+                requireSuperAdmin()
             firestore.collection("adminSessions").document(target).set(
                 mapOf("revokedAt" to Timestamp.now(), "revokedBy" to currentAdminId), SetOptions.merge()
             ).await()
@@ -337,12 +382,13 @@ class AdminControlRepository(
 
     suspend fun sendNotification(title: String, body: String, segment: String): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            requireSuperAdmin()
+                requireRecentReauth()
+                requireSuperAdmin()
             val users = firestore.collection("users").limit(2000).get().await().documents
-            val activeIds = firestore.collectionGroup("activeUsers")
-                .whereGreaterThanOrEqualTo("day", dayKey(-6))
-                .whereLessThanOrEqualTo("day", dayKey())
-                .limit(20000).get().await().documents.mapNotNull { it.getString("userId") }.toSet()
+            val cutoff = System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+            val activeIds = firestore.collectionGroup("presence").limit(5000).get().await().documents
+                .filter { (it.getTimestamp("lastSeen")?.toDate()?.time ?: 0L) >= cutoff }
+                .mapNotNull { it.reference.parent.parent?.id }.toSet()
             val recipients = users.filter {
                 it.id != currentAdminId && when (segment) {
                     "active_7d" -> activeIds.contains(it.id)
@@ -379,12 +425,17 @@ class AdminControlRepository(
     suspend fun broadcasts(): Result<List<AdminBroadcastV2>> = withContext(Dispatchers.IO) {
         try {
             requireAdmin()
-            Result.success(firestore.collection("adminBroadcasts").limit(100).get().await().documents.map {
+            val campaigns = firestore.collection("adminBroadcasts").limit(100).get().await().documents
+            Result.success(campaigns.map { campaign ->
+                val notifications = firestore.collection("notifications")
+                    .whereEqualTo("batchId", campaign.id).limit(5000).get().await().documents
+                val delivered = notifications.count { (it.getLong("pushSentDeviceCount") ?: 0L) > 0L }
+                val opened = notifications.count { it.getBoolean("isRead") == true }
+                val errors = notifications.count { it.getString("pushSkippedReason").orEmpty().isNotBlank() }
                 AdminBroadcastV2(
-                    it.id, it.getString("title").orEmpty(), it.getString("body").orEmpty(),
-                    it.getString("segment").orEmpty(), it.getLong("recipients")?.toInt() ?: 0,
-                    it.getLong("delivered")?.toInt() ?: 0, it.getLong("opened")?.toInt() ?: 0,
-                    it.getLong("errors")?.toInt() ?: 0, it.getTimestamp("createdAt")
+                    campaign.id, campaign.getString("title").orEmpty(), campaign.getString("body").orEmpty(),
+                    campaign.getString("segment").orEmpty(), campaign.getLong("recipients")?.toInt() ?: notifications.size,
+                    delivered, opened, errors, campaign.getTimestamp("createdAt")
                 )
             }.sortedByDescending { it.createdAt?.seconds ?: 0L })
         } catch (e: Exception) { Result.failure(e) }
@@ -393,6 +444,7 @@ class AdminControlRepository(
     suspend fun scheduleAnnouncement(title: String, body: String, segment: String, priority: String, publishAt: Timestamp?, expiresAt: Timestamp?): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
+                requireRecentReauth()
                 requireSuperAdmin()
                 firestore.collection("announcements").add(
                     mapOf(
@@ -436,7 +488,8 @@ class AdminControlRepository(
 
     suspend fun setVersion(v: AdminVersionV2): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireSuperAdmin()
+                requireRecentReauth()
+                requireSuperAdmin()
             firestore.collection("system").document("version").set(
                 mapOf(
                     "versionName" to v.versionName, "versionCode" to v.versionCode,

@@ -16,10 +16,17 @@ private fun v2Day(offset: Int = 0): String {
     return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(c.time)
 }
 
-private suspend fun AdminControlRepository.ensureAdminV2(superOnly: Boolean = false) {
+private suspend fun AdminControlRepository.ensureAdminV2(superOnly: Boolean = false, critical: Boolean = false) {
     val me = firestore.collection("admins").document(currentAdminId).get().await()
     require(me.getBoolean("active") == true) { "Accès administrateur refusé." }
     if (superOnly) require(me.getString("role") == "superadmin") { "Action réservée au superadministrateur." }
+    if (critical) {
+        val stamp = firestore.collection("adminSecurity").document(currentAdminId)
+            .get().await().getTimestamp("reauthenticatedAt")
+        require(stamp != null && System.currentTimeMillis() - stamp.toDate().time <= 15L * 60L * 1000L) {
+            "Réauthentification administrateur requise (valide 15 minutes)."
+        }
+    }
 }
 
 suspend fun AdminControlRepository.featureFlags(): Result<List<AdminFeatureFlagV2>> = withContext(Dispatchers.IO) {
@@ -96,19 +103,24 @@ suspend fun AdminControlRepository.investigation(userId: String): Result<List<Ad
 suspend fun AdminControlRepository.analyticsV2(): Result<AdminAnalyticsV2> = withContext(Dispatchers.IO) {
     try {
         ensureAdminV2()
-        val active = firestore.collectionGroup("activeUsers")
-            .whereGreaterThanOrEqualTo("day", v2Day(-29))
-            .whereLessThanOrEqualTo("day", v2Day()).limit(20000).get().await().documents
-        val dau = active.filter { it.getString("day") == v2Day() }.mapNotNull { it.getString("userId") }.toSet().size
-        val wau = active.filter { it.getString("day").orEmpty() >= v2Day(-6) }.mapNotNull { it.getString("userId") }.toSet().size
-        val mau = active.mapNotNull { it.getString("userId") }.toSet().size
+        val presence = firestore.collectionGroup("presence").limit(5000).get().await().documents
+        val now = System.currentTimeMillis()
+        fun activeCount(window: Long) =
+            presence.mapNotNull { it.getTimestamp("lastSeen")?.toDate()?.time }
+                .count { it >= now - window }
+        val dau = activeCount(24L * 60L * 60L * 1000L)
+        val wau = activeCount(7L * 24L * 60L * 60L * 1000L)
+        val mau = activeCount(30L * 24L * 60L * 60L * 1000L)
         val cohortStart = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -8) }.timeInMillis
         val cohortEnd = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -6) }.timeInMillis
         val cohort = firestore.collection("users").get().await().documents.filter {
             val t = it.getTimestamp("createdAt")?.toDate()?.time ?: (it.getLong("createdAt") ?: 0L)
             t in cohortStart..cohortEnd
         }.map { it.id }.toSet()
-        val retained = active.filter { it.getString("day") == v2Day() }.mapNotNull { it.getString("userId") }.toSet().intersect(cohort).size
+        val recentActiveIds = presence.filter {
+            (it.getTimestamp("lastSeen")?.toDate()?.time ?: 0L) >= now - 24L * 60L * 60L * 1000L
+        }.mapNotNull { it.reference.parent.parent?.id }.toSet()
+        val retained = cohort.intersect(recentActiveIds).size
         Result.success(AdminAnalyticsV2(
             dau, wau, mau, retained,
             firestore.collection("posts").limit(2000).get().await().size(),
