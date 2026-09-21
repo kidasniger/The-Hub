@@ -352,10 +352,10 @@ class AdminControlRepository(
                 requireRecentReauth()
                 requireSuperAdmin()
             val users = firestore.collection("users").limit(2000).get().await().documents
-            val activeIds = firestore.collectionGroup("activeUsers")
-                .whereGreaterThanOrEqualTo("day", dayKey(-6))
-                .whereLessThanOrEqualTo("day", dayKey())
-                .limit(20000).get().await().documents.mapNotNull { it.getString("userId") }.toSet()
+            val cutoff = System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+            val activeIds = firestore.collectionGroup("presence").limit(5000).get().await().documents
+                .filter { (it.getTimestamp("lastSeen")?.toDate()?.time ?: 0L) >= cutoff }
+                .mapNotNull { it.reference.parent.parent?.id }.toSet()
             val recipients = users.filter {
                 it.id != currentAdminId && when (segment) {
                     "active_7d" -> activeIds.contains(it.id)
@@ -392,12 +392,17 @@ class AdminControlRepository(
     suspend fun broadcasts(): Result<List<AdminBroadcastV2>> = withContext(Dispatchers.IO) {
         try {
             requireAdmin()
-            Result.success(firestore.collection("adminBroadcasts").limit(100).get().await().documents.map {
+            val campaigns = firestore.collection("adminBroadcasts").limit(100).get().await().documents
+            Result.success(campaigns.map { campaign ->
+                val notifications = firestore.collection("notifications")
+                    .whereEqualTo("batchId", campaign.id).limit(5000).get().await().documents
+                val delivered = notifications.count { (it.getLong("pushSentDeviceCount") ?: 0L) > 0L }
+                val opened = notifications.count { it.getBoolean("isRead") == true }
+                val errors = notifications.count { it.getString("pushSkippedReason").orEmpty().isNotBlank() }
                 AdminBroadcastV2(
-                    it.id, it.getString("title").orEmpty(), it.getString("body").orEmpty(),
-                    it.getString("segment").orEmpty(), it.getLong("recipients")?.toInt() ?: 0,
-                    it.getLong("delivered")?.toInt() ?: 0, it.getLong("opened")?.toInt() ?: 0,
-                    it.getLong("errors")?.toInt() ?: 0, it.getTimestamp("createdAt")
+                    campaign.id, campaign.getString("title").orEmpty(), campaign.getString("body").orEmpty(),
+                    campaign.getString("segment").orEmpty(), campaign.getLong("recipients")?.toInt() ?: notifications.size,
+                    delivered, opened, errors, campaign.getTimestamp("createdAt")
                 )
             }.sortedByDescending { it.createdAt?.seconds ?: 0L })
         } catch (e: Exception) { Result.failure(e) }
