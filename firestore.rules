@@ -776,6 +776,7 @@ service cloud.firestore {
             'lastMessageText',
             'lastMessageAt',
             'lastMessageSenderId',
+            'lastMessageId',
             'unreadCount'
           ])
           && request.resource.data.participantIds is list
@@ -796,6 +797,7 @@ service cloud.firestore {
           && request.resource.data.unreadCount[request.resource.data.participantIds[1]] == 0
           && request.resource.data.lastMessageText == ''
           && request.resource.data.lastMessageSenderId == ''
+          && request.resource.data.lastMessageId == ''
           && request.resource.data.lastMessageAt is timestamp;
       }
 
@@ -904,6 +906,56 @@ service cloud.firestore {
           && request.resource.data.lastMessageSenderId == request.auth.uid;
       }
 
+      function sendMetadataIsAtomicByMessageId() {
+        let messageId = request.resource.data.get('lastMessageId', '');
+        let newMessage = messageId is string && messageId != ''
+          ? getAfter(messagePath(messageId))
+          : null;
+        let otherUid = resource.data.participantIds[0] == request.auth.uid
+          ? resource.data.participantIds[1]
+          : resource.data.participantIds[0];
+        let oldUnread = resource.data.get('unreadCount', {});
+        let newUnread = request.resource.data.get('unreadCount', {});
+        let oldOtherUnread = oldUnread is map
+          ? oldUnread.get(otherUid, 0)
+          : 0;
+        let oldOwnUnread = oldUnread is map
+          ? oldUnread.get(request.auth.uid, 0)
+          : 0;
+        let newOtherUnread = newUnread is map
+          ? newUnread.get(otherUid, 0)
+          : 0;
+        let newOwnUnread = newUnread is map
+          ? newUnread.get(request.auth.uid, 0)
+          : 0;
+        let expectedPreview = newMessage == null
+          ? ''
+          : (
+              newMessage.data.text != null && newMessage.data.text != ''
+                ? newMessage.data.text
+                : (
+                    newMessage.data.imageUrl != null && newMessage.data.imageUrl != ''
+                      ? '📷 Photo'
+                      : ''
+                  )
+            );
+
+        return newMessage != null
+          && newMessage.data.senderId == request.auth.uid
+          && newMessage.data.createdAt == request.time
+          && newUnread is map
+          && newUnread.keys().hasOnly([
+            resource.data.participantIds[0],
+            resource.data.participantIds[1]
+          ])
+          && newOwnUnread == oldOwnUnread
+          && newOtherUnread == oldOtherUnread + 1
+          && request.resource.data.lastMessageText == expectedPreview
+          && request.resource.data.lastMessageAt == newMessage.data.createdAt
+          && request.resource.data.lastMessageSenderId == request.auth.uid
+          && request.resource.data.lastMessageId == messageId;
+      }
+
       function unreadCountResetIsSafe() {
         let otherUid = resource.data.participantIds[0] == request.auth.uid
           ? resource.data.participantIds[1]
@@ -941,9 +993,13 @@ service cloud.firestore {
             'lastMessageText',
             'lastMessageAt',
             'lastMessageSenderId',
+            'lastMessageId',
             'unreadCount'
           ])
-          && sendMetadataIsAtomic()
+          && (
+            sendMetadataIsAtomic()
+            || sendMetadataIsAtomicByMessageId()
+          )
         )
         || unreadCountResetIsSafe()
       );
@@ -1093,7 +1149,17 @@ service cloud.firestore {
 
         allow create: if parentConversationIsAccessible()
           && validMessageFields()
-          && sendMarkerMatchesMessage();
+          && (
+            sendMarkerMatchesMessage()
+            || (
+              getAfter(
+                /databases/$(database)/documents/conversations/$(conversationId)
+              ).data.lastMessageId == messageId
+              && getAfter(
+                /databases/$(database)/documents/conversations/$(conversationId)
+              ).data.lastMessageSenderId == request.auth.uid
+            )
+          );
 
         // Individual message deletion is not permitted. Conversation deletion
         // is the only client-side deletion path and must delete messages and
