@@ -749,9 +749,48 @@ class MessageRepository(
                 else -> ""
             }
 
-            // Commit the message independently. A metadata/read-counter failure
-            // must never make the actual message disappear with PERMISSION_DENIED.
-            messageRef.set(messageData).await()
+            // Write the message and conversation metadata atomically.
+            // This keeps the Messenger list synchronized with the message that was
+            // actually created and prevents two concurrent sends from leaving stale
+            // lastMessageText / lastMessageAt values.
+            firestore.runTransaction { transaction ->
+                val latestConversationDoc = transaction.get(convRef)
+
+                if (!latestConversationDoc.exists()) {
+                    throw IllegalStateException("Conversation introuvable.")
+                }
+
+                val latestConversation = Conversation.fromSnapshot(latestConversationDoc)
+                if (!latestConversation.participantIds.contains(currentUid)) {
+                    throw IllegalStateException("Accès refusé à cette conversation.")
+                }
+
+                val latestOtherUid = latestConversation.getOtherParticipantId(currentUid)
+                if (latestOtherUid.isBlank()) {
+                    throw IllegalStateException("Conversation invalide.")
+                }
+
+                val oldUnread = latestConversation.unreadCount.toMutableMap()
+                oldUnread.putIfAbsent(currentUid, 0)
+                oldUnread[latestOtherUid] = latestConversation.getUnreadCountFor(latestOtherUid) + 1
+
+                val updatedUnread = mapOf(
+                    currentUid to (oldUnread[currentUid] ?: 0),
+                    latestOtherUid to (oldUnread[latestOtherUid] ?: 0)
+                )
+
+                transaction.set(messageRef, messageData)
+                transaction.update(
+                    convRef,
+                    mapOf(
+                        "lastMessageText" to previewText,
+                        "lastMessageAt" to FieldValue.serverTimestamp(),
+                        "lastMessageSenderId" to currentUid,
+                        "lastMessageId" to messageRef.id,
+                        "unreadCount" to updatedUnread
+                    )
+                )
+            }.await()
 
             val messageDoc = messageRef.get().await()
             if (!messageDoc.exists()) {
