@@ -327,7 +327,13 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_SOCIAL)
+            .setCategory(
+                if (deepLink == "thehub://update") {
+                    NotificationCompat.CATEGORY_SYSTEM
+                } else {
+                    NotificationCompat.CATEGORY_SOCIAL
+                }
+            )
             .build()
 
         try {
