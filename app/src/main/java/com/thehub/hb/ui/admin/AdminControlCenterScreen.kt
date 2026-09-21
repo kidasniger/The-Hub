@@ -1,7 +1,7 @@
 package com.thehub.hb.ui.admin
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,15 +11,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,76 +47,210 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.firebase.Timestamp
 import com.thehub.hb.data.repository.AdminAnalyticsV2
 import com.thehub.hb.data.repository.AdminAntiSpamConfigV2
 import com.thehub.hb.data.repository.AdminControlRepository
 import com.thehub.hb.data.repository.AdminEmergencyV2
 import com.thehub.hb.data.repository.AdminFeatureFlagV2
 import com.thehub.hb.data.repository.AdminUserDetailV2
-import com.thehub.hb.data.repository.antiSpamConfig
-import com.thehub.hb.data.repository.analyticsV2
-import com.thehub.hb.data.repository.assignTicket
-import com.thehub.hb.data.repository.emergency
-import com.thehub.hb.data.repository.featureFlags
-import com.thehub.hb.data.repository.investigation
-import com.thehub.hb.data.repository.replyTicket
-import com.thehub.hb.data.repository.setAntiSpamConfig
-import com.thehub.hb.data.repository.setEmergency
-import com.thehub.hb.data.repository.setFeatureFlag
-import com.google.firebase.Timestamp
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubOutline
-import com.thehub.hb.ui.theme.HubSuccess
 import com.thehub.hb.ui.theme.HubSurface
 import com.thehub.hb.ui.theme.HubViolet
-import kotlinx.coroutines.launch
 import java.util.Date
+import kotlinx.coroutines.launch
 
-private enum class AdminV2Section(val label: String) {
-    DASHBOARD("Dashboard 2.0"),
-    USER("Fiche utilisateur"),
-    SANCTIONS("Sanctions"),
-    QUEUE("Moderation Queue"),
-    POSTS("Publications"),
-    ROLES("Rôles"),
-    REAUTH("Réauthentification"),
-    SESSIONS("Sessions"),
-    AUDIT("Audit Center"),
-    NOTIFICATIONS("Notifications"),
-    ANNOUNCEMENTS("Annonces"),
-    VERSIONS("Versions"),
-    FLAGS("Feature Flags"),
-    EMERGENCY("Emergency Center"),
-    INVESTIGATION("Mode enquête"),
-    ANALYTICS("DAU / WAU / MAU"),
-    ANTISPAM("Anti-spam"),
-    SUPPORT("Support")
+private enum class AdminV2Section(
+    val title: String,
+    val description: String,
+    val icon: ImageVector
+) {
+    DASHBOARD("Tableau de bord", "Vue générale de l’activité, des utilisateurs et des alertes.", Icons.Filled.Home),
+    USER("Utilisateurs", "Rechercher une personne et ouvrir sa fiche complète.", Icons.Filled.People),
+    SANCTIONS("Sanctions", "Avertissements, restrictions et suspensions.", Icons.Filled.Shield),
+    QUEUE("File de modération", "Traiter les signalements avec priorité et état.", Icons.Filled.Flag),
+    POSTS("Publications", "Masquer, supprimer, épingler ou verrouiller.", Icons.Filled.Article),
+    ROLES("Rôles et permissions", "Gérer les rôles et les accès des administrateurs.", Icons.Filled.Security),
+    REAUTH("Réauthentification", "Valider à nouveau l’identité avant une action sensible.", Icons.Filled.Security),
+    SESSIONS("Sessions administrateur", "Voir les sessions et révoquer les accès.", Icons.Filled.Security),
+    AUDIT("Journal des actions", "Historique des actions administratives, filtrable.", Icons.Filled.History),
+    NOTIFICATIONS("Notifications", "Envoyer des messages à des groupes d’utilisateurs.", Icons.Filled.Notifications),
+    ANNOUNCEMENTS("Annonces", "Créer, programmer et faire expirer des annonces.", Icons.Filled.Notifications),
+    VERSIONS("Mises à jour", "Définir la version minimale et les mises à jour forcées.", Icons.Filled.Settings),
+    FLAGS("Fonctionnalités", "Activer ou désactiver des fonctions progressivement.", Icons.Filled.Settings),
+    EMERGENCY("Mode urgence", "Couper rapidement des fonctions en cas d’incident.", Icons.Filled.Shield),
+    INVESTIGATION("Mode enquête", "Afficher la chronologie d’un compte.", Icons.Filled.Search),
+    ANALYTICS("Statistiques d’utilisation", "DAU, WAU, MAU et rétention.", Icons.Filled.History),
+    ANTISPAM("Protection anti-spam", "Régler les seuils de publication, messages et signalements.", Icons.Filled.Security),
+    SUPPORT("Support", "Attribuer les tickets et répondre aux utilisateurs.", Icons.Filled.People)
+}
+
+private enum class AdminV2Category(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val sections: List<AdminV2Section>
+) {
+    OVERVIEW(
+        "Vue générale",
+        "Pilotage quotidien et statistiques.",
+        Icons.Filled.Home,
+        listOf(AdminV2Section.DASHBOARD, AdminV2Section.ANALYTICS)
+    ),
+    PEOPLE(
+        "Utilisateurs et sécurité",
+        "Comptes, sanctions, sessions et permissions.",
+        Icons.Filled.People,
+        listOf(AdminV2Section.USER, AdminV2Section.SANCTIONS, AdminV2Section.ROLES, AdminV2Section.REAUTH, AdminV2Section.SESSIONS, AdminV2Section.ANTISPAM)
+    ),
+    MODERATION(
+        "Modération",
+        "Signalements et contrôle des publications.",
+        Icons.Filled.Flag,
+        listOf(AdminV2Section.QUEUE, AdminV2Section.POSTS, AdminV2Section.INVESTIGATION, AdminV2Section.AUDIT)
+    ),
+    COMMUNICATION(
+        "Communication",
+        "Notifications et annonces envoyées aux membres.",
+        Icons.Filled.Notifications,
+        listOf(AdminV2Section.NOTIFICATIONS, AdminV2Section.ANNOUNCEMENTS, AdminV2Section.SUPPORT)
+    ),
+    SYSTEM(
+        "Système",
+        "Versions, fonctionnalités et mode urgence.",
+        Icons.Filled.Settings,
+        listOf(AdminV2Section.VERSIONS, AdminV2Section.FLAGS, AdminV2Section.EMERGENCY)
+    )
 }
 
 @Composable
 fun AdminControlCenterScreen(repository: AdminControlRepository) {
-    var section by remember { mutableStateOf(AdminV2Section.DASHBOARD) }
-    Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Text("Centre d’administration 2.0", style = MaterialTheme.typography.headlineSmall)
+    var selected by remember { mutableStateOf<AdminV2Section?>(null) }
+
+    if (selected == null) {
+        AdminCenterHome(onOpenSection = { selected = it })
+    } else {
+        AdminSectionScreen(
+            section = selected!!,
+            repository = repository,
+            onBack = { selected = null }
+        )
+    }
+}
+
+@Composable
+private fun AdminCenterHome(onOpenSection: (AdminV2Section) -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
             Text(
-                "17 modules : sécurité, modération, analytics, support et contrôle système.",
-                style = MaterialTheme.typography.bodySmall,
+                "Centre d’administration",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Choisis une catégorie. Chaque outil explique clairement à quoi il sert.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AdminV2Section.values().forEach {
-                    OutlinedButton(
-                        onClick = { section = it },
-                        border = BorderStroke(1.dp, if (section == it) HubViolet else HubOutline)
-                    ) { Text(it.label) }
+        }
+
+        items(AdminV2Category.values().toList(), key = { it.name }) { category ->
+            CategoryCard(category = category, onOpenSection = onOpenSection)
+        }
+
+        item {
+            Text(
+                "18 outils disponibles",
+                style = MaterialTheme.typography.labelLarge,
+                color = HubViolet,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryCard(
+    category: AdminV2Category,
+    onOpenSection: (AdminV2Section) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = HubSurface),
+        border = BorderStroke(1.dp, HubOutline)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(category.icon, contentDescription = null, tint = HubViolet, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.size(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(category.title, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        category.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            category.sections.forEach { section ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenSection(section) }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(section.icon, contentDescription = null, tint = HubViolet, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.size(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(section.title, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            section.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminSectionScreen(
+    section: AdminV2Section,
+    repository: AdminControlRepository,
+    onBack: () -> Unit
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+            }
+            Column(Modifier.weight(1f)) {
+                Text(section.title, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    section.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
