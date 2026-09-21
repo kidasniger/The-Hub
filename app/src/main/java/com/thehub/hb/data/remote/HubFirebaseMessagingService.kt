@@ -60,10 +60,32 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
 
         if (data.isEmpty() && notificationPayload == null) return
 
+        val isAppUpdate = data["type"] == "app_update"
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid
-            ?: return
 
         serviceScope.launch {
+            if (isAppUpdate) {
+                val title = data["title"]?.takeIf { it.isNotBlank() }
+                    ?: "Nouvelle mise à jour disponible"
+                val body = data["body"]?.takeIf { it.isNotBlank() }
+                    ?: "Une nouvelle version de The Hub est disponible."
+                val deepLink = data["deepLink"]?.takeIf { it.isNotBlank() }
+                    ?: "thehub://update"
+                val createdAtMs = data["createdAtMs"]?.toLongOrNull()
+
+                showNotification(
+                    title = title,
+                    body = body,
+                    deepLink = deepLink,
+                    notificationId = message.messageId?.hashCode()
+                        ?: (deepLink.hashCode() xor body.hashCode()),
+                    createdAtMs = createdAtMs
+                )
+                return@launch
+            }
+
+            if (currentUid == null) return@launch
+
             val recipientId = data["recipientId"]?.takeIf { it.isNotBlank() }
             if (recipientId != null) {
                 if (recipientId != currentUid) {
@@ -203,6 +225,9 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
                     "$actor a répondu à votre commentaire"
                 }
             }
+            "app_update" -> fallbackNotificationBody
+                ?.takeIf { it.isNotBlank() }
+                ?: "Une nouvelle version de The Hub est disponible."
             else -> fallbackNotificationBody ?: "Vous avez une nouvelle notification"
         }
     }
@@ -222,6 +247,8 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             "message" -> actor + " vous a envoyé un message"
             "like_comment" -> actor + " a aimé votre commentaire"
             "reply_comment" -> actor + " a répondu à votre commentaire"
+            "app_update" -> data["body"]?.takeIf { it.isNotBlank() }
+                ?: "Une nouvelle version de The Hub est disponible."
             else -> "Vous avez une nouvelle notification"
         }
     }
@@ -245,6 +272,10 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             postId.isNotBlank()
         ) {
             return "thehub://comments/" + Uri.encode(postId)
+        }
+
+        if (type == "app_update") {
+            return "thehub://update"
         }
 
         if (postId.isNotBlank()) {
