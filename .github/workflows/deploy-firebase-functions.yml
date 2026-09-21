@@ -105,11 +105,13 @@ jobs:
               data = json.load(fh)
 
           raw = json.dumps(data)
-          if "pushNotificationOnCreate" not in raw:
-              print("ERROR: pushNotificationOnCreate was not found in the deployed functions list.")
+          required = ["pushNotificationOnCreate", "reassignFcmTokenToOwner"]
+          missing = [name for name in required if name not in raw]
+          if missing:
+              print("ERROR: missing deployed Firebase Functions: " + ", ".join(missing))
               sys.exit(1)
 
-          print("SUCCESS: pushNotificationOnCreate is present in the deployed Firebase Functions.")
+          print("SUCCESS: pushNotificationOnCreate and FCM token ownership cleanup are deployed.")
           PY
 
       - name: Remove Firebase credentials
