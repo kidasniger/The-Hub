@@ -23,6 +23,12 @@ const messaging = getMessaging(app);
 function notificationContent(n) {
   const actor = n.actorDisplayName || n.actorUsername || 'Quelqu\'un';
   switch (n.type) {
+    case 'ADMIN_BROADCAST':
+    case 'ADMIN_ANNOUNCEMENT':
+      return {
+        title: n.title || 'The Hub',
+        body: n.commentText || 'Une nouvelle annonce est disponible.',
+      };
     case 'like':
       return { title: 'Nouveau j\'aime', body: actor + ' a aimé votre publication.' };
     case 'comment':
@@ -64,7 +70,102 @@ function sanitizeData(value) {
   return text.length > 3500 ? text.slice(0, 3500) : text;
 }
 
+async function getAnnouncementRecipients(segment) {
+  const usersSnapshot = await db.collection('users').limit(5000).get();
+  const users = usersSnapshot.docs;
+
+  if (segment === 'admins') {
+    const admins = await db.collection('admins').where('active', '==', true).get();
+    const ids = new Set(admins.docs.map((doc) => doc.id));
+    return users.filter((doc) => ids.has(doc.id));
+  }
+
+  if (segment === 'active_7d') {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const presence = await db.collectionGroup('presence').limit(10000).get();
+    const activeIds = new Set(
+      presence.docs
+        .filter((doc) => {
+          const lastSeen = doc.get('lastSeen');
+          return lastSeen && lastSeen.toDate().getTime() >= cutoff;
+        })
+        .map((doc) => doc.ref.parent.parent.id)
+    );
+    return users.filter((doc) => activeIds.has(doc.id));
+  }
+
+  return users;
+}
+
+async function processScheduledAnnouncements() {
+  const now = Date.now();
+  const scheduled = await db
+    .collection('announcements')
+    .where('status', '==', 'scheduled')
+    .where('active', '==', true)
+    .limit(50)
+    .get();
+
+  for (const announcementDoc of scheduled.docs) {
+    const announcement = announcementDoc.data();
+    const publishAt = announcement.publishAt?.toDate?.().getTime?.() ?? 0;
+    if (!publishAt || publishAt > now) continue;
+
+    const recipients = await getAnnouncementRecipients(announcement.segment || 'all');
+    for (const chunk of Array.from({ length: Math.ceil(recipients.length / 400) }, (_, i) =>
+      recipients.slice(i * 400, (i + 1) * 400)
+    )) {
+      const batch = db.batch();
+      for (const userDoc of chunk) {
+        const notificationId = `announcement-${announcementDoc.id}-${userDoc.id}`;
+        batch.set(db.collection('notifications').doc(notificationId), {
+          recipientId: userDoc.id,
+          actorId: announcement.createdBy || 'thehub',
+          actorUsername: 'thehub',
+          actorDisplayName: 'The Hub',
+          type: 'ADMIN_ANNOUNCEMENT',
+          title: announcement.title || 'The Hub',
+          commentText: announcement.body || '',
+          announcementId: announcementDoc.id,
+          batchId: announcementDoc.id,
+          createdAt: FieldValue.serverTimestamp(),
+          isRead: false,
+          pushSent: false,
+        }, { merge: true });
+      }
+      if (chunk.length > 0) await batch.commit();
+    }
+
+    await announcementDoc.ref.update({
+      status: 'published',
+      publishedAt: FieldValue.serverTimestamp(),
+      recipientCount: recipients.length,
+    });
+    console.log(`Annonce ${announcementDoc.id} publiée vers ${recipients.length} destinataire(s).`);
+  }
+
+  const expired = await db
+    .collection('announcements')
+    .where('status', '==', 'published')
+    .where('active', '==', true)
+    .limit(50)
+    .get();
+
+  for (const announcementDoc of expired.docs) {
+    const expiresAt = announcementDoc.get('expiresAt')?.toDate?.().getTime?.() ?? 0;
+    if (expiresAt && expiresAt <= now) {
+      await announcementDoc.ref.update({
+        active: false,
+        status: 'expired',
+        expiredAt: FieldValue.serverTimestamp(),
+      });
+      console.log(`Annonce ${announcementDoc.id} expirée.`);
+    }
+  }
+}
+
 async function run() {
+  await processScheduledAnnouncements();
   const snapshot = await db
     .collection('notifications')
     .where('pushSent', '==', false)
