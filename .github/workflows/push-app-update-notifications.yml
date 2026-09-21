@@ -1,0 +1,102 @@
+name: Push App Update Notifications
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag (ex: v1.0.137)"
+        required: true
+      release_name:
+        description: "Release name"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: the-hub-app-update-notification
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Notify users about the new app release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/release-notify/package.json
+
+      - name: Validate Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: GitHub secret FIREBASE_SERVICE_ACCOUNT is required."
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json, os, sys
+          try:
+              data = json.loads(os.environ["FIREBASE_SERVICE_ACCOUNT"])
+          except json.JSONDecodeError as exc:
+              print(f"ERROR: invalid FIREBASE_SERVICE_ACCOUNT JSON: {exc}")
+              sys.exit(1)
+
+          if data.get("type") != "service_account":
+              print("ERROR: secret is not a service-account JSON key.")
+              sys.exit(1)
+
+          if data.get("project_id") != "the-hub-f95f4":
+              print(
+                  f'ERROR: project_id "{data.get("project_id")}" '
+                  'does not match "the-hub-f95f4".'
+              )
+              sys.exit(1)
+
+          print("SUCCESS: Firebase service-account credentials validated.")
+          PY
+
+      - name: Prepare Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
+          chmod 600 "$CREDENTIALS_FILE"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_FILE" >> "$GITHUB_ENV"
+
+      - name: Install notifier dependencies
+        working-directory: tools/release-notify
+        run: npm install --no-package-lock
+
+      - name: Validate notifier source
+        working-directory: tools/release-notify
+        run: npm run check
+
+      - name: Send update notifications
+        working-directory: tools/release-notify
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_NAME: ${{ github.event.release.name || inputs.release_name }}
+          RELEASE_URL: ${{ github.event.release.html_url || '' }}
+        run: npm start
+
+      - name: Remove Firebase credentials
+        if: always()
+        run: |
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
