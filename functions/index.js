@@ -90,6 +90,57 @@ async function deleteInvalidToken(tokenRef, token) {
   }
 }
 
+exports.reassignFcmTokenToOwner = require("firebase-functions/firestore").onDocumentWritten(
+  "users/{userId}/fcmTokens/{tokenId}",
+  async (event) => {
+    const after = event.data?.after;
+    if (!after || !after.exists) return null;
+
+    const token = after.get("token");
+    const userId = event.params.userId;
+
+    if (typeof token !== "string" || !token.trim() || !userId) {
+      return null;
+    }
+
+    try {
+      const matches = await db
+        .collectionGroup("fcmTokens")
+        .where("token", "==", token)
+        .get();
+
+      const batch = db.batch();
+      let removed = 0;
+
+      for (const doc of matches.docs) {
+        const pathParts = doc.ref.path.split("/");
+        const ownerIndex = pathParts.indexOf("users");
+        const ownerId = ownerIndex >= 0 ? pathParts[ownerIndex + 1] : null;
+
+        if (ownerId && ownerId !== userId) {
+          batch.delete(doc.ref);
+          removed += 1;
+        }
+      }
+
+      if (removed > 0) {
+        await batch.commit();
+        logger.info("Reassigned FCM token to current owner", {
+          userId,
+          removedDuplicateRegistrations: removed,
+        });
+      }
+    } catch (error) {
+      logger.error("FCM token ownership cleanup failed", {
+        userId,
+        error: error?.message || String(error),
+      });
+    }
+
+    return null;
+  }
+);
+
 exports.pushNotificationOnCreate = onDocumentCreated(
   "notifications/{notificationId}",
   async (event) => {
@@ -121,8 +172,8 @@ exports.pushNotificationOnCreate = onDocumentCreated(
       return null;
     }
 
-    let actorDisplayName = notification.actorDisplayName || "";
-    if (!actorDisplayName && notification.actorId) {
+    let actorDisplayName = "";
+    if (notification.actorId) {
       try {
         const actorSnap = await db.collection("users").doc(notification.actorId).get();
         actorDisplayName =
@@ -135,6 +186,10 @@ exports.pushNotificationOnCreate = onDocumentCreated(
           error: error?.message || String(error),
         });
       }
+    }
+
+    if (!actorDisplayName) {
+      actorDisplayName = notification.actorDisplayName || "Quelqu'un";
     }
 
     const content = buildNotificationContent({
