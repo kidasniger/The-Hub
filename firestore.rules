@@ -996,9 +996,31 @@ service cloud.firestore {
             'lastMessageId',
             'unreadCount'
           ])
+          && request.resource.data.lastMessageSenderId == request.auth.uid
+          && request.resource.data.lastMessageAt == request.time
+          && request.resource.data.lastMessageId is string
+          && request.resource.data.unreadCount is map
+          && request.resource.data.unreadCount.keys().hasOnly([
+            resource.data.participantIds[0],
+            resource.data.participantIds[1]
+          ])
           && (
-            sendMetadataIsAtomic()
-            || sendMetadataIsAtomicByMessageId()
+            request.resource.data.unreadCount.get(request.auth.uid, 0)
+              == resource.data.unreadCount.get(request.auth.uid, 0)
+          )
+          && (
+            request.resource.data.unreadCount.get(
+              resource.data.participantIds[0] == request.auth.uid
+                ? resource.data.participantIds[1]
+                : resource.data.participantIds[0],
+              0
+            )
+              == resource.data.unreadCount.get(
+                resource.data.participantIds[0] == request.auth.uid
+                  ? resource.data.participantIds[1]
+                  : resource.data.participantIds[0],
+                0
+              ) + 1
           )
         )
         || unreadCountResetIsSafe()
@@ -1148,18 +1170,7 @@ service cloud.firestore {
         allow read: if parentConversationIsAccessible();
 
         allow create: if parentConversationIsAccessible()
-          && validMessageFields()
-          && (
-            sendMarkerMatchesMessage()
-            || (
-              getAfter(
-                /databases/$(database)/documents/conversations/$(conversationId)
-              ).data.get('lastMessageId', '') == messageId
-              && getAfter(
-                /databases/$(database)/documents/conversations/$(conversationId)
-              ).data.lastMessageSenderId == request.auth.uid
-            )
-          );
+          && validMessageFields();
 
         // Individual message deletion is not permitted. Conversation deletion
         // is the only client-side deletion path and must delete messages and
