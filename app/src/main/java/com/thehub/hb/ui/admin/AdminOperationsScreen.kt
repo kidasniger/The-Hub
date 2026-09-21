@@ -62,10 +62,15 @@ import kotlinx.coroutines.launch
 
 private enum class OpsSection(val label: String) {
     ANALYTICS("Analytics"),
+    SEARCH("Recherche"),
     MODERATION("Modération"),
     SECURITY("Sécurité"),
     CONTENT("Contenu"),
+    NOTIFICATIONS("Notifications"),
     SUPPORT("Support"),
+    SANCTIONS("Sanctions"),
+    ANTISPAM("Anti-spam"),
+    STORAGE("Stockage"),
     SYSTEM("Système"),
     ADMINS("Admins")
 }
@@ -106,10 +111,15 @@ fun AdminOperationsScreen(repository: AdminRepository) {
 
         when (section) {
             OpsSection.ANALYTICS -> AdminAnalyticsPanel(repository)
+            OpsSection.SEARCH -> AdminSearchPanel(repository)
             OpsSection.MODERATION -> AdminModerationPanel(repository)
             OpsSection.SECURITY -> AdminSecurityPanel(repository)
             OpsSection.CONTENT -> AdminContentPanel(repository)
+            OpsSection.NOTIFICATIONS -> AdminNotificationsPanel(repository)
             OpsSection.SUPPORT -> AdminSupportPanel(repository)
+            OpsSection.SANCTIONS -> AdminSanctionsPanel(repository)
+            OpsSection.ANTISPAM -> AdminAntiSpamPanel(repository)
+            OpsSection.STORAGE -> AdminStoragePanel(repository)
             OpsSection.SYSTEM -> AdminSystemPanel(repository)
             OpsSection.ADMINS -> AdminAdminsScreen(repository)
         }
@@ -549,6 +559,269 @@ private fun AdminSystemPanel(repository: AdminRepository) {
                     else Text("Enregistrer")
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun AdminSearchPanel(repository: AdminRepository) {
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf(emptyList<com.thehub.hb.data.repository.AdminSearchHit>()) }
+    var loading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Panel("Recherche globale", "Utilisateurs, publications et signalements depuis une seule barre.") {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Nom, @username, e-mail, UID, texte ou ID") },
+                singleLine = true
+            )
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    scope.launch {
+                        loading = true
+                        results = repository.globalSearch(query).getOrDefault(emptyList())
+                        loading = false
+                    }
+                },
+                enabled = query.trim().length >= 2 && !loading
+            ) {
+                Text(if (loading) "Recherche…" else "Rechercher")
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        if (loading) {
+            CircularProgressIndicator()
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(results, key = { it.type + "_" + it.id }) { item ->
+                    Card(
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = HubSurface),
+                        border = BorderStroke(1.dp, HubOutline)
+                    ) {
+                        Column(Modifier.padding(13.dp)) {
+                            Text(item.type, color = HubViolet, style = MaterialTheme.typography.labelSmall)
+                            Text(item.title, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(item.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("ID " + item.id, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminNotificationsPanel(repository: AdminRepository) {
+    var title by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf<String?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Panel("Notification globale", "Envoie une notification in-app à tous les utilisateurs actuellement enregistrés.") {
+            OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text("Titre") }, singleLine = true)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                body,
+                { body = it },
+                Modifier.fillMaxWidth(),
+                label = { Text("Message") },
+                minLines = 4
+            )
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    scope.launch {
+                        sending = true
+                        val count = repository.broadcastAnnouncement(title, body)
+                        sending = false
+                        result = count.fold(
+                            onSuccess = { "$it notifications créées." },
+                            onFailure = { it.message ?: "Échec de la diffusion." }
+                        )
+                        if (count.isSuccess) {
+                            title = ""
+                            body = ""
+                        }
+                    }
+                },
+                enabled = title.isNotBlank() && body.isNotBlank() && !sending
+            ) { Text(if (sending) "Diffusion…" else "Diffuser") }
+            result?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = HubSuccess)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminSanctionsPanel(repository: AdminRepository) {
+    var sanctions by remember { mutableStateOf(emptyList<com.thehub.hb.data.repository.AdminSanctionRow>()) }
+    var userId by remember { mutableStateOf("") }
+    var reason by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("suspend") }
+    var hours by remember { mutableStateOf("24") }
+    var loading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    fun reload() {
+        scope.launch {
+            loading = true
+            sanctions = repository.getSanctions().getOrDefault(emptyList())
+            loading = false
+        }
+    }
+    LaunchedEffect(Unit) { reload() }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Panel("Appliquer une sanction", "Chaque sanction est enregistrée dans le journal et rattachée à l’utilisateur.") {
+                OutlinedTextField(userId, { userId = it }, Modifier.fillMaxWidth(), label = { Text("UID utilisateur") }, singleLine = true)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(reason, { reason = it }, Modifier.fillMaxWidth(), label = { Text("Motif") }, minLines = 2)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { type = "warning" }, border = BorderStroke(1.dp, if (type == "warning") HubViolet else HubOutline)) { Text("Avertissement") }
+                    OutlinedButton(onClick = { type = "suspend" }, border = BorderStroke(1.dp, if (type == "suspend") HubViolet else HubOutline)) { Text("Suspension") }
+                    OutlinedButton(onClick = { type = "ban" }, border = BorderStroke(1.dp, if (type == "ban") HubViolet else HubOutline)) { Text("Désactivation") }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(hours, { hours = it }, Modifier.fillMaxWidth(), label = { Text("Durée en heures (vide = permanente)") }, singleLine = true)
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            repository.applySanction(
+                                userId.trim(),
+                                type,
+                                reason,
+                                hours.toLongOrNull()?.takeIf { it > 0 }
+                            )
+                            userId = ""
+                            reason = ""
+                            reload()
+                        }
+                    },
+                    enabled = userId.isNotBlank() && reason.isNotBlank()
+                ) { Text("Appliquer") }
+            }
+        }
+        item {
+            Panel("Historique", "Sanctions récentes.") {
+                if (loading) CircularProgressIndicator()
+                else sanctions.take(25).forEach {
+                    Column(Modifier.padding(vertical = 5.dp)) {
+                        Text(it.type.uppercase() + " • " + it.userId, fontWeight = FontWeight.SemiBold)
+                        Text(it.reason, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "Créé par " + it.createdBy.take(8),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminAntiSpamPanel(repository: AdminRepository) {
+    var alerts by remember { mutableStateOf(emptyList<com.thehub.hb.data.repository.AdminAntiSpamAlert>()) }
+    var loading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    fun reload() {
+        scope.launch {
+            loading = true
+            alerts = repository.getAntiSpamAlerts().getOrDefault(emptyList())
+            loading = false
+        }
+    }
+    LaunchedEffect(Unit) { reload() }
+
+    if (loading) {
+        CircularProgressIndicator(Modifier.padding(24.dp))
+        return
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (alerts.isEmpty()) {
+            item {
+                Panel("Anti-spam", "Aucune alerte heuristique actuellement.") {
+                    Text("Le système surveille les signalements répétés et les publications identiques ou quasi identiques.")
+                }
+            }
+        } else {
+            items(alerts, key = { it.userId + "_" + it.reason }) { alert ->
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = HubSurface),
+                    border = BorderStroke(1.dp, HubOutline)
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text("Score " + alert.score + "/100", color = HubError, fontWeight = FontWeight.Bold)
+                        Text(alert.label + " • " + alert.userId, fontWeight = FontWeight.SemiBold)
+                        Text(alert.reason, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        item { OutlinedButton(onClick = { reload() }) { Text("Actualiser") } }
+    }
+}
+
+@Composable
+private fun AdminStoragePanel(repository: AdminRepository) {
+    var stats by remember { mutableStateOf<com.thehub.hb.data.repository.AdminStorageStats?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    fun reload() {
+        scope.launch {
+            loading = true
+            stats = repository.getStorageStats().getOrNull()
+            loading = false
+        }
+    }
+    LaunchedEffect(Unit) { reload() }
+
+    if (loading && stats == null) {
+        CircularProgressIndicator(Modifier.padding(24.dp))
+        return
+    }
+    val current = stats ?: return
+
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Panel("Stockage & médias", "Vue applicative des médias référencés dans les publications. Les octets réels du bucket restent gérés par Firebase Storage.") {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Metric("Images", current.imagePosts.toString(), "publications", HubBlue)
+                Metric("Vidéos", current.videoPosts.toString(), "publications", HubViolet)
+                Metric("Médias", current.mediaPosts.toString(), "total", HubSuccess)
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = { reload() }) { Text("Actualiser") }
         }
     }
 }
