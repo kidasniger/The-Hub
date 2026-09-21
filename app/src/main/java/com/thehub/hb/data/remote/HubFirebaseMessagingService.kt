@@ -97,11 +97,13 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
                     ?.takeIf { it.isNotBlank() }
                 ?: "The Hub"
 
-            val body = data["body"]
-                ?.takeIf { it.isNotBlank() }
-                ?: notificationPayload?.body
+            val body = buildNotificationBody(
+                data = data,
+                actorDisplayName = actorDisplayName,
+                fallbackNotificationBody = data["body"]
                     ?.takeIf { it.isNotBlank() }
-                ?: buildFallbackBody(data, actorDisplayName)
+                    ?: notificationPayload?.body
+            )
 
             val deepLink = data["deepLink"]
                 ?.takeIf { it.isNotBlank() }
@@ -162,6 +164,48 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+
+    private fun buildNotificationBody(
+        data: Map<String, String>,
+        actorDisplayName: String?,
+        fallbackNotificationBody: String?
+    ): String {
+        val actor = actorDisplayName
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: "Quelqu'un"
+
+        return when (data["type"]) {
+            "like" -> "$actor a aimé votre publication"
+            "comment" -> {
+                val text = data["commentText"]?.takeIf { it.isNotBlank() }
+                if (text != null) {
+                    "$actor a commenté : « $text »"
+                } else {
+                    "$actor a commenté votre publication"
+                }
+            }
+            "follow" -> "$actor a commencé à vous suivre"
+            "message" -> {
+                val text = data["commentText"]?.takeIf { it.isNotBlank() }
+                if (text != null) {
+                    "$actor vous a envoyé un message : « $text »"
+                } else {
+                    "$actor vous a envoyé un message"
+                }
+            }
+            "like_comment" -> "$actor a aimé votre commentaire"
+            "reply_comment" -> {
+                val text = data["commentText"]?.takeIf { it.isNotBlank() }
+                if (text != null) {
+                    "$actor a répondu à votre commentaire : « $text »"
+                } else {
+                    "$actor a répondu à votre commentaire"
+                }
+            }
+            else -> fallbackNotificationBody ?: "Vous avez une nouvelle notification"
+        }
+    }
 
     private fun buildFallbackBody(
         data: Map<String, String>,
