@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -19,7 +21,11 @@ fun OfficialVerificationBadge(
     val red = Color(0xFFE31B3F)
     val white = Color.White
 
-    Canvas(modifier = modifier.size(size)) {
+    Canvas(
+        modifier = modifier
+            .size(size)
+            .semantics { contentDescription = "Compte officiel certifié" }
+    ) {
         val radius = this.size.minDimension / 2f
         drawCircle(
             color = red,
