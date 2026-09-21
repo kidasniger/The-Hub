@@ -728,21 +728,6 @@ class MessageRepository(
                 return@withContext Result.failure(Exception("Conversation invalide."))
             }
 
-            // The conversation was already authorized when it was created.
-            // From this point only its two participants may send messages.
-            // Keeping the relation check out of this atomic batch prevents
-            // intermittent PERMISSION_DENIED when a relationship document changes
-            // while the conversation itself remains valid.
-
-            // Rebuild the complete two-participant unread map. This also repairs
-            // legacy conversations where unreadCount or one participant key is absent.
-            val currentUnread = conversation.getUnreadCountFor(currentUid)
-            val otherUnread = conversation.getUnreadCountFor(otherUid)
-            val updatedUnreadCount = mapOf(
-                currentUid to currentUnread,
-                otherUid to otherUnread + 1
-            )
-
             val messageRef = convRef.collection("messages").document()
             val messageData = hashMapOf<String, Any?>(
                 "senderId" to currentUid,
@@ -774,25 +759,6 @@ class MessageRepository(
             }
 
             val message = Message.fromSnapshot(messageDoc)
-
-            // Conversation preview/unread metadata is best-effort and isolated
-            // from the actual message write.
-            try {
-                convRef.update(
-                    mapOf(
-                        "lastMessageText" to previewText,
-                        "lastMessageAt" to FieldValue.serverTimestamp(),
-                        "lastMessageSenderId" to currentUid,
-                        "lastMessageId" to message.id,
-                        "unreadCount" to updatedUnreadCount
-                    )
-                ).await()
-            } catch (metadataError: Exception) {
-                android.util.Log.w(
-                    "MessageRepository",
-                    "Conversation metadata update skipped after successful message write: " + metadataError.message
-                )
-            }
 
             try {
                 notificationRepository.createNotification(
