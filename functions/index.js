@@ -25,7 +25,10 @@ const TYPES = new Set([
 ]);
 
 function buildNotificationContent(data) {
-  const actor = data.actorUsername || "Quelqu'un";
+  const actor =
+    data.actorDisplayName ||
+    data.actorUsername ||
+    "Quelqu'un";
   switch (data.type) {
     case "like":
       return { title: "Nouveau j'aime", body: actor + " a aimé votre publication." };
@@ -118,18 +121,46 @@ exports.pushNotificationOnCreate = onDocumentCreated(
       return null;
     }
 
-    const content = buildNotificationContent(notification);
+    let actorDisplayName = notification.actorDisplayName || "";
+    if (!actorDisplayName && notification.actorId) {
+      try {
+        const actorSnap = await db.collection("users").doc(notification.actorId).get();
+        actorDisplayName =
+          actorSnap.get("displayName") ||
+          actorSnap.get("name") ||
+          "";
+      } catch (error) {
+        logger.warn("Could not resolve actor displayName", {
+          actorId: notification.actorId,
+          error: error?.message || String(error),
+        });
+      }
+    }
+
+    const content = buildNotificationContent({
+      ...notification,
+      actorDisplayName,
+    });
     const deepLink = buildDeepLink(notification);
+    const createdAtMs =
+      notification.createdAt && typeof notification.createdAt.toMillis === "function"
+        ? String(notification.createdAt.toMillis())
+        : "";
+
     const data = {
       notificationId: sanitizeData(snapshot.id),
+      recipientId: sanitizeData(recipientId),
+      createdAtMs: sanitizeData(createdAtMs),
       type: sanitizeData(type),
       title: sanitizeData(content.title),
       body: sanitizeData(content.body),
       actorId: sanitizeData(notification.actorId),
       actorUsername: sanitizeData(notification.actorUsername || ""),
+      actorDisplayName: sanitizeData(actorDisplayName),
       postId: sanitizeData(notification.postId || ""),
       commentId: sanitizeData(notification.commentId || ""),
       conversationId: sanitizeData(notification.conversationId || ""),
+      messageId: sanitizeData(notification.messageId || ""),
       deepLink,
     };
 
