@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+// Push isolation: validate every incoming notification against the active Firebase UID.
 class HubFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
