@@ -5,7 +5,7 @@ const fs = require("fs");
 
 function parseSemver(value) {
   const normalized = String(value || "").replace(/^v/i, "").trim();
-  const match = normalized.match(/^(\\d+)\\.(\\d+)\\.(\\d+)$/);
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)$/);
   if (!match) {
     throw new Error("Version invalide: " + value);
   }
