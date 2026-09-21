@@ -695,6 +695,7 @@ fun AdminPostsScreen(repository: AdminRepository) {
 fun AdminReportsScreen(repository: AdminRepository) {
     var reports by remember { mutableStateOf<List<AdminReportRow>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var isSuperAdmin by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun reload() {
@@ -829,17 +830,22 @@ fun AdminAdminsScreen(repository: AdminRepository) {
         }
     }
 
-    LaunchedEffect(Unit) { reload() }
+    LaunchedEffect(Unit) {
+        isSuperAdmin = repository.isCurrentUserSuperAdmin()
+        reload()
+    }
 
     Column(Modifier.fillMaxSize()) {
         AdminHeader(
             "Administrateurs",
             admins.size.toString() + " accès • gestion des privilèges"
         ) {
-            Button(onClick = { showAddDialog = true }) {
+            if (isSuperAdmin) {
+                Button(onClick = { showAddDialog = true }) {
                 Icon(Icons.Filled.AdminPanelSettings, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Ajouter")
+                    Text("Ajouter")
+                }
             }
         }
         when {
@@ -883,11 +889,18 @@ fun AdminAdminsScreen(repository: AdminRepository) {
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                AdminPill(
-                                    if (admin.active) "Actif" else "Inactif",
-                                    if (admin.active) HubSuccess else HubError,
-                                    if (admin.active) Icons.Filled.CheckCircle else Icons.Filled.Block
-                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    AdminPill(
+                                        if (admin.active) "Actif" else "Inactif",
+                                        if (admin.active) HubSuccess else HubError,
+                                        if (admin.active) Icons.Filled.CheckCircle else Icons.Filled.Block
+                                    )
+                                    AdminPill(
+                                        if (admin.role == "superadmin") "SUPER ADMIN" else "ADMIN",
+                                        if (admin.role == "superadmin") HubViolet else HubBlue,
+                                        Icons.Filled.VerifiedUser
+                                    )
+                                }
                             }
                             Spacer(Modifier.height(9.dp))
                             Text(
@@ -895,7 +908,7 @@ fun AdminAdminsScreen(repository: AdminRepository) {
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (admin.uid != repository.currentUserId) {
+                            if (isSuperAdmin && admin.uid != repository.currentUserId) {
                                 Spacer(Modifier.height(10.dp))
                                 OutlinedButton(
                                     onClick = {
@@ -909,7 +922,11 @@ fun AdminAdminsScreen(repository: AdminRepository) {
                                 }
                             } else {
                                 Spacer(Modifier.height(10.dp))
-                                AdminPill("Votre compte", HubBlue, Icons.Filled.VerifiedUser)
+                                AdminPill(
+                                    if (admin.role == "superadmin") "Votre compte • protégé" else "Votre compte",
+                                    HubBlue,
+                                    Icons.Filled.VerifiedUser
+                                )
                             }
                         }
                     }
