@@ -87,18 +87,18 @@ class AdminControlRepository(
             val comments = firestore.collectionGroup("comments").limit(5000).get().await().documents
             val reports = firestore.collection("reports").limit(2000).get().await().documents
             val logs = firestore.collection("adminLogs").limit(2000).get().await().documents
-            val active = firestore.collectionGroup("activeUsers")
-                .whereGreaterThanOrEqualTo("day", dayKey(-29))
-                .whereLessThanOrEqualTo("day", dayKey()).limit(20000).get().await().documents
+            val presence = firestore.collectionGroup("presence").limit(5000).get().await().documents
+            val now = System.currentTimeMillis()
             fun created(d: com.google.firebase.firestore.DocumentSnapshot) =
                 d.getTimestamp("createdAt")?.toDate()?.time ?: (d.getLong("createdAt") ?: 0L)
-            fun distinct(ds: List<com.google.firebase.firestore.DocumentSnapshot>) =
-                ds.mapNotNull { it.getString("userId") }.toSet().size
+            fun activeCount(windowMillis: Long) =
+                presence.mapNotNull { it.getTimestamp("lastSeen")?.toDate()?.time }
+                    .count { it >= now - windowMillis }
             Result.success(AdminDashboardV2(
                 users = users.size,
-                activeToday = distinct(active.filter { it.getString("day") == dayKey() }),
-                active7d = distinct(active.filter { it.getString("day").orEmpty() >= dayKey(-6) }),
-                active30d = distinct(active),
+                activeToday = activeCount(24L * 60L * 60L * 1000L),
+                active7d = activeCount(7L * 24L * 60L * 60L * 1000L),
+                active30d = activeCount(30L * 24L * 60L * 60L * 1000L),
                 newUsersToday = users.count { created(it) >= start },
                 suspendedUsers = users.count { it.getBoolean("isSuspended") == true },
                 postsToday = posts.count { created(it) >= start },
