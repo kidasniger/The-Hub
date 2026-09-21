@@ -1384,13 +1384,21 @@ try {
   await testRepostDeleteCounterMustMatchDeletion();
   await testLegacyUserFollowCompatibility();
   await testLegacyConversationUnreadCountCompatibility();
+  console.log("TRACE_TEST: testMessageSecurityAndAtomicSend");
   await testMessageSecurityAndAtomicSend();
+  console.log("TRACE_TEST: testCurrentAppMessageBatchWithoutMessageOps");
   await testCurrentAppMessageBatchWithoutMessageOps();
+  console.log("TRACE_TEST: testMessageCreationRejectsForgedMetadata");
   await testMessageCreationRejectsForgedMetadata();
+  console.log("TRACE_TEST: testMessageRecipientCanMarkReadOnly");
   await testMessageRecipientCanMarkReadOnly();
+  console.log("TRACE_TEST: testAdvancedMessengerSecurity");
   await testAdvancedMessengerSecurity();
+  console.log("TRACE_TEST: testMessageAccessIsLimitedToParticipants");
   await testMessageAccessIsLimitedToParticipants();
+  console.log("TRACE_TEST: testMessageDeletionMustBeAtomicWithConversationDeletion");
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
+  console.log("TRACE_TEST: testSensitiveCollectionWrites");
   await testSensitiveCollectionWrites();
 
   console.log("Firestore security tests (counters + messages): PASS");
