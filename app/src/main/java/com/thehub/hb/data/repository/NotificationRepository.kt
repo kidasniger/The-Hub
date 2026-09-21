@@ -25,32 +25,47 @@ class NotificationRepository(
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
-    private suspend fun getCurrentActorInfo(): Triple<String, String, String?> {
+    private data class ActorInfo(
+        val uid: String,
+        val username: String,
+        val displayName: String,
+        val photoUrl: String?
+    )
+
+    private suspend fun getCurrentActorInfo(): ActorInfo {
         val user = auth.currentUser
         val uid = user?.uid ?: ""
-        var username = user?.displayName ?: ""
+        var username = user?.email
+            ?.substringBefore("@")
+            ?.takeIf { it.isNotBlank() }
+            ?: "utilisateur"
+        var displayName = user?.displayName?.trim().orEmpty()
         var photoUrl = user?.photoUrl?.toString()
 
         if (uid.isNotEmpty()) {
             try {
                 val doc = firestore.collection("users").document(uid).get().await()
                 if (doc.exists()) {
-                    val dbUsername = doc.getString("username")
-                    val dbDisplayName = doc.getString("displayName")
+                    val dbUsername = doc.getString("username")?.trim()
+                    val dbDisplayName = doc.getString("displayName")?.trim()
                     val dbPhoto = doc.getString("photoUrl")
                     if (!dbUsername.isNullOrBlank()) username = dbUsername
-                    else if (!dbDisplayName.isNullOrBlank()) username = dbDisplayName
+                    if (!dbDisplayName.isNullOrBlank()) displayName = dbDisplayName
                     if (!dbPhoto.isNullOrBlank()) photoUrl = dbPhoto
                 }
             } catch (_: Exception) {}
         }
 
-        if (username.isBlank()) {
-            val email = user?.email ?: ""
-            username = if (email.contains("@")) email.substringBefore("@") else "utilisateur"
+        if (displayName.isBlank()) {
+            displayName = username
         }
 
-        return Triple(uid, username, photoUrl)
+        return ActorInfo(
+            uid = uid,
+            username = username,
+            displayName = displayName,
+            photoUrl = photoUrl
+        )
     }
 
     /**
@@ -226,8 +241,8 @@ class NotificationRepository(
         messageId: String? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val (actorUid, actorUsername, actorPhotoUrl) = getCurrentActorInfo()
-            if (actorUid.isBlank() || recipientId.isBlank() || actorUid == recipientId) {
+            val actor = getCurrentActorInfo()
+            if (actor.uid.isBlank() || recipientId.isBlank() || actor.uid == recipientId) {
                 // Ignore self-notification
                 return@withContext Result.success(Unit)
             }
@@ -236,9 +251,10 @@ class NotificationRepository(
             val notification = NotificationItem(
                 id = docRef.id,
                 recipientId = recipientId,
-                actorId = actorUid,
-                actorUsername = actorUsername,
-                actorPhotoUrl = actorPhotoUrl,
+                actorId = actor.uid,
+                actorUsername = actor.username,
+                actorDisplayName = actor.displayName,
+                actorPhotoUrl = actor.photoUrl,
                 type = type,
                 postId = postId,
                 commentText = commentText,
