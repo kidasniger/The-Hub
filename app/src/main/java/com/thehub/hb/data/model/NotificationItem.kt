@@ -8,6 +8,7 @@ data class NotificationItem(
     val recipientId: String = "",
     val actorId: String = "",
     val actorUsername: String = "",
+    val actorDisplayName: String = "",
     val actorPhotoUrl: String? = null,
     val type: String = TYPE_LIKE, // "like" | "comment" | "follow" | "message" | "like_comment" | "reply_comment"
     val postId: String? = null,
@@ -23,6 +24,7 @@ data class NotificationItem(
             "recipientId" to recipientId,
             "actorId" to actorId,
             "actorUsername" to actorUsername,
+            "actorDisplayName" to actorDisplayName,
             "actorPhotoUrl" to actorPhotoUrl,
             "type" to type,
             "postId" to postId,
@@ -50,6 +52,9 @@ data class NotificationItem(
                 recipientId = doc.getString("recipientId") ?: "",
                 actorId = doc.getString("actorId") ?: "",
                 actorUsername = doc.getString("actorUsername") ?: "utilisateur",
+                actorDisplayName = doc.getString("actorDisplayName")
+                    ?: doc.getString("actorUsername")
+                    ?: "utilisateur",
                 actorPhotoUrl = doc.getString("actorPhotoUrl"),
                 type = doc.getString("type") ?: TYPE_LIKE,
                 postId = doc.getString("postId"),
