@@ -134,7 +134,11 @@ class MainActivity : ComponentActivity() {
                 ?.toString()
 
         if (!deepLink.isNullOrBlank()) {
-            pendingNotificationDeepLink = deepLink
+            if (deepLink == "thehub://update") {
+                openUpdateDialogRequest = true
+            } else {
+                pendingNotificationDeepLink = deepLink
+            }
             intent?.removeExtra(EXTRA_NOTIFICATION_DEEP_LINK)
         }
     }
