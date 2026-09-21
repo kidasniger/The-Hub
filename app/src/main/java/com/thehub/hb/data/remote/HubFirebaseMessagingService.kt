@@ -14,8 +14,6 @@ import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.RemoteMessage
-import java.text.DateFormat
-import java.util.Date
 import com.thehub.hb.MainActivity
 import com.thehub.hb.R
 import com.thehub.hb.data.repository.MessageRepository
