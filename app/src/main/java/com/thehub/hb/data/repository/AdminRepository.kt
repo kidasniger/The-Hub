@@ -57,6 +57,7 @@ data class AdminAccountRow(
     val uid: String,
     val email: String,
     val displayName: String,
+    val role: String,
     val active: Boolean
 )
 
@@ -76,6 +77,16 @@ class AdminRepository(
         try {
             firestore.collection("admins").document(uid).get().await()
                 .getBoolean("active") == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    suspend fun isCurrentUserSuperAdmin(): Boolean = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext false
+        try {
+            val doc = firestore.collection("admins").document(uid).get().await()
+            doc.getBoolean("active") == true && doc.getString("role") == "superadmin"
         } catch (_: Exception) {
             false
         }
@@ -104,7 +115,7 @@ class AdminRepository(
                         "uid" to uid,
                         "email" to email,
                         "displayName" to (user.displayName ?: "KIDAS"),
-                        "role" to "admin",
+                        "role" to "superadmin",
                         "active" to true,
                         "createdAt" to Timestamp.now(),
                         "createdBy" to uid
@@ -322,6 +333,7 @@ class AdminRepository(
                         uid = doc.id,
                         email = doc.getString("email").orEmpty(),
                         displayName = doc.getString("displayName").orEmpty().ifBlank { "Administrateur" },
+                        role = doc.getString("role").orEmpty().ifBlank { "admin" },
                         active = doc.getBoolean("active") != false
                     )
                 }
@@ -335,6 +347,7 @@ class AdminRepository(
     suspend fun addAdmin(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val creatorUid = currentUserId ?: throw IllegalStateException("Session administrateur invalide.")
+            require(isCurrentUserSuperAdmin()) { "Seul le superadministrateur peut gérer les administrateurs." }
             require(targetUid.isNotBlank()) { "UID invalide." }
 
             val userDoc = firestore.collection("users").document(targetUid).get().await()
@@ -363,6 +376,7 @@ class AdminRepository(
 
     suspend fun removeAdmin(targetUid: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            require(isCurrentUserSuperAdmin()) { "Seul le superadministrateur peut gérer les administrateurs." }
             require(targetUid.isNotBlank()) { "UID invalide." }
             require(targetUid != currentUserId) { "Impossible de supprimer votre propre accès administrateur." }
             firestore.collection("admins").document(targetUid).delete().await()
