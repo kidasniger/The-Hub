@@ -2,7 +2,6 @@ package com.thehub.hb.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -18,7 +17,7 @@ fun OfficialVerificationBadge(
     size: Dp = 18.dp
 ) {
     val red = Color(0xFFE31B3F)
-    val white = MaterialTheme.colorScheme.surface
+    val white = Color.White
 
     Canvas(modifier = modifier.size(size)) {
         val radius = this.size.minDimension / 2f
