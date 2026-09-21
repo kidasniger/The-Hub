@@ -116,6 +116,10 @@ class CreatePostViewModel(
         )
     }
 
+    fun showErrorMessage(message: String) {
+        _uiState.value = _uiState.value.copy(errorMessage = message)
+    }
+
     fun publishPost(onSuccess: (Post) -> Unit) {
         val currentState = _uiState.value
         if (!currentState.canPublish) return
