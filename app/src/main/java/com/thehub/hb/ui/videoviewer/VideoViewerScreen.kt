@@ -74,12 +74,17 @@ fun VideoViewerScreen(
     val cleanedUrl = remember(videoUrl) { videoUrl.trim() }
 
     if (cleanedUrl.isBlank()) {
-        VideoPlaybackError(
-            sourceType = VideoSourceType.EXTERNAL_VIDEO_PAGE,
-            onRetry = { },
-            onOpenExternally = { },
-            showRetry = false
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Lien vidéo invalide.",
+                color = HubWhite
+            )
+        }
         return
     }
 
@@ -248,7 +253,10 @@ private fun YouTubePlayerContent(
                                             phase = YouTubePlaybackPhase.ERROR
                                             Log.e(
                                                 "VideoViewerScreen",
-                                                "YouTube playback error for $videoId: \${error.name}"
+                                                "YouTube playback error for " +
+                                                    videoId +
+                                                    ": " +
+                                                    error.name
                                             )
                                         }
                                     },
