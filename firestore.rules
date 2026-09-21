@@ -1,5 +1,6 @@
 rules_version = '2';
 // Validation marker: admin self-protection rules check.
+// Validation marker refresh.
 // Production rules are deployed by the Firebase Admin SDK CI workflow.
 // Deployment verification trigger: keep production rules synchronized with main.
 service cloud.firestore {
