@@ -39,6 +39,21 @@ class UserRepository(
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
+    private suspend fun signOutAndCleanPushToken() {
+        val uid = auth.currentUser?.uid
+        if (!uid.isNullOrBlank()) {
+            try {
+                notificationRepository.unregisterFcmTokenForUser(uid)
+            } catch (e: Exception) {
+                Log.w(
+                    "UserRepository",
+                    "Failed to unregister FCM token before sign out: " + e.message
+                )
+            }
+        }
+        auth.signOut()
+    }
+
     /**
      * Real-time listener for a user profile.
      */
@@ -1144,17 +1159,17 @@ class UserRepository(
             } catch (e: Exception) {
                 Log.w("UserRepository", "Failed to delete Firebase Auth user: ${e.message}")
                 // In case Firebase requires re-authentication, we sign out immediately so the session terminates
-                auth.signOut()
+                signOutAndCleanPushToken()
             }
 
             // Ensure auth sign out is called
-            auth.signOut()
+            signOutAndCleanPushToken()
 
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error deleting account: ${e.message}", e)
             try {
-                auth.signOut()
+                signOutAndCleanPushToken()
                 dataStoreManager.clearAll()
             } catch (_: Exception) {}
             Result.failure(e)
