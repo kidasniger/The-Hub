@@ -10,6 +10,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.messaging.FirebaseMessaging
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -245,6 +246,18 @@ class AuthRepository(
                     }
                 }
 
+                // Invalidate the physical device token before switching accounts.
+                // This guarantees that an old account can no longer target this
+                // device even if an obsolete Firestore token document remains.
+                try {
+                    FirebaseMessaging.getInstance().deleteToken().await()
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "AuthRepository",
+                        "Could not invalidate old FCM token before account switch: " + e.message
+                    )
+                }
+
                 val authResult = auth.signInWithCredential(firebaseCredential).await()
                 val firebaseUser = authResult.user ?: throw Exception("Utilisateur introuvable après connexion.")
 
@@ -343,6 +356,17 @@ class AuthRepository(
                     "Could not unregister FCM token before sign out: " + e.message
                 )
             }
+        }
+
+        try {
+            // Invalidate the device token as part of logout. A subsequent login
+            // will obtain/register a fresh token for the new Firebase UID.
+            FirebaseMessaging.getInstance().deleteToken().await()
+        } catch (e: Exception) {
+            android.util.Log.w(
+                "AuthRepository",
+                "Could not invalidate FCM token on logout: " + e.message
+            )
         }
 
         auth.signOut()
