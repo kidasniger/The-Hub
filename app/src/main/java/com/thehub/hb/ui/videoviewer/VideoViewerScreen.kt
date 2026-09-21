@@ -7,12 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.text.TextUtils
 import android.view.View
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,8 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -39,16 +33,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
@@ -75,79 +68,103 @@ fun VideoViewerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubBackground)
+            .background(Color.Black)
     ) {
         if (sourceType == VideoSourceType.YOUTUBE) {
             val videoId = remember(cleanedUrl) {
                 VideoLinkDetector.youtubeVideoId(cleanedUrl)
             }
 
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
+            if (videoId.isNullOrBlank()) {
+                VideoPlaybackError(
+                    sourceType = sourceType,
+                    onRetry = { },
+                    onOpenExternally = { openExternally(context, cleanedUrl) },
+                    showRetry = false
+                )
+            } else {
+                val isShort = VideoLinkDetector.isYouTubeShorts(cleanedUrl)
+
+                YouTubePlayerContent(
+                    videoId = videoId,
+                    isShort = isShort,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Immersive app chrome: the player owns the video controls while
+                // The Hub only adds a lightweight close action and source badge.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .background(Color.Black)
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
                 ) {
                     IconButton(
                         onClick = onClose,
                         modifier = Modifier
-                            .size(44.dp)
-                            .background(Color(0x99000000), CircleShape)
+                            .size(46.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.58f),
+                                CircleShape
+                            )
                             .align(Alignment.CenterStart)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Fermer",
                             tint = HubWhite,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    Text(
-                        text = "YouTube",
-                        color = HubWhite,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                if (videoId.isNullOrBlank()) {
-                    VideoPlaybackError(
-                        sourceType = sourceType,
-                        onRetry = { },
-                        onOpenExternally = { openExternally(context, cleanedUrl) },
-                        showRetry = false
-                    )
-                } else {
-                    val isShort = VideoLinkDetector.isYouTubeShorts(cleanedUrl)
-
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center
+                            .align(Alignment.Center)
+                            .background(
+                                Color.Black.copy(alpha = 0.48f),
+                                CircleShape
+                            )
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
-                        if (isShort) {
-                            YouTubeShortsWebContent(
-                                videoId = videoId,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(9f / 16f)
-                            )
-                        } else {
-                            YouTubePlayerContent(
-                                videoId = videoId,
-                                isShort = false,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(16f / 9f)
-                            )
-                        }
+                        Text(
+                            text = if (isShort) "YouTube Shorts" else "YouTube",
+                            color = HubWhite,
+                            fontSize = 12.sp
+                        )
                     }
                 }
+
+                // Subtle top/bottom scrims keep the controls and close button
+                // legible without covering the actual video content.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(92.dp)
+                        .align(Alignment.TopCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Black.copy(alpha = 0.55f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.50f)
+                                )
+                            )
+                        )
+                )
             }
         } else {
             GenericVideoViewer(
@@ -156,87 +173,6 @@ fun VideoViewerScreen(
             )
         }
     }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun YouTubeShortsWebContent(
-    videoId: String,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val appReferrer = remember(context.packageName) {
-        "https://" + context.packageName.lowercase(Locale.ROOT)
-    }
-    val shortsUrl = remember(videoId) {
-        "https://www.youtube.com/shorts/$videoId"
-    }
-
-    AndroidView(
-        factory = { androidContext ->
-            WebView(androidContext).apply {
-                setBackgroundColor(android.graphics.Color.BLACK)
-                setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                overScrollMode = View.OVER_SCROLL_NEVER
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
-
-                CookieManager.getInstance().setAcceptCookie(true)
-                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
-                settings.javaScriptCanOpenWindowsAutomatically = true
-                settings.setSupportMultipleWindows(false)
-
-                // Force YouTube's mobile Shorts layout instead of its desktop
-                // landscape layout.
-                settings.userAgentString =
-                    "Mozilla/5.0 (Linux; Android 12; Mobile) " +
-                        "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                        "Chrome/131.0.0.0 Mobile Safari/537.36"
-
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView,
-                        request: WebResourceRequest
-                    ): Boolean {
-                        return false
-                    }
-
-                    override fun onPageFinished(
-                        view: WebView,
-                        url: String
-                    ) {
-                        view.evaluateJavascript(
-                            """
-                            (function() {
-                                document.documentElement.style.background = '#000';
-                                document.body.style.background = '#000';
-                                document.body.style.margin = '0';
-                                window.scrollTo(0, 0);
-                            })();
-                            """.trimIndent(),
-                            null
-                        )
-                        super.onPageFinished(view, url)
-                    }
-                }
-
-                webChromeClient = WebChromeClient()
-
-                loadUrl(
-                    shortsUrl,
-                    mapOf("Referer" to appReferrer)
-                )
-            }
-        },
-        modifier = modifier
-            .background(Color.Black)
-    )
 }
 
 @Composable
@@ -253,8 +189,6 @@ private fun YouTubePlayerContent(
             enableAutomaticInitialization = false
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-            // The library defaults wrap_content to 16:9. For Shorts we must
-            // explicitly make the native View fill its 9:16 parent.
             if (isShort) {
                 matchParent()
             } else {
@@ -263,20 +197,22 @@ private fun YouTubePlayerContent(
         }
     }
 
-    DisposableEffect(lifecycleOwner, playerView) {
+    DisposableEffect(lifecycleOwner, playerView, videoId) {
         lifecycleOwner.lifecycle.addObserver(playerView)
 
         val options = IFramePlayerOptions.Builder(context)
             .origin("https://" + context.packageName.lowercase(Locale.ROOT))
             .controls(1)
             .fullscreen(if (isShort) 0 else 1)
-            .autoplay(0)
+            .autoplay(1)
+            .rel(0)
+            .playsInline(1)
             .build()
 
         playerView.initialize(
             object : AbstractYouTubePlayerListener() {
                 override fun onReady(player: YouTubePlayer) {
-                    player.cueVideo(videoId, 0f)
+                    player.loadVideo(videoId, 0f)
                 }
             },
             true,
@@ -290,9 +226,7 @@ private fun YouTubePlayerContent(
     }
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black),
+        modifier = modifier.background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
         val playerWidth = if (isShort) {
@@ -327,7 +261,6 @@ private fun YouTubePlayerContent(
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun GenericVideoViewer(
     videoUrl: String,
