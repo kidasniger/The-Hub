@@ -465,7 +465,11 @@ private fun GenericVideoViewer(
                         setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
                         CookieManager.getInstance().setAcceptCookie(true)
-                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(
+                            this,
+                            prepared.sourceType == VideoSourceType.VIMEO ||
+                                prepared.sourceType == VideoSourceType.DAILYMOTION
+                        )
 
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
