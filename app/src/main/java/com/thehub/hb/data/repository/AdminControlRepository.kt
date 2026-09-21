@@ -66,7 +66,8 @@ class AdminControlRepository(
                 "183373607979-d1qu0ogpl24dptctim56nlght54hs8a7.apps.googleusercontent.com"
             ).build()
             val response = manager.getCredential(
-                GetCredentialRequest.Builder().addCredentialOption(option).build(), context
+                context,
+                GetCredentialRequest.Builder().addCredentialOption(option).build()
             )
             val credential = response.credential
             require(
@@ -501,6 +502,66 @@ class AdminControlRepository(
                 ), SetOptions.merge()
             ).await()
             audit("update_version_policy", null, "system", "success")
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun supportTickets(): Result<List<AdminSupportTicketV2>> = withContext(Dispatchers.IO) {
+        try {
+            requireAdmin()
+            Result.success(
+                firestore.collection("supportTickets").limit(500).get().await().documents.map {
+                    AdminSupportTicketV2(
+                        it.id,
+                        it.getString("userId").orEmpty(),
+                        it.getString("subject").orEmpty(),
+                        it.getString("message").orEmpty(),
+                        it.getString("status").orEmpty().ifBlank { "open" },
+                        it.getString("priority").orEmpty().ifBlank { "normal" },
+                        it.getString("assignedAdminId").orEmpty(),
+                        it.getTimestamp("createdAt")
+                    )
+                }.sortedByDescending { it.createdAt?.seconds ?: 0L }
+            )
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun assignTicket(ticketId: String, adminId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            requireRecentReauth()
+            requireAdmin()
+            firestore.collection("supportTickets").document(ticketId).update(
+                mapOf(
+                    "assignedAdminId" to adminId,
+                    "status" to "in_progress",
+                    "updatedAt" to Timestamp.now()
+                )
+            ).await()
+            audit("assign_support_ticket", ticketId, "support", "success")
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun replyTicket(ticketId: String, message: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            requireRecentReauth()
+            requireAdmin()
+            require(message.isNotBlank())
+            firestore.collection("supportTickets").document(ticketId).collection("responses").add(
+                mapOf(
+                    "adminId" to currentAdminId,
+                    "message" to message.take(3000),
+                    "createdAt" to Timestamp.now()
+                )
+            ).await()
+            firestore.collection("supportTickets").document(ticketId).update(
+                mapOf(
+                    "status" to "waiting_user",
+                    "lastResponseAt" to Timestamp.now(),
+                    "lastResponseBy" to currentAdminId
+                )
+            ).await()
+            audit("reply_support_ticket", ticketId, "support", "success")
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
