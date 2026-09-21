@@ -368,6 +368,9 @@ class PostRepository(
             // Verify that current user account still exists and is not deleted
             val userDoc = firestore.collection("users").document(uid).get().await()
             if (!userDoc.exists() || userDoc.getBoolean("isDeleted") == true) {
+                try {
+                    notificationRepository.unregisterFcmTokenForUser(uid)
+                } catch (_: Exception) {}
                 auth.signOut()
                 return@withContext Result.failure(Exception("Ce compte a été supprimé."))
             }
