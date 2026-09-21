@@ -300,6 +300,11 @@ class AuthRepository(
                         dataStoreManager.clearAll()
                         return GoogleSignInResult.Error("Ce compte a été supprimé.")
                     }
+                    if (userDoc.getBoolean("isSuspended") == true) {
+                        signOut()
+                        dataStoreManager.clearAll()
+                        return GoogleSignInResult.Error("Ce compte est temporairement suspendu.")
+                    }
                     val userData = User.fromMap(userDoc.data ?: emptyMap())
                     dataStoreManager.saveLastUser(
                         email = firebaseUser.email ?: userData.email,
