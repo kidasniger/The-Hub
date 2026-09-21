@@ -216,6 +216,23 @@ class AuthRepository(
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
+
+                // Remove this physical device token while the previous Firebase
+                // account is still authenticated. Doing it after the auth switch
+                // would fail the Firestore ownership rule.
+                val previousUid = auth.currentUser?.uid
+                if (!previousUid.isNullOrBlank()) {
+                    try {
+                        NotificationRepository(firestore, auth)
+                            .unregisterFcmTokenForUser(previousUid)
+                    } catch (e: Exception) {
+                        android.util.Log.w(
+                            "AuthRepository",
+                            "Could not unregister previous account FCM token: " + e.message
+                        )
+                    }
+                }
+
                 val authResult = auth.signInWithCredential(firebaseCredential).await()
                 val firebaseUser = authResult.user ?: throw Exception("Utilisateur introuvable après connexion.")
 
@@ -254,7 +271,7 @@ class AuthRepository(
                     shouldCompleteProfile = true
                 } else {
                     if (userDoc.getBoolean("isDeleted") == true) {
-                        auth.signOut()
+                        signOut()
                         dataStoreManager.clearAll()
                         return GoogleSignInResult.Error("Ce compte a été supprimé.")
                     }
@@ -299,7 +316,20 @@ class AuthRepository(
         }
     }
 
-    fun signOut() {
+    suspend fun signOut() {
+        val uid = auth.currentUser?.uid
+        if (!uid.isNullOrBlank()) {
+            try {
+                NotificationRepository(firestore, auth)
+                    .unregisterFcmTokenForUser(uid)
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "AuthRepository",
+                    "Could not unregister FCM token before sign out: " + e.message
+                )
+            }
+        }
+
         auth.signOut()
         try {
             com.thehub.hb.data.repository.UserCacheRepository.getInstance().clear()
