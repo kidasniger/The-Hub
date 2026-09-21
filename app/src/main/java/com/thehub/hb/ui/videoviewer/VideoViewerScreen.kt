@@ -204,9 +204,7 @@ private fun YouTubePlayerContent(
             .origin("https://" + context.packageName.lowercase(Locale.ROOT))
             .controls(1)
             .fullscreen(if (isShort) 0 else 1)
-            .autoplay(1)
             .rel(0)
-            .playsInline(1)
             .build()
 
         playerView.initialize(
