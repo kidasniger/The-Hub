@@ -49,6 +49,7 @@ data class AdminAccountRow(
     val active: Boolean
 )
 
+// Admin moderation is intentionally isolated from the regular user experience.
 class AdminRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
