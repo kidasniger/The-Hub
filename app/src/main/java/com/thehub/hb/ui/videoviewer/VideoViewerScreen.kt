@@ -15,8 +15,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -173,7 +173,7 @@ private fun YouTubePlayerContent(
         val options = IFramePlayerOptions.Builder(context)
             .origin("https://" + context.packageName.lowercase(Locale.ROOT))
             .controls(1)
-            .fullscreen(1)
+            .fullscreen(if (isShort) 0 else 1)
             .autoplay(0)
             .build()
 
@@ -193,23 +193,41 @@ private fun YouTubePlayerContent(
         }
     }
 
-    val playerAspectRatio = if (isShort) {
-        9f / 16f
-    } else {
-        16f / 9f
-    }
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(playerAspectRatio)
+            .fillMaxSize()
             .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        AndroidView(
-            factory = { playerView },
-            modifier = Modifier.fillMaxSize()
-        )
+        val playerWidth = if (isShort) {
+            minOf(
+                maxWidth,
+                maxHeight * (9f / 16f)
+            )
+        } else {
+            minOf(
+                maxWidth,
+                maxHeight * (16f / 9f)
+            )
+        }
+
+        val playerHeight = if (isShort) {
+            playerWidth * (16f / 9f)
+        } else {
+            playerWidth * (9f / 16f)
+        }
+
+        Box(
+            modifier = Modifier
+                .width(playerWidth)
+                .height(playerHeight)
+                .background(Color.Black)
+        ) {
+            AndroidView(
+                factory = { playerView },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 
