@@ -956,6 +956,39 @@ service cloud.firestore {
           && request.resource.data.lastMessageId == messageId;
       }
 
+      function sendMetadataIsDirectSafe() {
+        let otherUid = resource.data.participantIds[0] == request.auth.uid
+          ? resource.data.participantIds[1]
+          : resource.data.participantIds[0];
+        let oldUnread = resource.data.get('unreadCount', {});
+        let newUnread = request.resource.data.get('unreadCount', {});
+
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'lastMessageText',
+            'lastMessageAt',
+            'lastMessageSenderId',
+            'lastMessageId',
+            'unreadCount'
+          ])
+          && request.resource.data.lastMessageText is string
+          && request.resource.data.lastMessageSenderId == request.auth.uid
+          && request.resource.data.lastMessageAt == request.time
+          && request.resource.data.lastMessageId is string
+          && newUnread is map
+          && newUnread.keys().hasOnly([
+            resource.data.participantIds[0],
+            resource.data.participantIds[1]
+          ])
+          && newUnread.get(request.auth.uid, 0) == (
+            oldUnread is map
+              ? oldUnread.get(request.auth.uid, 0)
+              : 0
+          )
+          && newUnread.get(otherUid, 0) == (
+            (oldUnread is map ? oldUnread.get(otherUid, 0) : 0) + 1
+          );
+      }
+
       function unreadCountResetIsSafe() {
         let otherUid = resource.data.participantIds[0] == request.auth.uid
           ? resource.data.participantIds[1]
@@ -988,41 +1021,8 @@ service cloud.firestore {
         && canMessageTargetOnCreate();
 
       allow update: if isParticipant() && (
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'lastMessageText',
-            'lastMessageAt',
-            'lastMessageSenderId',
-            'lastMessageId',
-            'unreadCount'
-          ])
-          && request.resource.data.lastMessageSenderId == request.auth.uid
-          && request.resource.data.lastMessageAt == request.time
-          && request.resource.data.lastMessageId is string
-          && request.resource.data.unreadCount is map
-          && request.resource.data.unreadCount.keys().hasOnly([
-            resource.data.participantIds[0],
-            resource.data.participantIds[1]
-          ])
-          && (
-            request.resource.data.unreadCount.get(request.auth.uid, 0)
-              == resource.data.unreadCount.get(request.auth.uid, 0)
-          )
-          && (
-            request.resource.data.unreadCount.get(
-              resource.data.participantIds[0] == request.auth.uid
-                ? resource.data.participantIds[1]
-                : resource.data.participantIds[0],
-              0
-            )
-              == resource.data.unreadCount.get(
-                resource.data.participantIds[0] == request.auth.uid
-                  ? resource.data.participantIds[1]
-                  : resource.data.participantIds[0],
-                0
-              ) + 1
-          )
-        )
+        sendMetadataIsDirectSafe()
+        || sendMetadataIsAtomic()
         || unreadCountResetIsSafe()
       );
 
