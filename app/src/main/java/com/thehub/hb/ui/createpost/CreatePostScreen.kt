@@ -108,6 +108,8 @@ fun CreatePostScreen(
                 val bytes = com.thehub.hb.utils.ImageCompressor.compressImageFromUri(context, uri)
                 if (bytes != null) {
                     viewModel.setImage(uri, bytes)
+                } else {
+                    viewModel.showErrorMessage("Impossible de lire ou de préparer cette image.")
                 }
             }
         }
