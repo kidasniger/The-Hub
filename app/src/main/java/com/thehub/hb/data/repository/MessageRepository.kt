@@ -764,19 +764,9 @@ class MessageRepository(
                 else -> ""
             }
 
-            val batch = firestore.batch()
-            batch.set(messageRef, messageData)
-            batch.update(
-                convRef,
-                mapOf(
-                    "lastMessageText" to previewText,
-                    "lastMessageAt" to FieldValue.serverTimestamp(),
-                    "lastMessageSenderId" to currentUid,
-                    "lastMessageId" to messageRef.id,
-                    "unreadCount" to updatedUnreadCount
-                )
-            )
-            batch.commit().await()
+            // Commit the message independently. A metadata/read-counter failure
+            // must never make the actual message disappear with PERMISSION_DENIED.
+            messageRef.set(messageData).await()
 
             val messageDoc = messageRef.get().await()
             if (!messageDoc.exists()) {
@@ -784,6 +774,25 @@ class MessageRepository(
             }
 
             val message = Message.fromSnapshot(messageDoc)
+
+            // Conversation preview/unread metadata is best-effort and isolated
+            // from the actual message write.
+            try {
+                convRef.update(
+                    mapOf(
+                        "lastMessageText" to previewText,
+                        "lastMessageAt" to FieldValue.serverTimestamp(),
+                        "lastMessageSenderId" to currentUid,
+                        "lastMessageId" to message.id,
+                        "unreadCount" to updatedUnreadCount
+                    )
+                ).await()
+            } catch (metadataError: Exception) {
+                android.util.Log.w(
+                    "MessageRepository",
+                    "Conversation metadata update skipped after successful message write: " + metadataError.message
+                )
+            }
 
             try {
                 notificationRepository.createNotification(
