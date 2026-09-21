@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -129,10 +130,22 @@ fun VideoViewerScreen(
                             .background(Color.Black),
                         contentAlignment = Alignment.Center
                     ) {
-                        YouTubePlayerContent(
-                            videoId = videoId,
-                            isShort = isShort
-                        )
+                        if (isShort) {
+                            YouTubeShortsWebContent(
+                                videoId = videoId,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(9f / 16f)
+                            )
+                        } else {
+                            YouTubePlayerContent(
+                                videoId = videoId,
+                                isShort = false,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                            )
+                        }
                     }
                 }
             }
@@ -143,6 +156,87 @@ fun VideoViewerScreen(
             )
         }
     }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun YouTubeShortsWebContent(
+    videoId: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val appReferrer = remember(context.packageName) {
+        "https://" + context.packageName.lowercase(Locale.ROOT)
+    }
+    val shortsUrl = remember(videoId) {
+        "https://www.youtube.com/shorts/$videoId"
+    }
+
+    AndroidView(
+        factory = { androidContext ->
+            WebView(androidContext).apply {
+                setBackgroundColor(android.graphics.Color.BLACK)
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                overScrollMode = View.OVER_SCROLL_NEVER
+                isVerticalScrollBarEnabled = false
+                isHorizontalScrollBarEnabled = false
+
+                CookieManager.getInstance().setAcceptCookie(true)
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
+                settings.javaScriptCanOpenWindowsAutomatically = true
+                settings.setSupportMultipleWindows(false)
+
+                // Force YouTube's mobile Shorts layout instead of its desktop
+                // landscape layout.
+                settings.userAgentString =
+                    "Mozilla/5.0 (Linux; Android 12; Mobile) " +
+                        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                        "Chrome/131.0.0.0 Mobile Safari/537.36"
+
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: WebResourceRequest
+                    ): Boolean {
+                        return false
+                    }
+
+                    override fun onPageFinished(
+                        view: WebView,
+                        url: String
+                    ) {
+                        view.evaluateJavascript(
+                            """
+                            (function() {
+                                document.documentElement.style.background = '#000';
+                                document.body.style.background = '#000';
+                                document.body.style.margin = '0';
+                                window.scrollTo(0, 0);
+                            })();
+                            """.trimIndent(),
+                            null
+                        )
+                        super.onPageFinished(view, url)
+                    }
+                }
+
+                webChromeClient = WebChromeClient()
+
+                loadUrl(
+                    shortsUrl,
+                    mapOf("Referer" to appReferrer)
+                )
+            }
+        },
+        modifier = modifier
+            .background(Color.Black)
+    )
 }
 
 @Composable
