@@ -16,7 +16,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.thehub.hb.di.AppContainer
-import com.thehub.hb.ui.admin.AdminNavGraph
 import com.thehub.hb.ui.bookmarks.BookmarksScreen
 import com.thehub.hb.ui.bookmarks.BookmarksViewModel
 import com.thehub.hb.ui.comments.CommentsScreen
@@ -64,6 +63,7 @@ import com.thehub.hb.ui.terms.TermsScreen
 import com.thehub.hb.ui.update.UpdateBottomSheet
 import com.thehub.hb.ui.update.UpdateViewModel
 import com.thehub.hb.ui.welcome.WelcomeScreen
+import kotlinx.coroutines.launch
 
 @Composable
 fun HubNavGraph(
