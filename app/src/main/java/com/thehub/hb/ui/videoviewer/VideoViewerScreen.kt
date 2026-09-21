@@ -118,12 +118,19 @@ fun VideoViewerScreen(
                         showRetry = false
                     )
                 } else {
-                    YouTubePlayerContent(
-                        videoId = videoId,
+                    val isShort = VideoLinkDetector.isYouTubeShorts(cleanedUrl)
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    )
+                            .fillMaxSize()
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        YouTubePlayerContent(
+                            videoId = videoId,
+                            isShort = isShort
+                        )
+                    }
                 }
             }
         } else {
@@ -138,6 +145,7 @@ fun VideoViewerScreen(
 @Composable
 private fun YouTubePlayerContent(
     videoId: String,
+    isShort: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -176,9 +184,17 @@ private fun YouTubePlayerContent(
         }
     }
 
+    val playerAspectRatio = if (isShort) {
+        9f / 16f
+    } else {
+        16f / 9f
+    }
+
     AndroidView(
         factory = { playerView },
         modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(playerAspectRatio)
             .background(Color.Black)
     )
 }
