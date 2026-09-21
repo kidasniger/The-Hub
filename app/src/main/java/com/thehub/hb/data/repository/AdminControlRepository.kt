@@ -524,7 +524,7 @@ class AdminControlRepository(
 
     suspend fun supportTickets(): Result<List<AdminSupportTicketV2>> = withContext(Dispatchers.IO) {
         try {
-            requireAdmin()
+            requirePermission("support")
             Result.success(
                 firestore.collection("supportTickets").limit(500).get().await().documents.map {
                     AdminSupportTicketV2(
@@ -544,8 +544,7 @@ class AdminControlRepository(
 
     suspend fun assignTicket(ticketId: String, adminId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireRecentReauth()
-            requireAdmin()
+            requireCriticalPermission("support")
             firestore.collection("supportTickets").document(ticketId).update(
                 mapOf(
                     "assignedAdminId" to adminId,
@@ -560,8 +559,7 @@ class AdminControlRepository(
 
     suspend fun replyTicket(ticketId: String, message: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            requireRecentReauth()
-            requireAdmin()
+            requireCriticalPermission("support")
             require(message.isNotBlank())
             firestore.collection("supportTickets").document(ticketId).collection("responses").add(
                 mapOf(
