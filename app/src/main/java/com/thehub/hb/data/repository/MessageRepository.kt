@@ -555,6 +555,15 @@ class MessageRepository(
         }
 
         try {
+            val targetUser = firestore.collection("users").document(otherUserId).get().await()
+            if (
+                targetUser.getBoolean("isVerified") == true
+                && targetUser.getString("verificationType") == "admin"
+            ) {
+                return@withContext Result.failure(
+                    Exception("Les comptes officiels The Hub ne reçoivent pas de messages privés.")
+                )
+            }
             val convId = Conversation.generateDeterministicId(currentUid, otherUserId)
             val convRef = firestore.collection("conversations").document(convId)
 

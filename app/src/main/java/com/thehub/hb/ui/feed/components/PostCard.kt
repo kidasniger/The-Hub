@@ -32,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -60,6 +61,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.getValue
@@ -98,7 +100,7 @@ fun PostCard(
             )
             .testTag("post_card_${post.id}"),
         colors = CardDefaults.cardColors(containerColor = HubSurface),
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, HubOutline)
     ) {
         Column(
@@ -160,25 +162,44 @@ fun PostCard(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = author.effectiveName,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = HubWhite
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "·",
-                                fontSize = 13.sp,
-                                color = HubMuted
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            if (author.isVerified && author.verificationType == "admin") {
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Surface(
+                                    modifier = Modifier.size(16.dp),
+                                    shape = CircleShape,
+                                    color = Color(0xFFE53935)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.VerifiedUser,
+                                        contentDescription = "Compte officiel certifié",
+                                        tint = Color.White,
+                                        modifier = Modifier.padding(2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (author.username.isNotBlank()) {
+                                Text(
+                                    text = "@${author.username}",
+                                    fontSize = 12.sp,
+                                    color = HubMuted,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("·", fontSize = 12.sp, color = HubMuted)
+                                Spacer(modifier = Modifier.width(5.dp))
+                            }
                             Text(
                                 text = RelativeTime.format(post.createdAt),
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = HubMuted
                             )
                         }

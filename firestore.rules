@@ -29,6 +29,15 @@ service cloud.firestore {
         ).data.role == 'superadmin';
     }
 
+    function isOfficialAdmin(userId) {
+      return exists(/databases/$(database)/documents/admins/$(userId))
+        && get(/databases/$(database)/documents/admins/$(userId)).data.active == true
+        && (
+          get(/databases/$(database)/documents/admins/$(userId)).data.role == 'admin'
+          || get(/databases/$(database)/documents/admins/$(userId)).data.role == 'superadmin'
+        );
+    }
+
     // Only the verified Google account with the exact bootstrap email may
     // create its own initial admin document.
     function isBootstrapAdmin() {
@@ -108,7 +117,10 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isUser(userId) && request.resource.data.uid == userId;
+      allow create: if isUser(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.get('isVerified', false) == false
+        && request.resource.data.get('verificationType', null) == null;
 
       function followingCountMutationIsAtomic() {
         let opAfter = getAfter(
@@ -153,7 +165,7 @@ service cloud.firestore {
           && resource.data.get('uid', userId) == userId
           && request.resource.data.get('uid', userId) == userId
           && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['followersCount', 'followingCount', 'isDeleted', 'isSuspended'])
+            .hasAny(['followersCount', 'followingCount', 'isDeleted', 'isSuspended', 'isVerified', 'verificationType'])
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys()
@@ -211,11 +223,15 @@ service cloud.firestore {
             .hasOnly(['isDeleted'])
         )
         || (
-          isAdmin()
-          && userId != request.auth.uid
+          isSuperAdmin()
           && request.resource.data.get('uid', userId) == userId
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['isSuspended'])
+            .hasOnly(['isVerified', 'verificationType'])
+          && request.resource.data.isVerified is bool
+          && (
+            request.resource.data.verificationType == null
+            || request.resource.data.verificationType is string
+          )
         );
 
       allow delete: if isUser(userId);
@@ -603,6 +619,13 @@ service cloud.firestore {
           && commentsCountMutationIsAtomic()
         )
         || (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
+          && resource.data.commentsCount is int
+          && resource.data.commentsCount > 0
+          && request.resource.data.commentsCount == resource.data.commentsCount - 1
+        )
+        || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount'])
           && (
             (
@@ -738,12 +761,15 @@ service cloud.firestore {
           && request.resource.data.likesCount == 0
           && commentCreateIsAtomic(commentId);
 
-        allow delete: if isAuthenticated()
-          && (
-            resource.data.authorId == request.auth.uid
-            || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
-          )
-          && commentDeleteIsAtomic(commentId);
+        allow delete: if isAdmin()
+          || (
+            isAuthenticated()
+            && (
+              resource.data.authorId == request.auth.uid
+              || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+            )
+            && commentDeleteIsAtomic(commentId)
+          );
 
         allow update: if isAuthenticated() && (
           (
@@ -932,6 +958,7 @@ service cloud.firestore {
 
       function canMessagePair(senderUid, targetUid) {
         return senderUid != targetUid
+          && !isOfficialAdmin(targetUid)
           && (
             exists(
               /databases/$(database)/documents/users/$(senderUid)/friends/$(targetUid)
@@ -1393,6 +1420,38 @@ service cloud.firestore {
           )
         );
       }
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create: if isSuperAdmin()
+        && request.resource.data.title is string
+        && request.resource.data.body is string
+        && request.resource.data.active is bool
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isSuperAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'active']);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.subject is string
+        && request.resource.data.message is string
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt is timestamp;
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin()
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAdmin();
+    }
+
+    match /system/{configId} {
+      allow read: if isAuthenticated() && configId == 'config';
+      allow write: if isSuperAdmin() && configId == 'config';
     }
 
     match /notifications/{notificationId} {

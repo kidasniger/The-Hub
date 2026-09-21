@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -52,6 +53,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -287,6 +289,7 @@ fun ProfileScreen(
                                         isOwnProfile = uiState.isOwnProfile,
                                         isFollowing = uiState.isFollowing,
                                         isActionLoading = uiState.isActionLoading,
+                                        userMessagingAllowed = uiState.isMessagingAllowed,
                                         onEditProfile = onNavigateToEditProfile,
                                         onToggleFollow = { viewModel.toggleFollow() },
                                         onSendMessage = {
@@ -541,6 +544,7 @@ private fun ProfileHeader(
     isOwnProfile: Boolean,
     isFollowing: Boolean,
     isActionLoading: Boolean,
+    userMessagingAllowed: Boolean,
     onEditProfile: () -> Unit,
     onToggleFollow: () -> Unit,
     onSendMessage: () -> Unit,
@@ -595,12 +599,29 @@ private fun ProfileHeader(
         Spacer(modifier = Modifier.height(14.dp))
 
         // Names and Bio
-        Text(
-            text = user.displayName?.takeIf { it.isNotBlank() } ?: "@${user.username}",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = HubWhite
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = user.displayName?.takeIf { it.isNotBlank() } ?: "@${user.username}",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite
+            )
+            if (user.isVerified && user.verificationType == "admin") {
+                Spacer(modifier = Modifier.width(5.dp))
+                Surface(
+                    modifier = Modifier.size(18.dp),
+                    shape = CircleShape,
+                    color = HubError
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.VerifiedUser,
+                        contentDescription = "Compte officiel certifié",
+                        tint = Color.White,
+                        modifier = Modifier.padding(2.5.dp)
+                    )
+                }
+            }
+        }
 
         if (!user.displayName.isNullOrBlank()) {
             Text(
@@ -688,32 +709,62 @@ private fun ProfileHeader(
                 }
 
                 // Send Message Button
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(HubSurfaceElevated)
-                        .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-                        .clickable(onClick = onSendMessage)
-                        .padding(horizontal = 12.dp)
-                        .testTag("message_user_button"),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChatBubbleOutline,
-                        contentDescription = null,
-                        tint = HubWhite,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Message",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = HubWhite
-                    )
+                if (userMessagingAllowed) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(HubSurfaceElevated)
+                            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
+                            .clickable(onClick = onSendMessage)
+                            .padding(horizontal = 12.dp)
+                            .testTag("message_user_button"),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChatBubbleOutline,
+                            contentDescription = null,
+                            tint = HubWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Message",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HubWhite
+                        )
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = HubError.copy(alpha = 0.08f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, HubError.copy(alpha = 0.45f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.VerifiedUser,
+                                contentDescription = null,
+                                tint = HubError,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(7.dp))
+                            Text(
+                                "Compte officiel",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = HubError
+                            )
+                        }
+                    }
                 }
             }
         }

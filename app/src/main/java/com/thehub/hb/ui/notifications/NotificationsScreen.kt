@@ -146,7 +146,8 @@ fun NotificationsScreen(
                                                 }
                                                 NotificationItem.TYPE_COMMENT,
                                                 NotificationItem.TYPE_LIKE_COMMENT,
-                                                NotificationItem.TYPE_REPLY_COMMENT -> {
+                                                NotificationItem.TYPE_REPLY_COMMENT,
+                                                NotificationItem.TYPE_ANNOUNCEMENT -> {
                                                     notification.postId?.let(onOpenComments)
                                                 }
                                                 NotificationItem.TYPE_FOLLOW -> {
@@ -368,6 +369,13 @@ private fun NotificationRow(
                             " vous a envoyé un message."
                         }
                     }
+                    NotificationItem.TYPE_ANNOUNCEMENT -> {
+                        if (!notification.commentText.isNullOrBlank()) {
+                            " : ${notification.commentText}"
+                        } else {
+                            " vous a envoyé une annonce."
+                        }
+                    }
                     else -> " a interagi avec vous."
                 }
 
@@ -429,6 +437,10 @@ private fun getBadgeForType(type: String): NotificationBadge {
         NotificationItem.TYPE_MESSAGE -> NotificationBadge(
             icon = Icons.Default.Mail,
             color = Color(0xFF00B0FF) // Cyan
+        )
+        NotificationItem.TYPE_ANNOUNCEMENT -> NotificationBadge(
+            icon = Icons.Default.Notifications,
+            color = Color(0xFFE53935)
         )
         else -> NotificationBadge(
             icon = Icons.Default.Notifications,

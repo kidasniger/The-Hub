@@ -73,7 +73,9 @@ class UserCacheRepository(
                 uid = userId,
                 displayName = initialDisplayName,
                 username = fallbackUsername?.trim() ?: "",
-                photoUrl = initialPhotoUrl
+                photoUrl = initialPhotoUrl,
+                isVerified = false,
+                verificationType = null
             )
             _usersCache.update { current ->
                 if (!current.containsKey(userId)) {
@@ -103,7 +105,9 @@ class UserCacheRepository(
                             uid = userId,
                             displayName = displayName,
                             username = username,
-                            photoUrl = photoUrl
+                            photoUrl = photoUrl,
+                            isVerified = snapshot.getBoolean("isVerified") == true,
+                            verificationType = snapshot.getString("verificationType")
                         )
                         _usersCache.update { it + (userId to updated) }
                     }
@@ -193,7 +197,9 @@ fun rememberLiveUser(
             uid = userId,
             displayName = fallbackDisplayName?.trim()?.takeIf { it.isNotBlank() },
             username = fallbackUsername.trim(),
-            photoUrl = fallbackPhotoUrl
+            photoUrl = fallbackPhotoUrl,
+            isVerified = false,
+            verificationType = null
         )
     }
 }

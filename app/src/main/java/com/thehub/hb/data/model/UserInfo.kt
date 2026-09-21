@@ -4,7 +4,9 @@ data class UserInfo(
     val uid: String = "",
     val displayName: String? = null,
     val username: String = "",
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
+    val isVerified: Boolean = false,
+    val verificationType: String? = null
 ) {
     /**
      * Display name according to rule:

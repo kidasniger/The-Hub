@@ -35,6 +35,89 @@ data class AdminLogRow(
     val createdAt: Timestamp?
 )
 
+data class AdminCommentRow(
+    val id: String,
+    val postId: String,
+    val authorId: String,
+    val text: String,
+    val createdAt: Timestamp?,
+    val likes: Long
+)
+
+data class AdminSupportTicketRow(
+    val id: String,
+    val userId: String,
+    val subject: String,
+    val message: String,
+    val status: String,
+    val priority: String,
+    val createdAt: Timestamp?
+)
+
+data class AdminAnnouncementRow(
+    val id: String,
+    val title: String,
+    val body: String,
+    val active: Boolean,
+    val createdAt: Timestamp?
+)
+
+data class AdminSystemConfig(
+    val maintenance: Boolean = false,
+    val maintenanceMessage: String = "",
+    val newRegistrations: Boolean = true,
+    val postsEnabled: Boolean = true,
+    val messagingEnabled: Boolean = true
+)
+
+data class AdminAnalytics(
+    val users: Int = 0,
+    val activeUsers: Int = 0,
+    val suspendedUsers: Int = 0,
+    val deletedUsers: Int = 0,
+    val posts: Int = 0,
+    val comments: Int = 0,
+    val reports: Int = 0,
+    val pendingReports: Int = 0,
+    val admins: Int = 0,
+    val users7d: Int = 0,
+    val posts7d: Int = 0,
+    val users30d: Int = 0,
+    val posts30d: Int = 0
+) 
+
+data class AdminSearchHit(
+    val type: String,
+    val id: String,
+    val title: String,
+    val subtitle: String
+)
+
+data class AdminSanctionRow(
+    val id: String,
+    val userId: String,
+    val type: String,
+    val reason: String,
+    val createdBy: String,
+    val createdAt: Timestamp?,
+    val expiresAt: Timestamp?
+)
+
+data class AdminAntiSpamAlert(
+    val userId: String,
+    val label: String,
+    val score: Int,
+    val reason: String
+)
+
+data class AdminStorageStats(
+    val imagePosts: Int = 0,
+    val videoPosts: Int = 0,
+    val mediaPosts: Int = 0
+)
+
+
+
 data class AdminPostRow(
     val id: String,
     val authorId: String,
@@ -107,6 +190,15 @@ class AdminRepository(
             existing.getBoolean("active") == true
             && existing.getString("role") == "superadmin"
         ) {
+            try {
+                firestore.collection("users").document(uid).update(
+                    mapOf(
+                        "isVerified" to true,
+                        "verificationType" to "admin"
+                    )
+                ).await()
+            } catch (_: Exception) {
+            }
             return@withContext true
         }
 
@@ -140,9 +232,216 @@ class AdminRepository(
                     )
                     .await()
             }
+            try {
+                firestore.collection("users").document(uid).update(
+                    mapOf(
+                        "isVerified" to true,
+                        "verificationType" to "admin"
+                    )
+                ).await()
+            } catch (_: Exception) {
+            }
             isCurrentUserSuperAdmin()
         } catch (_: Exception) {
             false
+        }
+    }
+
+    suspend fun globalSearch(query: String): Result<List<AdminSearchHit>> = withContext(Dispatchers.IO) {
+        try {
+            val q = query.trim().lowercase()
+            require(q.length >= 2) { "La recherche doit contenir au moins 2 caractères." }
+
+            val users = firestore.collection("users").limit(300).get().await().documents
+            val posts = firestore.collection("posts").limit(300).get().await().documents
+            val reports = firestore.collection("reports").limit(200).get().await().documents
+
+            val hits = mutableListOf<AdminSearchHit>()
+            users.filter {
+                listOf(
+                    it.id,
+                    it.getString("email").orEmpty(),
+                    it.getString("username").orEmpty(),
+                    it.getString("displayName").orEmpty()
+                ).any { value -> value.lowercase().contains(q) }
+            }.take(30).forEach {
+                hits += AdminSearchHit(
+                    "Utilisateur",
+                    it.id,
+                    it.getString("displayName").orEmpty().ifBlank { "Utilisateur" },
+                    it.getString("email").orEmpty().ifBlank { "@" + it.getString("username").orEmpty() }
+                )
+            }
+            posts.filter {
+                listOf(it.id, it.getString("authorId").orEmpty(), it.getString("text").orEmpty())
+                    .any { value -> value.lowercase().contains(q) }
+            }.take(30).forEach {
+                hits += AdminSearchHit(
+                    "Publication",
+                    it.id,
+                    it.getString("text").orEmpty().ifBlank { "Publication sans texte" }.take(90),
+                    "Auteur " + it.getString("authorId").orEmpty()
+                )
+            }
+            reports.filter {
+                listOf(it.id, it.getString("reporterId").orEmpty(), it.getString("targetId").orEmpty(), it.getString("reason").orEmpty())
+                    .any { value -> value.lowercase().contains(q) }
+            }.take(20).forEach {
+                hits += AdminSearchHit(
+                    "Signalement",
+                    it.id,
+                    it.getString("reason").orEmpty().ifBlank { "Signalement" },
+                    "Cible " + it.getString("targetId").orEmpty()
+                )
+            }
+            Result.success(hits)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSanctions(): Result<List<AdminSanctionRow>> = withContext(Dispatchers.IO) {
+        try {
+            val rows = firestore.collection("sanctions")
+                .limit(300)
+                .get()
+                .await()
+                .documents
+                .map { doc ->
+                    AdminSanctionRow(
+                        id = doc.id,
+                        userId = doc.getString("userId").orEmpty(),
+                        type = doc.getString("type").orEmpty(),
+                        reason = doc.getString("reason").orEmpty(),
+                        createdBy = doc.getString("createdBy").orEmpty(),
+                        createdAt = doc.getTimestamp("createdAt"),
+                        expiresAt = doc.getTimestamp("expiresAt")
+                    )
+                }
+                .sortedByDescending { it.createdAt?.seconds ?: 0L }
+            Result.success(rows)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun applySanction(
+        userId: String,
+        type: String,
+        reason: String,
+        durationHours: Long?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            require(userId.isNotBlank()) { "Utilisateur invalide." }
+            require(reason.isNotBlank()) { "Motif obligatoire." }
+            val now = Timestamp.now()
+            val expires = durationHours?.takeIf { it > 0 }?.let {
+                Timestamp(java.util.Date(System.currentTimeMillis() + it * 60L * 60L * 1000L))
+            }
+            firestore.collection("sanctions").add(
+                mapOf(
+                    "userId" to userId,
+                    "type" to type,
+                    "reason" to reason.trim().take(500),
+                    "createdBy" to currentUserId,
+                    "createdAt" to now,
+                    "expiresAt" to expires
+                )
+            ).await()
+
+            if (type == "suspend" || type == "ban") {
+                firestore.collection("users").document(userId).update("isSuspended", true).await()
+            }
+            writeLog("apply_sanction", userId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun broadcastAnnouncement(title: String, body: String): Result<Int> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(isCurrentUserSuperAdmin()) { "Seul le superadministrateur peut diffuser une annonce." }
+                require(title.isNotBlank() && body.isNotBlank()) { "Titre et message obligatoires." }
+                val actor = auth.currentUser
+                val actorId = actor?.uid.orEmpty()
+                val actorName = actor?.displayName.orEmpty().ifBlank { "The Hub" }
+                val snapshot = firestore.collection("users").limit(450).get().await()
+                val batch = firestore.batch()
+                var count = 0
+                snapshot.documents.forEach { user ->
+                    val recipient = user.id
+                    if (recipient.isNotBlank() && recipient != actorId) {
+                        val ref = firestore.collection("notifications").document()
+                        batch.set(
+                            ref,
+                            mapOf(
+                                "recipientId" to recipient,
+                                "actorId" to actorId,
+                                "actorUsername" to "thehub",
+                                "actorDisplayName" to actorName,
+                                "actorPhotoUrl" to actor?.photoUrl?.toString(),
+                                "type" to com.thehub.hb.data.model.NotificationItem.TYPE_ANNOUNCEMENT,
+                                "commentText" to body.trim().take(1500),
+                                "createdAt" to Timestamp.now(),
+                                "isRead" to false,
+                                "pushSent" to false
+                            )
+                        )
+                        count++
+                    }
+                }
+                if (count > 0) batch.commit().await()
+                writeLog("broadcast_announcement", count.toString())
+                Result.success(count)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAntiSpamAlerts(): Result<List<AdminAntiSpamAlert>> = withContext(Dispatchers.IO) {
+        try {
+            val posts = firestore.collection("posts").limit(500).get().await().documents
+            val reports = firestore.collection("reports").limit(500).get().await().documents
+            val duplicateCounts = posts
+                .mapNotNull { doc ->
+                    val text = doc.getString("text").orEmpty().trim().lowercase()
+                    val author = doc.getString("authorId").orEmpty()
+                    if (text.length < 20 || author.isBlank()) null else author to text.replace(Regex("\\s+"), " ")
+                }
+                .groupBy { it }
+                .mapValues { it.value.size }
+            val reportCounts = reports
+                .mapNotNull {
+                    val target = it.getString("targetId").orEmpty()
+                    target.takeIf { value -> value.isNotBlank() }
+                }
+                .groupingBy { it }
+                .eachCount()
+
+            val alerts = mutableListOf<AdminAntiSpamAlert>()
+            reportCounts.filter { it.value >= 3 }.forEach { (userId, count) ->
+                alerts += AdminAntiSpamAlert(userId, "Utilisateur", (count * 10).coerceAtMost(100), "$count signalements ciblés")
+            }
+            duplicateCounts.filter { it.value >= 3 }.forEach { (key, count) ->
+                val userId = key.first
+                alerts += AdminAntiSpamAlert(userId, "Publications", (count * 12).coerceAtMost(100), "$count publications identiques ou quasi identiques")
+            }
+            Result.success(alerts.distinctBy { it.userId + it.reason }.sortedByDescending { it.score })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getStorageStats(): Result<AdminStorageStats> = withContext(Dispatchers.IO) {
+        try {
+            val posts = firestore.collection("posts").limit(1000).get().await().documents
+            val image = posts.count { !it.getString("imageUrl").isNullOrBlank() }
+            val video = posts.count { !it.getString("videoUrl").isNullOrBlank() }
+            Result.success(AdminStorageStats(image, video, image + video))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -153,6 +452,263 @@ class AdminRepository(
             val reports = firestore.collection("reports").get().await().size()
             val admins = firestore.collection("admins").get().await().size()
             Result.success(AdminStats(users, posts, reports, admins))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalytics(): Result<AdminAnalytics> = withContext(Dispatchers.IO) {
+        try {
+            val now = System.currentTimeMillis()
+            val sevenDays = now - 7L * 24L * 60L * 60L * 1000L
+            val thirtyDays = now - 30L * 24L * 60L * 60L * 1000L
+
+            val userDocs = firestore.collection("users").limit(1000).get().await().documents
+            val postDocs = firestore.collection("posts").limit(1000).get().await().documents
+            val commentDocs = firestore.collectionGroup("comments").limit(1000).get().await().documents
+            val reportDocs = firestore.collection("reports").limit(1000).get().await().documents
+            val adminDocs = firestore.collection("admins").limit(100).get().await().documents
+            val presenceDocs = firestore.collectionGroup("presence").limit(1000).get().await().documents
+
+            fun createdMillis(doc: com.google.firebase.firestore.DocumentSnapshot): Long {
+                val value = doc.get("createdAt")
+                return when (value) {
+                    is Timestamp -> value.toDate().time
+                    is Number -> value.toLong()
+                    else -> 0L
+                }
+            }
+
+            val usersCount = userDocs.size
+            val suspended = userDocs.count { it.getBoolean("isSuspended") == true }
+            val deleted = userDocs.count { it.getBoolean("isDeleted") == true }
+            val active = userDocsCountActive(userDocs, now)
+            val users7 = userDocs.count { createdMillis(it) >= sevenDays }
+            val users30 = userDocs.count { createdMillis(it) >= thirtyDays }
+            val posts7 = postDocs.count { createdMillis(it) >= sevenDays }
+            val posts30 = postDocs.count { createdMillis(it) >= thirtyDays }
+            val activeWindow = now - 30L * 60L * 1000L
+            val activeUsers = presenceDocs.mapNotNull { it.getTimestamp("lastSeen")?.toDate()?.time }
+                .count { it >= activeWindow }
+
+            Result.success(
+                AdminAnalytics(
+                    users = usersCount,
+                    activeUsers = maxOf(activeUsers, 0).coerceAtMost(usersCount),
+                    suspendedUsers = suspended,
+                    deletedUsers = deleted,
+                    posts = postDocs.size,
+                    comments = commentDocs.size,
+                    reports = reportDocs.size,
+                    pendingReports = reportDocs.count { it.getString("status").orEmpty() != "resolved" },
+                    admins = adminDocs.size,
+                    users7d = users7,
+                    posts7d = posts7,
+                    users30d = users30,
+                    posts30d = posts30
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun userDocsCountActive(
+        docs: List<com.google.firebase.firestore.DocumentSnapshot>,
+        now: Long
+    ): Int {
+        return docs.count { doc ->
+            doc.getBoolean("isDeleted") != true
+                && doc.getBoolean("isSuspended") != true
+        }
+    }
+
+    suspend fun getComments(): Result<List<AdminCommentRow>> = withContext(Dispatchers.IO) {
+        try {
+            val rows = firestore.collectionGroup("comments")
+                .limit(300)
+                .get()
+                .await()
+                .documents
+                .map { doc ->
+                    AdminCommentRow(
+                        id = doc.id,
+                        postId = doc.reference.parent.parent?.id.orEmpty(),
+                        authorId = doc.getString("authorId").orEmpty(),
+                        text = doc.getString("text").orEmpty(),
+                        createdAt = doc.getTimestamp("createdAt"),
+                        likes = doc.getLong("likesCount") ?: 0L
+                    )
+                }
+                .sortedByDescending { it.createdAt?.seconds ?: 0L }
+            Result.success(rows)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteComment(postId: String, commentId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(postId.isNotBlank() && commentId.isNotBlank()) { "Commentaire invalide." }
+                firestore.collection("posts").document(postId)
+                    .collection("comments").document(commentId).delete().await()
+                try {
+                    firestore.collection("posts").document(postId)
+                        .update(
+                            "commentsCount",
+                            com.google.firebase.firestore.FieldValue.increment(-1)
+                        ).await()
+                } catch (_: Exception) {
+                }
+                writeLog("delete_comment", commentId)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getSupportTickets(): Result<List<AdminSupportTicketRow>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val rows = firestore.collection("supportTickets")
+                    .limit(300)
+                    .get()
+                    .await()
+                    .documents
+                    .map { doc ->
+                        AdminSupportTicketRow(
+                            id = doc.id,
+                            userId = doc.getString("userId").orEmpty(),
+                            subject = doc.getString("subject").orEmpty().ifBlank { "Demande de support" },
+                            message = doc.getString("message").orEmpty(),
+                            status = doc.getString("status").orEmpty().ifBlank { "open" },
+                            priority = doc.getString("priority").orEmpty().ifBlank { "normal" },
+                            createdAt = doc.getTimestamp("createdAt")
+                        )
+                    }
+                    .sortedByDescending { it.createdAt?.seconds ?: 0L }
+                Result.success(rows)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun resolveSupportTicket(ticketId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(ticketId.isNotBlank()) { "Ticket invalide." }
+                firestore.collection("supportTickets").document(ticketId)
+                    .update(
+                        mapOf(
+                            "status" to "resolved",
+                            "resolvedAt" to Timestamp.now(),
+                            "resolvedBy" to currentUserId
+                        )
+                    ).await()
+                writeLog("resolve_support_ticket", ticketId)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAnnouncements(): Result<List<AdminAnnouncementRow>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val rows = firestore.collection("announcements")
+                    .limit(100)
+                    .get()
+                    .await()
+                    .documents
+                    .map { doc ->
+                        AdminAnnouncementRow(
+                            id = doc.id,
+                            title = doc.getString("title").orEmpty(),
+                            body = doc.getString("body").orEmpty(),
+                            active = doc.getBoolean("active") != false,
+                            createdAt = doc.getTimestamp("createdAt")
+                        )
+                    }
+                    .sortedByDescending { it.createdAt?.seconds ?: 0L }
+                Result.success(rows)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun publishAnnouncement(title: String, body: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(title.isNotBlank()) { "Titre obligatoire." }
+                require(body.isNotBlank()) { "Message obligatoire." }
+                firestore.collection("announcements").add(
+                    mapOf(
+                        "title" to title.trim().take(120),
+                        "body" to body.trim().take(2000),
+                        "active" to true,
+                        "createdAt" to Timestamp.now(),
+                        "createdBy" to currentUserId
+                    )
+                ).await()
+                writeLog("publish_announcement", null)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun setSystemConfig(config: AdminSystemConfig): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                firestore.collection("system").document("config")
+                    .set(
+                        mapOf(
+                            "maintenance" to config.maintenance,
+                            "maintenanceMessage" to config.maintenanceMessage.take(500),
+                            "newRegistrations" to config.newRegistrations,
+                            "postsEnabled" to config.postsEnabled,
+                            "messagingEnabled" to config.messagingEnabled,
+                            "updatedAt" to Timestamp.now(),
+                            "updatedBy" to currentUserId
+                        ),
+                        SetOptions.merge()
+                    ).await()
+                writeLog("update_system_config", null)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getSystemConfig(): Result<AdminSystemConfig> = withContext(Dispatchers.IO) {
+        try {
+            val doc = firestore.collection("system").document("config").get().await()
+            Result.success(
+                AdminSystemConfig(
+                    maintenance = doc.getBoolean("maintenance") == true,
+                    maintenanceMessage = doc.getString("maintenanceMessage").orEmpty(),
+                    newRegistrations = doc.getBoolean("newRegistrations") != false,
+                    postsEnabled = doc.getBoolean("postsEnabled") != false,
+                    messagingEnabled = doc.getBoolean("messagingEnabled") != false
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getActiveSessions(): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val cutoff = Timestamp(java.util.Date(System.currentTimeMillis() - 30L * 60L * 1000L))
+            val count = firestore.collectionGroup("presence")
+                .whereGreaterThanOrEqualTo("lastSeen", cutoff)
+                .limit(1000)
+                .get()
+                .await()
+                .documents
+                .count { it.getBoolean("online") == true || (it.getTimestamp("lastSeen")?.compareTo(cutoff) ?: -1) >= 0 }
+            Result.success(count)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -384,6 +940,12 @@ class AdminRepository(
                     SetOptions.merge()
                 )
                 .await()
+            firestore.collection("users").document(targetUid).update(
+                mapOf(
+                    "isVerified" to true,
+                    "verificationType" to "admin"
+                )
+            ).await()
             writeLog("add_admin", targetUid)
             Result.success(Unit)
         } catch (e: Exception) {
@@ -397,6 +959,12 @@ class AdminRepository(
             require(targetUid.isNotBlank()) { "UID invalide." }
             require(targetUid != currentUserId) { "Impossible de supprimer votre propre accès administrateur." }
             firestore.collection("admins").document(targetUid).delete().await()
+            firestore.collection("users").document(targetUid).update(
+                mapOf(
+                    "isVerified" to false,
+                    "verificationType" to null
+                )
+            ).await()
             writeLog("remove_admin", targetUid)
             Result.success(Unit)
         } catch (e: Exception) {

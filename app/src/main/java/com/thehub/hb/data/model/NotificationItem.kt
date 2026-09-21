@@ -45,6 +45,7 @@ data class NotificationItem(
         const val TYPE_MESSAGE = "message"
         const val TYPE_LIKE_COMMENT = "like_comment"
         const val TYPE_REPLY_COMMENT = "reply_comment"
+        const val TYPE_ANNOUNCEMENT = "announcement"
 
         fun fromSnapshot(doc: DocumentSnapshot): NotificationItem {
             return NotificationItem(

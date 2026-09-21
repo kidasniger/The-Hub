@@ -30,6 +30,7 @@ data class ProfileUiState(
     val isFollowing: Boolean = false,
     val isBlocked: Boolean = false,
     val isBlockedByMe: Boolean = false,
+    val isMessagingAllowed: Boolean = true,
     val isActionLoading: Boolean = false,
     val errorMessage: String? = null,
     val userMessage: String? = null,
@@ -136,6 +137,7 @@ class ProfileViewModel(
                     isOwnProfile = isOwnProfile,
                     isBlocked = false,
                     isBlockedByMe = false,
+                    isMessagingAllowed = user?.isVerified != true || user?.verificationType != "admin",
                     errorMessage = if (user == null) "Profil introuvable" else null
                 )
             }
@@ -324,7 +326,10 @@ class ProfileViewModel(
 
     fun openChat(onNavigateToChat: (String) -> Unit) {
         val uid = resolvedUserId
-        if (isOwnProfile || uid.isBlank()) return
+        if (isOwnProfile || uid.isBlank() || !_uiState.value.isMessagingAllowed) {
+            _uiState.update { it.copy(errorMessage = "Ce compte officiel ne reçoit pas de messages privés.") }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isActionLoading = true) }

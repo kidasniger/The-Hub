@@ -15,6 +15,7 @@ import com.thehub.hb.di.AppContainer
 import com.thehub.hb.ui.admin.AdminAdminsScreen
 import com.thehub.hb.ui.admin.AdminDashboardScreen
 import com.thehub.hb.ui.admin.AdminPostsScreen
+import com.thehub.hb.ui.admin.AdminOperationsScreen
 import com.thehub.hb.ui.admin.AdminReportsScreen
 import com.thehub.hb.ui.admin.AdminScaffoldScreen
 import com.thehub.hb.ui.admin.AdminUsersScreen
@@ -54,6 +55,11 @@ fun AdminNavGraph(
         composable(AdminScreen.Posts.route) {
             AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
                 AdminPostsScreen(repository)
+            }
+        }
+        composable(AdminScreen.Operations.route) {
+            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+                AdminOperationsScreen(repository)
             }
         }
         composable(AdminScreen.Reports.route) {

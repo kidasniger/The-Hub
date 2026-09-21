@@ -12,7 +12,9 @@ data class User(
     val createdAt: Long = System.currentTimeMillis(),
     val postsCount: Int = 0,
     val followersCount: Int = 0,
-    val followingCount: Int = 0
+    val followingCount: Int = 0,
+    val isVerified: Boolean = false,
+    val verificationType: String? = null
 ) {
     fun toMap(): Map<String, Any?> {
         val lower = if (usernameLower.isNotBlank()) usernameLower else username.lowercase()
@@ -28,7 +30,9 @@ data class User(
             "createdAt" to createdAt,
             "postsCount" to postsCount,
             "followersCount" to followersCount,
-            "followingCount" to followingCount
+            "followingCount" to followingCount,
+            "isVerified" to isVerified,
+            "verificationType" to verificationType
         )
     }
 
@@ -48,7 +52,9 @@ data class User(
                 createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                 postsCount = (map["postsCount"] as? Number)?.toInt() ?: 0,
                 followersCount = (map["followersCount"] as? Number)?.toInt() ?: 0,
-                followingCount = (map["followingCount"] as? Number)?.toInt() ?: 0
+                followingCount = (map["followingCount"] as? Number)?.toInt() ?: 0,
+                isVerified = map["isVerified"] as? Boolean ?: false,
+                verificationType = map["verificationType"] as? String
             )
         }
     }
