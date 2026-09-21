@@ -24,6 +24,7 @@ import com.thehub.hb.ui.admin.AdminUsersScreen
 fun AdminNavGraph(
     appContainer: AppContainer,
     onExit: () -> Unit,
+    onOpenFeed: () -> Unit = {},
     navController: NavHostController = rememberNavController()
 ) {
     val repository = appContainer.adminRepository
@@ -43,32 +44,62 @@ fun AdminNavGraph(
         startDestination = AdminScreen.Dashboard.route
     ) {
         composable(AdminScreen.Dashboard.route) {
-            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+            AdminScaffoldScreen(
+                currentRoute = route,
+                onNavigate = { navController.navigate(it) { launchSingleTop = true } },
+                onExit = onExit,
+                onOpenFeed = onOpenFeed
+            ) {
                 AdminDashboardScreen(repository)
             }
         }
         composable(AdminScreen.Users.route) {
-            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+            AdminScaffoldScreen(
+                currentRoute = route,
+                onNavigate = { navController.navigate(it) { launchSingleTop = true } },
+                onExit = onExit,
+                onOpenFeed = onOpenFeed
+            ) {
                 AdminUsersScreen(repository)
             }
         }
         composable(AdminScreen.Posts.route) {
-            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+            AdminScaffoldScreen(
+                currentRoute = route,
+                onNavigate = { navController.navigate(it) { launchSingleTop = true } },
+                onExit = onExit,
+                onOpenFeed = onOpenFeed
+            ) {
                 AdminPostsScreen(repository)
             }
         }
         composable(AdminScreen.Operations.route) {
-            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+            AdminScaffoldScreen(
+                currentRoute = route,
+                onNavigate = { navController.navigate(it) { launchSingleTop = true } },
+                onExit = onExit,
+                onOpenFeed = onOpenFeed
+            ) {
                 AdminOperationsScreen(repository)
             }
         }
         composable(AdminScreen.Reports.route) {
-            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+            AdminScaffoldScreen(
+                currentRoute = route,
+                onNavigate = { navController.navigate(it) { launchSingleTop = true } },
+                onExit = onExit,
+                onOpenFeed = onOpenFeed
+            ) {
                 AdminReportsScreen(repository)
             }
         }
         composable(AdminScreen.Admins.route) {
-            AdminScaffoldScreen(route, { navController.navigate(it) { launchSingleTop = true } }, onExit) {
+            AdminScaffoldScreen(
+                currentRoute = route,
+                onNavigate = { navController.navigate(it) { launchSingleTop = true } },
+                onExit = onExit,
+                onOpenFeed = onOpenFeed
+            ) {
                 AdminAdminsScreen(repository)
             }
         }
