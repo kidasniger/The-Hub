@@ -10,6 +10,7 @@ data class Conversation(
     val lastMessageText: String = "",
     val lastMessageAt: Timestamp = Timestamp.now(),
     val lastMessageSenderId: String = "",
+    val lastMessageId: String = "",
     val unreadCount: Map<String, Int> = emptyMap()
 ) {
     fun getOtherParticipantId(currentUid: String?): String {
@@ -35,6 +36,7 @@ data class Conversation(
             "lastMessageText" to lastMessageText,
             "lastMessageAt" to lastMessageAt,
             "lastMessageSenderId" to lastMessageSenderId,
+            "lastMessageId" to lastMessageId,
             "unreadCount" to unreadCount
         )
     }
@@ -68,6 +70,7 @@ data class Conversation(
                 lastMessageText = doc.getString("lastMessageText") ?: "",
                 lastMessageAt = lastMessageAt,
                 lastMessageSenderId = doc.getString("lastMessageSenderId") ?: "",
+                lastMessageId = doc.getString("lastMessageId") ?: "",
                 unreadCount = unreadCount
             )
         }
