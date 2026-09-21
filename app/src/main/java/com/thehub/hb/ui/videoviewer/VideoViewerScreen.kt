@@ -56,7 +56,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.utils.YouTubePlayerUtils.loadOrCueVideo
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.utils.loadOrCueVideo
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubWhite
@@ -156,6 +156,7 @@ private fun YouTubePlayerContent(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycle = lifecycleOwner.lifecycle
 
@@ -320,7 +321,7 @@ private fun YouTubePlayerContent(
                 },
                 onOpenExternally = {
                     openExternally(
-                        LocalContext.current,
+                        context,
                         "https://www.youtube.com/watch?v=$videoId"
                     )
                 }
