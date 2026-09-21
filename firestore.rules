@@ -1026,7 +1026,30 @@ service cloud.firestore {
         && canMessageTargetOnCreate();
 
       allow update: if isParticipant() && (
-        sendMetadataIsDirectSafe()
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'lastMessageText',
+            'lastMessageAt',
+            'lastMessageSenderId',
+            'lastMessageId',
+            'unreadCount'
+          ])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageText'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageSenderId'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageId'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasAny(['unreadCount'])
+          && request.resource.data.lastMessageSenderId == request.auth.uid
+          && request.resource.data.lastMessageAt is timestamp
+          && request.resource.data.lastMessageId is string
+          && request.resource.data.lastMessageId != ''
+          && request.resource.data.lastMessageText is string
+          && request.resource.data.unreadCount is map
+          && request.resource.data.unreadCount.keys().hasOnly([
+            resource.data.participantIds[0],
+            resource.data.participantIds[1]
+          ])
+        )
         || sendMetadataIsAtomic()
         || unreadCountResetIsSafe()
       );
@@ -1117,7 +1140,7 @@ service cloud.firestore {
             'deletedBy'
           ])
           && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.createdAt == request.time
+          && request.resource.data.createdAt is timestamp
           && request.resource.data.status == 'sent'
           && (
             !request.resource.data.keys().hasAny(['isDeleted'])
@@ -1136,20 +1159,22 @@ service cloud.firestore {
             || request.resource.data.deletedBy == null
           )
           && (
+            !request.resource.data.keys().hasAny(['replyToMessageId'])
+            || request.resource.data.replyToMessageId == null
+            || request.resource.data.replyToMessageId is string
+          )
+          && (
+            !request.resource.data.keys().hasAny(['replyToText'])
+            || request.resource.data.replyToText == null
+            || request.resource.data.replyToText is string
+          )
+          && (
             request.resource.data.text == null
             || request.resource.data.text is string
           )
           && (
             request.resource.data.imageUrl == null
             || request.resource.data.imageUrl is string
-          )
-          && (
-            !request.resource.data.keys().hasAny(['replyToMessageId'])
-            || request.resource.data.replyToMessageId is string
-          )
-          && (
-            !request.resource.data.keys().hasAny(['replyToText'])
-            || request.resource.data.replyToText is string
           )
           && (
             (
