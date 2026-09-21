@@ -367,3 +367,49 @@ jobs:
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk"
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.aab"
           echo "GitHub Release verified: $RELEASE_NAME"
+      - name: Send App Update Notifications
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT is required to send update notifications."
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json, os, sys
+
+          raw = os.environ["FIREBASE_SERVICE_ACCOUNT"]
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError as exc:
+              print(f"ERROR: invalid FIREBASE_SERVICE_ACCOUNT JSON: {exc}")
+              sys.exit(1)
+
+          if data.get("type") != "service_account":
+              print("ERROR: FIREBASE_SERVICE_ACCOUNT must be a service-account JSON key.")
+              sys.exit(1)
+
+          if data.get("project_id") != "the-hub-f95f4":
+              print(
+                  f'ERROR: project_id "{data.get("project_id")}" '
+                  'does not match "the-hub-f95f4".'
+              )
+              sys.exit(1)
+          PY
+
+          CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
+          chmod 600 "$CREDENTIALS_FILE"
+          export GOOGLE_APPLICATION_CREDENTIALS="$CREDENTIALS_FILE"
+
+          (
+            cd tools/release-notify
+            npm install --no-package-lock
+            npm run check
+            RELEASE_TAG="$TAG"             RELEASE_NAME="The Hub $TAG"             RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG"             npm start
+          )
+
+          rm -f "$CREDENTIALS_FILE"
