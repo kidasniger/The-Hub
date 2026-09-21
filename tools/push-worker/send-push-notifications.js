@@ -112,7 +112,19 @@ async function run() {
       if (!token) continue;
 
       try {
-        const content = notificationContent(notif);
+        let actorDisplayName = notif.actorDisplayName || '';
+        if (!actorDisplayName && notif.actorId) {
+          try {
+            const actorSnap = await db.collection('users').doc(notif.actorId).get();
+            actorDisplayName = actorSnap.get('displayName') || actorSnap.get('name') || '';
+          } catch (_) {}
+        }
+
+        const notificationForPush = {
+          ...notif,
+          actorDisplayName,
+        };
+        const content = notificationContent(notificationForPush);
         const deepLink = buildDeepLink(notif);
         await messaging.send({
           token,
@@ -129,7 +141,7 @@ async function run() {
             body: sanitizeData(content.body),
             actorId: sanitizeData(notif.actorId || ''),
             actorUsername: sanitizeData(notif.actorUsername || ''),
-            actorDisplayName: sanitizeData(notif.actorDisplayName || ''),
+            actorDisplayName: sanitizeData(actorDisplayName),
             postId: sanitizeData(notif.postId || ''),
             commentId: sanitizeData(notif.commentId || ''),
             conversationId: sanitizeData(notif.conversationId || ''),
