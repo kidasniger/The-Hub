@@ -12,7 +12,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.RemoteMessage
+import java.text.DateFormat
+import java.util.Date
 import com.thehub.hb.MainActivity
 import com.thehub.hb.R
 import com.thehub.hb.data.repository.MessageRepository
@@ -46,6 +49,17 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         val data = message.data
         val notificationPayload = message.notification
 
+        // Never display a push that belongs to another Firebase account left on
+        // the same physical device after an account switch.
+        val recipientId = data["recipientId"]?.takeIf { it.isNotBlank() }
+        val currentUid = FirebaseAuth.getInstance().currentUser?.uid
+        if (recipientId != null && recipientId != currentUid) {
+            return
+        }
+        if (recipientId == null && currentUid == null) {
+            return
+        }
+
         val conversationId = data["conversationId"].orEmpty()
         val messageId = data["messageId"].orEmpty()
         if (conversationId.isNotBlank() && messageId.isNotBlank()) {
@@ -72,17 +86,21 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             ?.takeIf { it.isNotBlank() }
             ?: buildFallbackDeepLink(data)
 
+        val createdAtMs = data["createdAtMs"]?.toLongOrNull()
         showNotification(
             title = title,
             body = body,
             deepLink = deepLink,
             notificationId = message.messageId?.hashCode()
-                ?: (deepLink.hashCode() xor body.hashCode())
+                ?: (deepLink.hashCode() xor body.hashCode()),
+            createdAtMs = createdAtMs
         )
     }
 
     private fun buildFallbackBody(data: Map<String, String>): String {
-        val actor = data["actorUsername"]?.takeIf { it.isNotBlank() } ?: "Quelqu'un"
+        val actor = data["actorDisplayName"]?.takeIf { it.isNotBlank() }
+            ?: data["actorUsername"]?.takeIf { it.isNotBlank() }
+            ?: "Quelqu'un"
         return when (data["type"]) {
             "like" -> actor + " a aimé votre publication"
             "comment" -> actor + " a commenté votre publication"
@@ -125,7 +143,8 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         title: String,
         body: String,
         deepLink: String,
-        notificationId: Int
+        notificationId: Int,
+        createdAtMs: Long? = null
     ) {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -158,6 +177,8 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setWhen(createdAtMs ?: System.currentTimeMillis())
+            .setShowWhen(true)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
