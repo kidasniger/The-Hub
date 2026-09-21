@@ -68,11 +68,21 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
       );
 
-      allow update: if isSuperAdmin()
+      allow update: if (
+        isSuperAdmin()
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.role == resource.data.role
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['active', 'displayName', 'email']);
+          .hasOnly(['active', 'displayName', 'email'])
+      ) || (
+        isBootstrapAdmin()
+        && adminId == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == 'superadmin'
+        && request.resource.data.active == true
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active', 'displayName', 'email', 'role'])
+      );
 
       allow delete: if isSuperAdmin() && adminId != request.auth.uid;
     }
