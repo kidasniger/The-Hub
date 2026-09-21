@@ -604,6 +604,46 @@ async function testMessageSecurityAndAtomicSend() {
   await assertSucceeds(updateDoc(senderMessageRef, { imageUrl: "https://example.com/image.jpg" }));
 }
 
+async function testCurrentAppMessageBatchWithoutMessageOps() {
+  await establishMessagingRelation(legacyDb, "legacy", "bob");
+
+  const conversationRef = doc(legacyDb, "conversations/legacy_bob");
+  const messageRef = doc(
+    legacyDb,
+    "conversations/legacy_bob/messages/current-app-message"
+  );
+
+  const currentUnread = await getDoc(conversationRef);
+  const existingUnread = currentUnread.data()?.unreadCount || {};
+
+  const currentSend = writeBatch(legacyDb);
+  currentSend.set(messageRef, {
+    senderId: "legacy",
+    text: "current app send",
+    imageUrl: null,
+    createdAt: serverTimestamp(),
+    status: "sent",
+    replyToMessageId: null,
+    replyToText: null,
+    isDeleted: false,
+    editedAt: null,
+    deletedAt: null,
+    deletedBy: null,
+  });
+  currentSend.update(conversationRef, {
+    lastMessageText: "current app send",
+    lastMessageAt: serverTimestamp(),
+    lastMessageSenderId: "legacy",
+    lastMessageId: "current-app-message",
+    unreadCount: {
+      legacy: existingUnread.legacy || 0,
+      bob: (existingUnread.bob || 0) + 1,
+    },
+  });
+
+  await assertSucceeds(currentSend.commit());
+}
+
 async function testMessageCreationRejectsForgedMetadata() {
   const forgedSender = doc(alice(), "conversations/alice_bob/messages/forged-sender");
   const senderBatch = writeBatch(alice());
@@ -1345,6 +1385,7 @@ try {
   await testLegacyUserFollowCompatibility();
   await testLegacyConversationUnreadCountCompatibility();
   await testMessageSecurityAndAtomicSend();
+  await testCurrentAppMessageBatchWithoutMessageOps();
   await testMessageCreationRejectsForgedMetadata();
   await testMessageRecipientCanMarkReadOnly();
   await testAdvancedMessengerSecurity();
