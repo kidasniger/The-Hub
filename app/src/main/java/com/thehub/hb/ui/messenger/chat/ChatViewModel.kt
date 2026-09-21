@@ -503,6 +503,10 @@ class ChatViewModel(
         _errorMessage.value = null
     }
 
+    fun showErrorMessage(message: String) {
+        _errorMessage.value = message
+    }
+
     override fun onCleared() {
         typingJob?.cancel()
         viewModelScope.launch { messageRepository.setTyping(conversationId, false) }
