@@ -3,7 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "check": "node --check send-update-notification.js"
+    "check": "node --check send-update-notification.js",
+    "start": "node send-update-notification.js"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0"
