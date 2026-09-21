@@ -84,7 +84,39 @@ data class AdminAnalytics(
     val posts7d: Int = 0,
     val users30d: Int = 0,
     val posts30d: Int = 0
+) 
+
+data class AdminSearchHit(
+    val type: String,
+    val id: String,
+    val title: String,
+    val subtitle: String
 )
+
+data class AdminSanctionRow(
+    val id: String,
+    val userId: String,
+    val type: String,
+    val reason: String,
+    val createdBy: String,
+    val createdAt: Timestamp?,
+    val expiresAt: Timestamp?
+)
+
+data class AdminAntiSpamAlert(
+    val userId: String,
+    val label: String,
+    val score: Int,
+    val reason: String
+)
+
+data class AdminStorageStats(
+    val imagePosts: Int = 0,
+    val videoPosts: Int = 0,
+    val mediaPosts: Int = 0
+)
+
+
 
 data class AdminPostRow(
     val id: String,
@@ -212,6 +244,204 @@ class AdminRepository(
             isCurrentUserSuperAdmin()
         } catch (_: Exception) {
             false
+        }
+    }
+
+    suspend fun globalSearch(query: String): Result<List<AdminSearchHit>> = withContext(Dispatchers.IO) {
+        try {
+            val q = query.trim().lowercase()
+            require(q.length >= 2) { "La recherche doit contenir au moins 2 caractères." }
+
+            val users = firestore.collection("users").limit(300).get().await().documents
+            val posts = firestore.collection("posts").limit(300).get().await().documents
+            val reports = firestore.collection("reports").limit(200).get().await().documents
+
+            val hits = mutableListOf<AdminSearchHit>()
+            users.filter {
+                listOf(
+                    it.id,
+                    it.getString("email").orEmpty(),
+                    it.getString("username").orEmpty(),
+                    it.getString("displayName").orEmpty()
+                ).any { value -> value.lowercase().contains(q) }
+            }.take(30).forEach {
+                hits += AdminSearchHit(
+                    "Utilisateur",
+                    it.id,
+                    it.getString("displayName").orEmpty().ifBlank { "Utilisateur" },
+                    it.getString("email").orEmpty().ifBlank { "@" + it.getString("username").orEmpty() }
+                )
+            }
+            posts.filter {
+                listOf(it.id, it.getString("authorId").orEmpty(), it.getString("text").orEmpty())
+                    .any { value -> value.lowercase().contains(q) }
+            }.take(30).forEach {
+                hits += AdminSearchHit(
+                    "Publication",
+                    it.id,
+                    it.getString("text").orEmpty().ifBlank { "Publication sans texte" }.take(90),
+                    "Auteur " + it.getString("authorId").orEmpty()
+                )
+            }
+            reports.filter {
+                listOf(it.id, it.getString("reporterId").orEmpty(), it.getString("targetId").orEmpty(), it.getString("reason").orEmpty())
+                    .any { value -> value.lowercase().contains(q) }
+            }.take(20).forEach {
+                hits += AdminSearchHit(
+                    "Signalement",
+                    it.id,
+                    it.getString("reason").orEmpty().ifBlank { "Signalement" },
+                    "Cible " + it.getString("targetId").orEmpty()
+                )
+            }
+            Result.success(hits)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSanctions(): Result<List<AdminSanctionRow>> = withContext(Dispatchers.IO) {
+        try {
+            val rows = firestore.collection("sanctions")
+                .limit(300)
+                .get()
+                .await()
+                .documents
+                .map { doc ->
+                    AdminSanctionRow(
+                        id = doc.id,
+                        userId = doc.getString("userId").orEmpty(),
+                        type = doc.getString("type").orEmpty(),
+                        reason = doc.getString("reason").orEmpty(),
+                        createdBy = doc.getString("createdBy").orEmpty(),
+                        createdAt = doc.getTimestamp("createdAt"),
+                        expiresAt = doc.getTimestamp("expiresAt")
+                    )
+                }
+                .sortedByDescending { it.createdAt?.seconds ?: 0L }
+            Result.success(rows)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun applySanction(
+        userId: String,
+        type: String,
+        reason: String,
+        durationHours: Long?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            require(userId.isNotBlank()) { "Utilisateur invalide." }
+            require(reason.isNotBlank()) { "Motif obligatoire." }
+            val now = Timestamp.now()
+            val expires = durationHours?.takeIf { it > 0 }?.let {
+                Timestamp(java.util.Date(System.currentTimeMillis() + it * 60L * 60L * 1000L))
+            }
+            firestore.collection("sanctions").add(
+                mapOf(
+                    "userId" to userId,
+                    "type" to type,
+                    "reason" to reason.trim().take(500),
+                    "createdBy" to currentUserId,
+                    "createdAt" to now,
+                    "expiresAt" to expires
+                )
+            ).await()
+
+            if (type == "suspend" || type == "ban") {
+                firestore.collection("users").document(userId).update("isSuspended", true).await()
+            }
+            writeLog("apply_sanction", userId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun broadcastAnnouncement(title: String, body: String): Result<Int> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(isCurrentUserSuperAdmin()) { "Seul le superadministrateur peut diffuser une annonce." }
+                require(title.isNotBlank() && body.isNotBlank()) { "Titre et message obligatoires." }
+                val actor = auth.currentUser
+                val actorId = actor?.uid.orEmpty()
+                val actorName = actor?.displayName.orEmpty().ifBlank { "The Hub" }
+                val snapshot = firestore.collection("users").limit(450).get().await()
+                val batch = firestore.batch()
+                var count = 0
+                snapshot.documents.forEach { user ->
+                    val recipient = user.id
+                    if (recipient.isNotBlank() && recipient != actorId) {
+                        val ref = firestore.collection("notifications").document()
+                        batch.set(
+                            ref,
+                            mapOf(
+                                "recipientId" to recipient,
+                                "actorId" to actorId,
+                                "actorUsername" to "thehub",
+                                "actorDisplayName" to actorName,
+                                "actorPhotoUrl" to actor?.photoUrl?.toString(),
+                                "type" to com.thehub.hb.data.model.NotificationItem.TYPE_ANNOUNCEMENT,
+                                "commentText" to body.trim().take(1500),
+                                "createdAt" to Timestamp.now(),
+                                "isRead" to false,
+                                "pushSent" to false
+                            )
+                        )
+                        count++
+                    }
+                }
+                if (count > 0) batch.commit().await()
+                writeLog("broadcast_announcement", count.toString())
+                Result.success(count)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAntiSpamAlerts(): Result<List<AdminAntiSpamAlert>> = withContext(Dispatchers.IO) {
+        try {
+            val posts = firestore.collection("posts").limit(500).get().await().documents
+            val reports = firestore.collection("reports").limit(500).get().await().documents
+            val duplicateCounts = posts
+                .mapNotNull { doc ->
+                    val text = doc.getString("text").orEmpty().trim().lowercase()
+                    val author = doc.getString("authorId").orEmpty()
+                    if (text.length < 20 || author.isBlank()) null else author to text.replace(Regex("\\s+"), " ")
+                }
+                .groupBy { it }
+                .mapValues { it.value.size }
+            val reportCounts = reports
+                .mapNotNull {
+                    val target = it.getString("targetId").orEmpty()
+                    target.takeIf { value -> value.isNotBlank() }
+                }
+                .groupingBy { it }
+                .eachCount()
+
+            val alerts = mutableListOf<AdminAntiSpamAlert>()
+            reportCounts.filter { it.value >= 3 }.forEach { (userId, count) ->
+                alerts += AdminAntiSpamAlert(userId, "Utilisateur", (count * 10).coerceAtMost(100), "$count signalements ciblés")
+            }
+            duplicateCounts.filter { it.value >= 3 }.forEach { (key, count) ->
+                val userId = key.first
+                alerts += AdminAntiSpamAlert(userId, "Publications", (count * 12).coerceAtMost(100), "$count publications identiques ou quasi identiques")
+            }
+            Result.success(alerts.distinctBy { it.userId + it.reason }.sortedByDescending { it.score })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getStorageStats(): Result<AdminStorageStats> = withContext(Dispatchers.IO) {
+        try {
+            val posts = firestore.collection("posts").limit(1000).get().await().documents
+            val image = posts.count { !it.getString("imageUrl").isNullOrBlank() }
+            val video = posts.count { !it.getString("videoUrl").isNullOrBlank() }
+            Result.success(AdminStorageStats(image, video, image + video))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
