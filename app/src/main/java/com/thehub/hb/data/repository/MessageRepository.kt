@@ -693,6 +693,9 @@ class MessageRepository(
         try {
             val userDoc = firestore.collection("users").document(currentUid).get().await()
             if (!userDoc.exists() || userDoc.getBoolean("isDeleted") == true) {
+                try {
+                    notificationRepository.unregisterFcmTokenForUser(currentUid)
+                } catch (_: Exception) {}
                 auth.signOut()
                 return@withContext Result.failure(Exception("Ce compte a été supprimé."))
             }
