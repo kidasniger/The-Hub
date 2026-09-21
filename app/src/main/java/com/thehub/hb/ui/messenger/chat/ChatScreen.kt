@@ -84,10 +84,8 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.RelativeTime
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -112,8 +110,12 @@ fun ChatScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             coroutineScope.launch {
-                val bytes = readBytesFromUri(context, uri)
-                viewModel.onImageSelected(uri, bytes)
+                val bytes = com.thehub.hb.utils.ImageCompressor.compressImageFromUri(context, uri)
+                if (bytes != null) {
+                    viewModel.onImageSelected(uri, bytes)
+                } else {
+                    viewModel.showErrorMessage("Impossible de lire ou de préparer cette image.")
+                }
             }
         }
     }
@@ -725,12 +727,3 @@ private fun MessageBubble(
     }
 }
 
-private suspend fun readBytesFromUri(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
-    try {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            inputStream.readBytes()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
