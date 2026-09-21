@@ -53,6 +53,10 @@ class AdminRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
+    companion object {
+        const val BOOTSTRAP_ADMIN_EMAIL = "kidasniger@gmail.com"
+    }
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
@@ -61,6 +65,43 @@ class AdminRepository(
         try {
             firestore.collection("admins").document(uid).get().await()
                 .getBoolean("active") == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Registers the authenticated Google account as the first administrator when
+     * its verified email matches the bootstrap allowlist enforced by Firestore rules.
+     */
+    suspend fun ensureBootstrapAdmin(): Boolean = withContext(Dispatchers.IO) {
+        val user = auth.currentUser ?: return@withContext false
+        val uid = user.uid
+        if (isCurrentUserAdmin()) return@withContext true
+
+        val email = user.email?.trim()?.lowercase()
+            ?: return@withContext false
+
+        if (!user.isEmailVerified || email != BOOTSTRAP_ADMIN_EMAIL) {
+            return@withContext false
+        }
+
+        try {
+            firestore.collection("admins").document(uid)
+                .set(
+                    mapOf(
+                        "uid" to uid,
+                        "email" to email,
+                        "displayName" to (user.displayName ?: "KIDAS"),
+                        "role" to "admin",
+                        "active" to true,
+                        "createdAt" to Timestamp.now(),
+                        "createdBy" to uid
+                    ),
+                    SetOptions.merge()
+                )
+                .await()
+            isCurrentUserAdmin()
         } catch (_: Exception) {
             false
         }
