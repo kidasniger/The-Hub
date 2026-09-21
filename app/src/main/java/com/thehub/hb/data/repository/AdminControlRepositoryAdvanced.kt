@@ -16,10 +16,17 @@ private fun v2Day(offset: Int = 0): String {
     return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(c.time)
 }
 
-private suspend fun AdminControlRepository.ensureAdminV2(superOnly: Boolean = false) {
+private suspend fun AdminControlRepository.ensureAdminV2(superOnly: Boolean = false, critical: Boolean = false) {
     val me = firestore.collection("admins").document(currentAdminId).get().await()
     require(me.getBoolean("active") == true) { "Accès administrateur refusé." }
     if (superOnly) require(me.getString("role") == "superadmin") { "Action réservée au superadministrateur." }
+    if (critical) {
+        val stamp = firestore.collection("adminSecurity").document(currentAdminId)
+            .get().await().getTimestamp("reauthenticatedAt")
+        require(stamp != null && System.currentTimeMillis() - stamp.toDate().time <= 15L * 60L * 1000L) {
+            "Réauthentification administrateur requise (valide 15 minutes)."
+        }
+    }
 }
 
 suspend fun AdminControlRepository.featureFlags(): Result<List<AdminFeatureFlagV2>> = withContext(Dispatchers.IO) {
