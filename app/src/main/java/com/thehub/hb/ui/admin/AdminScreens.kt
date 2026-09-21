@@ -317,7 +317,7 @@ fun AdminUsersScreen(repository: AdminRepository) {
 
     Column(Modifier.fillMaxSize()) {
         AdminHeader("Utilisateurs", users.size.toString() + " comptes • contrôle et modération") {
-            Surface(CircleShape, color = HubSurface, border = BorderStroke(1.dp, HubOutline)) {
+            Surface(shape = CircleShape, color = HubSurface, border = BorderStroke(1.dp, HubOutline)) {
                 IconButton(onClick = { reload() }) {
                     Icon(Icons.Filled.Refresh, "Actualiser")
                 }
@@ -530,7 +530,7 @@ fun AdminPostsScreen(repository: AdminRepository) {
 
     Column(Modifier.fillMaxSize()) {
         AdminHeader("Publications", posts.size.toString() + " publications • modération du contenu") {
-            Surface(CircleShape, color = HubSurface, border = BorderStroke(1.dp, HubOutline)) {
+            Surface(shape = CircleShape, color = HubSurface, border = BorderStroke(1.dp, HubOutline)) {
                 IconButton(onClick = { reload() }) {
                     Icon(Icons.Filled.Refresh, "Actualiser")
                 }
