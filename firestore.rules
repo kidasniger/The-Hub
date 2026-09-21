@@ -62,7 +62,7 @@ service cloud.firestore {
         ])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.email == 'kidasniger@gmail.com'
-        && request.resource.data.role == 'admin'
+        && request.resource.data.role == 'superadmin'
         && request.resource.data.active == true
         && request.resource.data.createdAt is timestamp
         && request.resource.data.createdBy == request.auth.uid
