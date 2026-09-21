@@ -20,8 +20,19 @@ data class AdminUserRow(
     val email: String,
     val displayName: String,
     val username: String,
+    val photoUrl: String?,
+    val postsCount: Long,
+    val followersCount: Long,
+    val followingCount: Long,
     val deleted: Boolean,
     val suspended: Boolean
+)
+
+data class AdminLogRow(
+    val action: String,
+    val adminId: String,
+    val targetId: String?,
+    val createdAt: Timestamp?
 )
 
 data class AdminPostRow(
@@ -121,27 +132,66 @@ class AdminRepository(
 
     suspend fun getUsers(): Result<List<AdminUserRow>> = withContext(Dispatchers.IO) {
         try {
+            val activeAdminIds = firestore.collection("admins")
+                .whereEqualTo("active", true)
+                .get()
+                .await()
+                .documents
+                .map { it.id }
+                .toSet()
+
             val rows = firestore.collection("users")
                 .limit(200)
                 .get()
                 .await()
                 .documents
+                .asSequence()
+                .filterNot { activeAdminIds.contains(it.id) }
                 .map { doc ->
                     AdminUserRow(
                         uid = doc.id,
                         email = doc.getString("email").orEmpty(),
                         displayName = doc.getString("displayName").orEmpty().ifBlank { "Utilisateur" },
                         username = doc.getString("username").orEmpty(),
+                        photoUrl = doc.getString("photoUrl"),
+                        postsCount = doc.getLong("postsCount") ?: 0L,
+                        followersCount = doc.getLong("followersCount") ?: 0L,
+                        followingCount = doc.getLong("followingCount") ?: 0L,
                         deleted = doc.getBoolean("isDeleted") == true,
                         suspended = doc.getBoolean("isSuspended") == true
                     )
                 }
                 .sortedBy { it.displayName.lowercase() }
+                .toList()
+
             Result.success(rows)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    suspend fun getRecentLogs(limit: Long = 30): Result<List<AdminLogRow>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val rows = firestore.collection("adminLogs")
+                    .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .limit(limit)
+                    .get()
+                    .await()
+                    .documents
+                    .map { doc ->
+                        AdminLogRow(
+                            action = doc.getString("action").orEmpty(),
+                            adminId = doc.getString("adminId").orEmpty(),
+                            targetId = doc.getString("targetId"),
+                            createdAt = doc.getTimestamp("createdAt")
+                        )
+                    }
+                Result.success(rows)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     suspend fun setUserSuspended(uid: String, suspended: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {
