@@ -1541,15 +1541,6 @@ service cloud.firestore {
       );
     }
 
-    match /activeUsers/{dayId}/{userId} {
-      allow read: if isAdmin();
-      allow create, update: if isUser(userId)
-        && request.resource.data.keys().hasOnly(['userId', 'day'])
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.day == dayId;
-      allow delete: if isUser(userId);
-    }
-
     match /users/{userId}/activeUsers/{dayId} {
       allow read: if isAdmin();
       allow create, update: if isUser(userId)
