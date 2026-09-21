@@ -29,6 +29,15 @@ service cloud.firestore {
         ).data.role == 'superadmin';
     }
 
+    function hasRecentReauth() {
+      return isAdmin()
+        && exists(/databases/$(database)/documents/adminSecurity/$(request.auth.uid))
+        && get(/databases/$(database)/documents/adminSecurity/$(request.auth.uid))
+          .data.reauthenticatedAt is timestamp
+        && get(/databases/$(database)/documents/adminSecurity/$(request.auth.uid))
+          .data.reauthenticatedAt >= request.time - duration.value(15, 'm');
+    }
+
     function isOfficialAdmin(userId) {
       return exists(/databases/$(database)/documents/admins/$(userId))
         && get(/databases/$(database)/documents/admins/$(userId)).data.active == true
@@ -79,6 +88,7 @@ service cloud.firestore {
 
       allow update: if (
         isSuperAdmin()
+        && hasRecentReauth()
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.role is string
         && request.resource.data.role in ['superadmin', 'admin', 'moderator', 'support', 'analyst', 'community_manager']
@@ -225,6 +235,7 @@ service cloud.firestore {
         )
         || (
           isAdmin()
+          && hasRecentReauth()
           && userId != request.auth.uid
           && request.resource.data.get('uid', userId) == userId
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -1462,60 +1473,90 @@ service cloud.firestore {
       allow read: if isAuthenticated()
         && configId in ['config', 'version', 'emergency'];
       allow create, update: if isSuperAdmin()
+        && hasRecentReauth()
         && configId in ['config', 'version', 'emergency'];
       allow delete: if false;
     }
 
     match /adminPermissions/{adminId} {
       allow read: if isAdmin();
-      allow create, update: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
     match /adminSecurity/{adminId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && adminId == request.auth.uid);
-      allow create, update: if isAdmin()
-        && adminId == request.auth.uid;
+      allow create: if isAdmin()
+        && adminId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'reauthenticatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.reauthenticatedAt is timestamp
+        && request.resource.data.reauthenticatedAt == request.time;
+      allow update: if isAdmin()
+        && adminId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reauthenticatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.reauthenticatedAt is timestamp
+        && request.resource.data.reauthenticatedAt == request.time;
       allow delete: if false;
     }
 
     match /adminUserControls/{userId} {
       allow read: if isAdmin();
-      allow create, update: if isAdmin();
+      allow create, update: if isAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
+    match /sanctions/{sanctionId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && hasRecentReauth()
+        && request.resource.data.userId is string
+        && request.resource.data.type is string
+        && request.resource.data.reason is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && (
+          request.resource.data.expiresAt == null
+          || request.resource.data.expiresAt is timestamp
+        );
+      allow update: if false;
+      allow delete: if isSuperAdmin() && hasRecentReauth();
+    }
+
     match /moderationQueue/{queueId} {
-      allow read, create, update: if isAdmin();
-      allow delete: if isSuperAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && hasRecentReauth();
+      allow delete: if isSuperAdmin() && hasRecentReauth();
     }
 
     match /postModeration/{postId} {
-      allow read, create, update: if isAdmin();
-      allow delete: if isSuperAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && hasRecentReauth();
+      allow delete: if isSuperAdmin() && hasRecentReauth();
     }
 
     match /adminSessions/{adminId} {
       allow read: if isAdmin();
-      allow create, update: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
     match /adminBroadcasts/{broadcastId} {
       allow read: if isAdmin();
-      allow create, update: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
     match /featureFlags/{flagKey} {
       allow read: if isAuthenticated();
-      allow create, update: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
     match /antiSpam/{configId} {
       allow read: if isAdmin();
-      allow create, update: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
