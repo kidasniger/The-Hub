@@ -99,6 +99,12 @@ async function getAnnouncementRecipients(segment) {
 
 async function processScheduledAnnouncements() {
   const now = Date.now();
+  const emergencyDoc = await db.collection('system').doc('emergency').get();
+  const emergency = emergencyDoc.exists ? emergencyDoc.data() : {};
+  if (emergency.maintenance === true || emergency.notifications === false) {
+    console.log('Notifications désactivées par Emergency Center; annonces programmées ignorées.');
+    return;
+  }
   const scheduled = await db
     .collection('announcements')
     .where('status', '==', 'scheduled')

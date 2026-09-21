@@ -16,10 +16,21 @@ private fun v2Day(offset: Int = 0): String {
     return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(c.time)
 }
 
-private suspend fun AdminControlRepository.ensureAdminV2(superOnly: Boolean = false, critical: Boolean = false) {
+private suspend fun AdminControlRepository.ensureAdminV2(
+    permission: String? = null,
+    superOnly: Boolean = false,
+    critical: Boolean = false
+) {
     val me = firestore.collection("admins").document(currentAdminId).get().await()
     require(me.getBoolean("active") == true) { "Accès administrateur refusé." }
     if (superOnly) require(me.getString("role") == "superadmin") { "Action réservée au superadministrateur." }
+    if (permission != null && me.getString("role") != "superadmin") {
+        val permissions = firestore.collection("adminPermissions").document(currentAdminId)
+            .get().await().get("permissions") as? List<*> ?: emptyList<Any?>()
+        require(permissions.filterIsInstance<String>().contains(permission)) {
+            "Permission administrateur manquante : $permission"
+        }
+    }
     if (critical) {
         val stamp = firestore.collection("adminSecurity").document(currentAdminId)
             .get().await().getTimestamp("reauthenticatedAt")
@@ -31,7 +42,7 @@ private suspend fun AdminControlRepository.ensureAdminV2(superOnly: Boolean = fa
 
 suspend fun AdminControlRepository.featureFlags(): Result<List<AdminFeatureFlagV2>> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("feature_flags")
         Result.success(firestore.collection("featureFlags").limit(200).get().await().documents.map {
             AdminFeatureFlagV2(it.id, it.getBoolean("enabled") == true, it.getString("description").orEmpty())
         }.sortedBy { it.key })
@@ -41,7 +52,7 @@ suspend fun AdminControlRepository.featureFlags(): Result<List<AdminFeatureFlagV
 suspend fun AdminControlRepository.setFeatureFlag(key: String, enabled: Boolean, description: String): Result<Unit> =
     withContext(Dispatchers.IO) {
         try {
-            ensureAdminV2(true)
+            ensureAdminV2("feature_flags", true, true)
             firestore.collection("featureFlags").document(key).set(
                 mapOf("enabled" to enabled, "description" to description.take(500),
                     "updatedBy" to currentAdminId, "updatedAt" to Timestamp.now()), SetOptions.merge()
@@ -52,7 +63,7 @@ suspend fun AdminControlRepository.setFeatureFlag(key: String, enabled: Boolean,
 
 suspend fun AdminControlRepository.emergency(): Result<AdminEmergencyV2> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("emergency")
         val d = firestore.collection("system").document("emergency").get().await()
         Result.success(AdminEmergencyV2(
             maintenance = d.getBoolean("maintenance") == true,
@@ -69,7 +80,7 @@ suspend fun AdminControlRepository.emergency(): Result<AdminEmergencyV2> = withC
 
 suspend fun AdminControlRepository.setEmergency(value: AdminEmergencyV2): Result<Unit> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2(true)
+        ensureAdminV2("emergency", true, true)
         firestore.collection("system").document("emergency").set(
             mapOf(
                 "maintenance" to value.maintenance, "registrations" to value.registrations,
@@ -85,7 +96,7 @@ suspend fun AdminControlRepository.setEmergency(value: AdminEmergencyV2): Result
 
 suspend fun AdminControlRepository.investigation(userId: String): Result<List<AdminInvestigationEventV2>> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("investigations")
         val events = mutableListOf<AdminInvestigationEventV2>()
         firestore.collection("adminLogs").whereEqualTo("targetId", userId).limit(500).get().await().documents.forEach {
             events += AdminInvestigationEventV2(it.getString("action").orEmpty(), userId, it.getString("adminId").orEmpty(), "audit", it.getTimestamp("createdAt"))
@@ -102,7 +113,7 @@ suspend fun AdminControlRepository.investigation(userId: String): Result<List<Ad
 
 suspend fun AdminControlRepository.analyticsV2(): Result<AdminAnalyticsV2> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("analytics")
         val presence = firestore.collectionGroup("presence").limit(5000).get().await().documents
         val now = System.currentTimeMillis()
         fun activeCount(window: Long) =
@@ -134,7 +145,7 @@ suspend fun AdminControlRepository.analyticsV2(): Result<AdminAnalyticsV2> = wit
 
 suspend fun AdminControlRepository.antiSpamConfig(): Result<AdminAntiSpamConfigV2> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("antispam")
         val d = firestore.collection("antiSpam").document("config").get().await()
         Result.success(AdminAntiSpamConfigV2(
             d.getLong("postsPerHour") ?: 10, d.getLong("commentsPerHour") ?: 30, d.getLong("messagesPerHour") ?: 60,
@@ -146,7 +157,7 @@ suspend fun AdminControlRepository.antiSpamConfig(): Result<AdminAntiSpamConfigV
 
 suspend fun AdminControlRepository.setAntiSpamConfig(v: AdminAntiSpamConfigV2): Result<Unit> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2(true)
+        ensureAdminV2("antispam", true, true)
         firestore.collection("antiSpam").document("config").set(
             mapOf(
                 "postsPerHour" to v.postsPerHour, "commentsPerHour" to v.commentsPerHour,
@@ -161,7 +172,7 @@ suspend fun AdminControlRepository.setAntiSpamConfig(v: AdminAntiSpamConfigV2): 
 
 suspend fun AdminControlRepository.supportTickets(): Result<List<AdminSupportTicketV2>> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("support")
         Result.success(firestore.collection("supportTickets").limit(500).get().await().documents.map {
             AdminSupportTicketV2(
                 it.id, it.getString("userId").orEmpty(), it.getString("subject").orEmpty(),
@@ -175,7 +186,7 @@ suspend fun AdminControlRepository.supportTickets(): Result<List<AdminSupportTic
 
 suspend fun AdminControlRepository.assignTicket(ticketId: String, adminId: String): Result<Unit> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("support", false, true)
         firestore.collection("supportTickets").document(ticketId).update(
             mapOf("assignedAdminId" to adminId, "status" to "in_progress", "updatedAt" to Timestamp.now())
         ).await()
@@ -185,7 +196,7 @@ suspend fun AdminControlRepository.assignTicket(ticketId: String, adminId: Strin
 
 suspend fun AdminControlRepository.replyTicket(ticketId: String, message: String): Result<Unit> = withContext(Dispatchers.IO) {
     try {
-        ensureAdminV2()
+        ensureAdminV2("support", false, true)
         require(message.isNotBlank())
         firestore.collection("supportTickets").document(ticketId).collection("responses").add(
             mapOf("adminId" to currentAdminId, "message" to message.take(3000), "createdAt" to Timestamp.now())
