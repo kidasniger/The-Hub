@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.DynamicFeed
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Logout
@@ -47,6 +48,7 @@ fun AdminScaffoldScreen(
     currentRoute: String,
     onNavigate: (String) -> Unit,
     onExit: () -> Unit,
+    onOpenFeed: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
     val tabs = listOf(
@@ -113,6 +115,14 @@ fun AdminScaffoldScreen(
                                 style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                                 color = HubWhite
                             )
+                            IconButton(onClick = onOpenFeed, modifier = Modifier.size(34.dp)) {
+                                Icon(
+                                    Icons.Filled.DynamicFeed,
+                                    contentDescription = "Ouvrir le Feed",
+                                    tint = HubViolet,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                             IconButton(onClick = onExit, modifier = Modifier.size(34.dp)) {
                                 Icon(
                                     Icons.Filled.Logout,
