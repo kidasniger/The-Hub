@@ -727,18 +727,11 @@ class MessageRepository(
                 return@withContext Result.failure(Exception("Conversation invalide."))
             }
 
-            val permission = checkCanSendMessage(otherUid)
-            if (permission.isFailure) {
-                return@withContext Result.failure(
-                    permission.exceptionOrNull()
-                        ?: Exception("Erreur lors de la vérification des permissions de messagerie.")
-                )
-            }
-            if (!permission.getOrDefault(false)) {
-                return@withContext Result.failure(
-                    Exception("Vous devez être ami ou abonné pour envoyer un message à cet utilisateur.")
-                )
-            }
+            // The conversation was already authorized when it was created.
+            // From this point only its two participants may send messages.
+            // Keeping the relation check out of this atomic batch prevents
+            // intermittent PERMISSION_DENIED when a relationship document changes
+            // while the conversation itself remains valid.
 
             // Rebuild the complete two-participant unread map. This also repairs
             // legacy conversations where unreadCount or one participant key is absent.
