@@ -290,6 +290,7 @@ private fun NotificationRow(
     val actor = rememberLiveUser(
         userId = notification.actorId,
         fallbackUsername = notification.actorUsername,
+        fallbackDisplayName = notification.actorDisplayName,
         fallbackPhotoUrl = notification.actorPhotoUrl
     )
     val backgroundColor = if (!notification.isRead) HubCard else HubBlack
