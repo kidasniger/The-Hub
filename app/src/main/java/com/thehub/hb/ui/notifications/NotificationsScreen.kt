@@ -387,7 +387,7 @@ private fun NotificationRow(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = RelativeTime.format(notification.createdAt),
+                text = RelativeTime.formatWithClock(notification.createdAt),
                 fontSize = 12.sp,
                 color = HubSecondary
             )
