@@ -60,6 +60,7 @@ data class AdminAccountRow(
     val active: Boolean
 )
 
+// Validation marker: admin v2 compilation/CI check.
 class AdminRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
