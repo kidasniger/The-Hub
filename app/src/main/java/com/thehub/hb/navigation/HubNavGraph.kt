@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -15,6 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.thehub.hb.di.AppContainer
+import com.thehub.hb.ui.admin.AdminNavGraph
 import com.thehub.hb.ui.bookmarks.BookmarksScreen
 import com.thehub.hb.ui.bookmarks.BookmarksViewModel
 import com.thehub.hb.ui.comments.CommentsScreen
@@ -80,6 +82,21 @@ fun HubNavGraph(
     )
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
+    val authRoutingScope = rememberCoroutineScope()
+
+    fun routeAfterAuthentication() {
+        authRoutingScope.launch {
+            val destination = if (appContainer.adminRepository.isCurrentUserAdmin()) {
+                Screen.Admin.route
+            } else {
+                Screen.Feed.route
+            }
+            navController.navigate(destination) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = UpdateViewModel.Factory(
@@ -112,11 +129,7 @@ fun HubNavGraph(
             SplashScreen(
                 authRepository = authRepository,
                 dataStoreManager = dataStoreManager,
-                onNavigateToFeed = {
-                    navController.navigate(Screen.Feed.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
-                    }
-                },
+                onNavigateToFeed = { routeAfterAuthentication() },
                 onNavigateToOnboarding = {
                     navController.navigate(Screen.Onboarding.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
@@ -164,11 +177,7 @@ fun HubNavGraph(
             LoginScreen(
                 viewModel = loginViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToFeed = {
-                    navController.navigate(Screen.Feed.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
-                    }
-                },
+                onNavigateToFeed = { routeAfterAuthentication() },
                 onNavigateToCompleteProfile = {
                     navController.navigate(Screen.CompleteProfile.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -191,9 +200,21 @@ fun HubNavGraph(
             CompleteProfileScreen(
                 viewModel = completeProfileViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToFeed = {
-                    navController.navigate(Screen.Feed.route) {
-                        popUpTo(Screen.CompleteProfile.route) { inclusive = true }
+                onNavigateToFeed = { routeAfterAuthentication() }
+            )
+        }
+
+        // Isolated administration application
+        composable(Screen.Admin.route) {
+            AdminNavGraph(
+                appContainer = appContainer,
+                onExit = {
+                    authRoutingScope.launch {
+                        authRepository.signOut()
+                        navController.navigate(Screen.Welcome.route) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 }
             )
