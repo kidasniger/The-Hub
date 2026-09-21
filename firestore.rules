@@ -473,34 +473,44 @@ service cloud.firestore {
           || validRepostCreate()
         );
 
-      // Normal posts can be deleted by their author. A repost must remove its
-      // marker and decrement the original counter in the same atomic operation.
+      // Normal posts can be deleted by their author. Administrators can
+      // delete any post for moderation. Reposts must keep the original counter
+      // and marker consistent when the author deletes them.
       allow delete: if isAdmin()
         || (
           isAuthenticated()
           && resource.data.authorId == request.auth.uid
           && (
-          resource.data.isRepost != true
-          || (
-            resource.data.originalPostId is string
-            && (
-              !exists(
-                /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
-              )
-              || (
-                exists(
+            resource.data.isRepost != true
+            || (
+              resource.data.originalPostId is string
+              && (
+                !exists(
                   /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
                 )
-                && get(
-                  /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
-                ).data.repostId == postId
-                && !existsAfter(
-                  /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                || (
+                  exists(
+                    /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                  )
+                  && get(
+                    /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                  ).data.repostId == postId
+                  && !existsAfter(
+                    /databases/$(database)/documents/posts/$(resource.data.originalPostId)/reposts/$(request.auth.uid)
+                  )
+                  && get(
+                    /databases/$(database)/documents/posts/$(resource.data.originalPostId)
+                  ).data.repostsCount != null
+                  && get(
+                    /databases/$(database)/documents/posts/$(resource.data.originalPostId)
+                  ).data.repostsCount > 0
+                  && getAfter(
+                    /databases/$(database)/documents/posts/$(resource.data.originalPostId)
+                  ).data.repostsCount
+                    == get(
+                      /databases/$(database)/documents/posts/$(resource.data.originalPostId)
+                    ).data.repostsCount - 1
                 )
-                && get(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount != null
-                && get(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount > 0
-                && getAfter(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount
-                  == get(/databases/$(database)/documents/posts/$(resource.data.originalPostId)).data.repostsCount - 1
               )
             )
           )
