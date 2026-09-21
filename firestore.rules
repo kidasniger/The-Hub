@@ -1154,7 +1154,7 @@ service cloud.firestore {
             || (
               getAfter(
                 /databases/$(database)/documents/conversations/$(conversationId)
-              ).data.lastMessageId == messageId
+              ).data.get('lastMessageId', '') == messageId
               && getAfter(
                 /databases/$(database)/documents/conversations/$(conversationId)
               ).data.lastMessageSenderId == request.auth.uid
