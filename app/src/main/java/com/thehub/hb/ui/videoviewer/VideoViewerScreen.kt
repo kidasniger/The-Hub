@@ -152,10 +152,18 @@ private fun YouTubePlayerContent(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val playerView = remember(videoId, context) {
+    val playerView = remember(videoId, context, isShort) {
         YouTubePlayerView(context).apply {
             enableAutomaticInitialization = false
             setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
+            // The library defaults wrap_content to 16:9. For Shorts we must
+            // explicitly make the native View fill its 9:16 parent.
+            if (isShort) {
+                matchParent()
+            } else {
+                wrapContent()
+            }
         }
     }
 
@@ -191,13 +199,18 @@ private fun YouTubePlayerContent(
         16f / 9f
     }
 
-    AndroidView(
-        factory = { playerView },
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(playerAspectRatio)
-            .background(Color.Black)
-    )
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            factory = { playerView },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
