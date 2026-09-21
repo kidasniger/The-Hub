@@ -605,16 +605,12 @@ async function testMessageSecurityAndAtomicSend() {
 }
 
 async function testCurrentAppMessageBatchWithoutMessageOps() {
-  // testLegacyConversationUnreadCountCompatibility() already created
-  // and authorized legacy_bob.
-  const conversationRef = doc(legacyDb, "conversations/legacy_bob");
+  // The current Android sender writes the message independently. Conversation
+  // summary/unread metadata must never be able to reject the actual message.
   const messageRef = doc(
     legacyDb,
     "conversations/legacy_bob/messages/current-app-message"
   );
-
-  const currentUnread = await getDoc(conversationRef);
-  const existingUnread = currentUnread.data()?.unreadCount || {};
 
   await assertSucceeds(setDoc(messageRef, {
     senderId: "legacy",
@@ -630,16 +626,10 @@ async function testCurrentAppMessageBatchWithoutMessageOps() {
     deletedBy: null,
   }));
 
-  await assertSucceeds(updateDoc(conversationRef, {
-    lastMessageText: "current app send",
-    lastMessageAt: serverTimestamp(),
-    lastMessageSenderId: "legacy",
-    lastMessageId: "current-app-message",
-    unreadCount: {
-      legacy: existingUnread.legacy || 0,
-      bob: (existingUnread.bob || 0) + 1,
-    },
-  }));
+  const saved = await getDoc(messageRef);
+  if (!saved.exists()) {
+    throw new Error("Current-app message was not persisted.");
+  }
 }
 
 async function testMessageCreationRejectsForgedMetadata() {
