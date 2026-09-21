@@ -22,15 +22,44 @@ service cloud.firestore {
         ).data.active == true;
     }
 
+    // Only the verified Google account with the exact bootstrap email may
+    // create its own initial admin document.
+    function isBootstrapAdmin() {
+      return isAuthenticated()
+        && request.auth.token.email == 'kidasniger@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
     match /admins/{adminId} {
       allow read: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
 
-      // The first administrator is bootstrapped out-of-band in Firebase
-      // Console. Existing administrators may promote additional accounts.
-      allow create: if isAdmin()
+      // Existing administrators may promote additional accounts.
+      // The bootstrap account may only create its own administrator document,
+      // with a tightly constrained set of fields.
+      allow create: if (
+        isAdmin()
         && request.resource.data.uid == adminId
         && request.resource.data.role == 'admin'
-        && request.resource.data.active == true;
+        && request.resource.data.active == true
+      ) || (
+        isBootstrapAdmin()
+        && adminId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'displayName',
+          'role',
+          'active',
+          'createdAt',
+          'createdBy'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == 'kidasniger@gmail.com'
+        && request.resource.data.role == 'admin'
+        && request.resource.data.active == true
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdBy == request.auth.uid
+      );
 
       allow update: if isAdmin()
         && request.resource.data.uid == resource.data.uid
