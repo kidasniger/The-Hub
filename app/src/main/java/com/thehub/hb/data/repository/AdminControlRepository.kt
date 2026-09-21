@@ -168,8 +168,11 @@ class AdminControlRepository(
                         "userId" to userId,
                         "internalNote" to note.take(2000),
                         "postRestricted" to post,
+                        "postRestrictedUntil" to null,
                         "commentRestricted" to comment,
+                        "commentRestrictedUntil" to null,
                         "messagingRestricted" to message,
+                        "messagingRestrictedUntil" to null,
                         "updatedBy" to currentAdminId,
                         "updatedAt" to Timestamp.now()
                     ), SetOptions.merge()
@@ -183,7 +186,10 @@ class AdminControlRepository(
         try {
                 requireRecentReauth()
             require(userId != currentAdminId)
-            firestore.collection("users").document(userId).update("isSuspended", value).await()
+            firestore.collection("users").document(userId).set(
+                mapOf("isSuspended" to value, "suspendedUntil" to null),
+                SetOptions.merge()
+            ).await()
             audit(if (value) "suspend_user" else "restore_user", userId, "users", "success")
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
@@ -202,8 +208,35 @@ class AdminControlRepository(
                         "createdAt" to Timestamp.now(), "expiresAt" to expires, "active" to true
                     )
                 ).await()
-                if (type == "suspend" || type == "permanent_suspension")
-                    firestore.collection("users").document(userId).update("isSuspended", true).await()
+                val controls = mutableMapOf<String, Any?>(
+                    "userId" to userId,
+                    "updatedBy" to currentAdminId,
+                    "updatedAt" to Timestamp.now()
+                )
+                when (type) {
+                    "post_restriction" -> {
+                        controls["postRestricted"] = true
+                        controls["postRestrictedUntil"] = expires
+                    }
+                    "comment_restriction" -> {
+                        controls["commentRestricted"] = true
+                        controls["commentRestrictedUntil"] = expires
+                    }
+                    "messaging_restriction" -> {
+                        controls["messagingRestricted"] = true
+                        controls["messagingRestrictedUntil"] = expires
+                    }
+                    "suspend", "permanent_suspension" -> {
+                        controls["suspendedUntil"] = expires
+                        firestore.collection("users").document(userId).set(
+                            mapOf("isSuspended" to true, "suspendedUntil" to expires),
+                            SetOptions.merge()
+                        ).await()
+                    }
+                }
+                if (controls.size > 3) {
+                    firestore.collection("adminUserControls").document(userId).set(controls, SetOptions.merge()).await()
+                }
                 audit("apply_sanction", userId, "sanctions", "success")
                 Result.success(Unit)
             } catch (e: Exception) { Result.failure(e) }
