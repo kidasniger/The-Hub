@@ -217,6 +217,11 @@ fun HubNavGraph(
                             launchSingleTop = true
                         }
                     }
+                },
+                onOpenFeed = {
+                    navController.navigate(Screen.Feed.route) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
