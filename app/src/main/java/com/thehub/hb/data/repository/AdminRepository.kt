@@ -158,6 +158,15 @@ class AdminRepository(
             existing.getBoolean("active") == true
             && existing.getString("role") == "superadmin"
         ) {
+            try {
+                firestore.collection("users").document(uid).update(
+                    mapOf(
+                        "isVerified" to true,
+                        "verificationType" to "admin"
+                    )
+                ).await()
+            } catch (_: Exception) {
+            }
             return@withContext true
         }
 
@@ -190,6 +199,15 @@ class AdminRepository(
                         SetOptions.merge()
                     )
                     .await()
+            }
+            try {
+                firestore.collection("users").document(uid).update(
+                    mapOf(
+                        "isVerified" to true,
+                        "verificationType" to "admin"
+                    )
+                ).await()
+            } catch (_: Exception) {
             }
             isCurrentUserSuperAdmin()
         } catch (_: Exception) {
@@ -692,6 +710,12 @@ class AdminRepository(
                     SetOptions.merge()
                 )
                 .await()
+            firestore.collection("users").document(targetUid).update(
+                mapOf(
+                    "isVerified" to true,
+                    "verificationType" to "admin"
+                )
+            ).await()
             writeLog("add_admin", targetUid)
             Result.success(Unit)
         } catch (e: Exception) {
@@ -705,6 +729,12 @@ class AdminRepository(
             require(targetUid.isNotBlank()) { "UID invalide." }
             require(targetUid != currentUserId) { "Impossible de supprimer votre propre accès administrateur." }
             firestore.collection("admins").document(targetUid).delete().await()
+            firestore.collection("users").document(targetUid).update(
+                mapOf(
+                    "isVerified" to false,
+                    "verificationType" to null
+                )
+            ).await()
             writeLog("remove_admin", targetUid)
             Result.success(Unit)
         } catch (e: Exception) {
