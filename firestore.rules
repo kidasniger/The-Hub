@@ -1027,7 +1027,9 @@ service cloud.firestore {
 
       allow update: if isParticipant() && (
         (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          request.resource.data.get('lastMessageId', '') is string
+          && request.resource.data.get('lastMessageId', '') != ''
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'lastMessageText',
             'lastMessageAt',
             'lastMessageSenderId',
@@ -1039,19 +1041,22 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageSenderId'])
           && request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastMessageId'])
           && request.resource.data.diff(resource.data).affectedKeys().hasAny(['unreadCount'])
-          && request.resource.data.lastMessageSenderId == request.auth.uid
-          && request.resource.data.lastMessageAt is timestamp
-          && request.resource.data.lastMessageId is string
-          && request.resource.data.lastMessageId != ''
-          && request.resource.data.lastMessageText is string
-          && request.resource.data.unreadCount is map
-          && request.resource.data.unreadCount.keys().hasOnly([
+          && request.resource.data.get('lastMessageSenderId', '') == request.auth.uid
+          && request.resource.data.get('lastMessageAt', null) is timestamp
+          && request.resource.data.get('lastMessageText', '') is string
+          && request.resource.data.get('unreadCount', {}) is map
+          && request.resource.data.get('unreadCount', {}).keys().hasOnly([
             resource.data.participantIds[0],
             resource.data.participantIds[1]
           ])
         )
-        || sendMetadataIsAtomic()
-        || unreadCountResetIsSafe()
+        || (
+          request.resource.data.get('lastMessageId', '') == ''
+          && (
+            sendMetadataIsAtomic()
+            || unreadCountResetIsSafe()
+          )
+        )
       );
 
       allow delete: if isParticipant();
