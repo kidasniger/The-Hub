@@ -38,6 +38,41 @@ service cloud.firestore {
           .data.reauthenticatedAt >= request.time - duration.value(15, 'm');
     }
 
+    function isControlActive(userId, flagField, expiryField) {
+      let path = /databases/$(database)/documents/adminUserControls/$(userId);
+      return exists(path)
+        && get(path).data.get(flagField, false) == true
+        && (
+          get(path).data.get(expiryField, null) == null
+          || (
+            get(path).data.get(expiryField, null) is timestamp
+            && get(path).data.get(expiryField, null) > request.time
+          )
+        );
+    }
+
+    function isUserSuspendedNow(userId) {
+      let path = /databases/$(database)/documents/users/$(userId);
+      let until = get(path).data.get('suspendedUntil', null);
+      return get(path).data.get('isSuspended', false) == true
+        && (
+          until == null
+          || (until is timestamp && until > request.time)
+        );
+    }
+
+    function isPostRestricted(userId) {
+      return isControlActive(userId, 'postRestricted', 'postRestrictedUntil');
+    }
+
+    function isCommentRestricted(userId) {
+      return isControlActive(userId, 'commentRestricted', 'commentRestrictedUntil');
+    }
+
+    function isMessagingRestricted(userId) {
+      return isControlActive(userId, 'messagingRestricted', 'messagingRestrictedUntil');
+    }
+
     function isOfficialAdmin(userId) {
       return exists(/databases/$(database)/documents/admins/$(userId))
         && get(/databases/$(database)/documents/admins/$(userId)).data.active == true
@@ -237,10 +272,25 @@ service cloud.firestore {
           isAdmin()
           && hasRecentReauth()
           && userId != request.auth.uid
+          && hasRecentReauth()
           && request.resource.data.get('uid', userId) == userId
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['isSuspended'])
+            .hasOnly(['isSuspended', 'suspendedUntil'])
           && request.resource.data.isSuspended is bool
+          && (
+            request.resource.data.suspendedUntil == null
+            || request.resource.data.suspendedUntil is timestamp
+          )
+        )
+        || (
+          isUser(userId)
+          && resource.data.get('isSuspended', false) == true
+          && resource.data.get('suspendedUntil', null) is timestamp
+          && resource.data.get('suspendedUntil') <= request.time
+          && request.resource.data.get('isSuspended', false) == false
+          && request.resource.data.get('suspendedUntil', null) == null
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isSuspended', 'suspendedUntil'])
         )
         || (
           isSuperAdmin()
@@ -548,6 +598,8 @@ service cloud.firestore {
 
       // Counter fields are forced to zero for all new client-created posts.
       allow create: if isAuthenticated()
+        && !isUserSuspendedNow(request.auth.uid)
+        && !isPostRestricted(request.auth.uid)
         && request.resource.data.authorId == request.auth.uid
         && request.resource.data.likesCount == 0
         && request.resource.data.commentsCount == 0
@@ -560,7 +612,7 @@ service cloud.firestore {
       // Normal posts can be deleted by their author. Administrators can
       // delete any post for moderation. Reposts must keep the original counter
       // and marker consistent when the author deletes them.
-      allow delete: if isAdmin()
+      allow delete: if (isAdmin() && hasRecentReauth())
         || (
           isAuthenticated()
           && resource.data.authorId == request.auth.uid
@@ -644,6 +696,23 @@ service cloud.firestore {
           && resource.data.commentsCount is int
           && resource.data.commentsCount > 0
           && request.resource.data.commentsCount == resource.data.commentsCount - 1
+        )
+        || (
+          isAdmin()
+          && hasRecentReauth()
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'isHidden',
+            'isDeletedByAdmin',
+            'commentsLocked',
+            'isPinned',
+            'isOfficial',
+            'updatedBy',
+            'updatedAt'
+          ])
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostsCount'])
@@ -777,11 +846,13 @@ service cloud.firestore {
         }
 
         allow create: if isAuthenticated()
+          && !isUserSuspendedNow(request.auth.uid)
+          && !isCommentRestricted(request.auth.uid)
           && request.resource.data.authorId == request.auth.uid
           && request.resource.data.likesCount == 0
           && commentCreateIsAtomic(commentId);
 
-        allow delete: if isAdmin()
+        allow delete: if (isAdmin() && hasRecentReauth())
           || (
             isAuthenticated()
             && (
@@ -978,6 +1049,8 @@ service cloud.firestore {
 
       function canMessagePair(senderUid, targetUid) {
         return senderUid != targetUid
+          && !isUserSuspendedNow(senderUid)
+          && !isMessagingRestricted(senderUid)
           && !isOfficialAdmin(targetUid)
           && (
             exists(
@@ -1445,14 +1518,16 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read: if isAuthenticated();
       allow create: if isSuperAdmin()
+        && hasRecentReauth()
         && request.resource.data.title is string
         && request.resource.data.body is string
         && request.resource.data.active is bool
         && request.resource.data.createdAt is timestamp
         && request.resource.data.createdBy == request.auth.uid;
       allow update: if isSuperAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'active']);
-      allow delete: if isSuperAdmin();
+        && hasRecentReauth()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'active', 'priority', 'publishAt', 'expiresAt', 'status']);
+      allow delete: if isSuperAdmin() && hasRecentReauth();
     }
 
     match /supportTickets/{ticketId} {
@@ -1465,6 +1540,7 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow update: if isAdmin()
+        && hasRecentReauth()
         && request.resource.data.userId == resource.data.userId;
       allow delete: if isAdmin();
     }
