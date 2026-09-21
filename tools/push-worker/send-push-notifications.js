@@ -21,7 +21,7 @@ const db = getFirestore(app);
 const messaging = getMessaging(app);
 
 function notificationContent(n) {
-  const actor = n.actorUsername || 'Quelqu\'un';
+  const actor = n.actorDisplayName || n.actorUsername || 'Quelqu\'un';
   switch (n.type) {
     case 'like':
       return { title: 'Nouveau j\'aime', body: actor + ' a aimé votre publication.' };
@@ -118,11 +118,18 @@ async function run() {
           token,
           data: {
             notificationId: sanitizeData(doc.id),
+            recipientId: sanitizeData(notif.recipientId || ''),
+            createdAtMs: sanitizeData(
+              notif.createdAt && typeof notif.createdAt.toMillis === 'function'
+                ? String(notif.createdAt.toMillis())
+                : ''
+            ),
             type: sanitizeData(notif.type || ''),
             title: sanitizeData(content.title),
             body: sanitizeData(content.body),
             actorId: sanitizeData(notif.actorId || ''),
             actorUsername: sanitizeData(notif.actorUsername || ''),
+            actorDisplayName: sanitizeData(notif.actorDisplayName || ''),
             postId: sanitizeData(notif.postId || ''),
             commentId: sanitizeData(notif.commentId || ''),
             conversationId: sanitizeData(notif.conversationId || ''),
