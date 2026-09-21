@@ -339,6 +339,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
             'token',
             'platform',
+            'appVersion',
             'updatedAt'
           ])
           && request.resource.data.token is string
