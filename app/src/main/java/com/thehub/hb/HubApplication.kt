@@ -38,12 +38,7 @@ class HubApplication : Application(), ImageLoaderFactory {
 
         applicationScope.launch {
             container.authRepository.currentUserFlow.collect { firebaseUser ->
-                val previousUserId = pushRegistrationUserId
                 val currentUserId = firebaseUser?.uid
-
-                if (previousUserId != null && previousUserId != currentUserId) {
-                    container.notificationRepository.unregisterFcmTokenForUser(previousUserId)
-                }
 
                 if (currentUserId != null) {
                     container.notificationRepository.registerCurrentFcmToken()
