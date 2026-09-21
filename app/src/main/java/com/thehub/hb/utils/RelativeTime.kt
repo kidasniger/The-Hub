@@ -31,6 +31,11 @@ object RelativeTime {
         }
     }
 
+    fun formatWithClock(timestamp: Timestamp?): String {
+        if (timestamp == null) return "Récemment"
+        return format(timestamp) + " · " + formatTimeOnly(timestamp)
+    }
+
     fun formatTimeOnly(timestamp: Timestamp?): String {
         if (timestamp == null) return ""
         val format = SimpleDateFormat("HH:mm", Locale.getDefault())
