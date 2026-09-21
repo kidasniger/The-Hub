@@ -12,6 +12,44 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated()
+        && exists(
+          /databases/$(database)/documents/admins/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/admins/$(request.auth.uid)
+        ).data.active == true;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
+
+      // The first administrator is bootstrapped out-of-band in Firebase
+      // Console. Existing administrators may promote additional accounts.
+      allow create: if isAdmin()
+        && request.resource.data.uid == adminId
+        && request.resource.data.role == 'admin'
+        && request.resource.data.active == true;
+
+      allow update: if isAdmin()
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active', 'displayName', 'email']);
+
+      allow delete: if isAdmin() && adminId != request.auth.uid;
+    }
+
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.action is string
+        && request.resource.data.createdAt is timestamp;
+      allow update, delete: if false;
+    }
+
     match /usernames/{usernameLower} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
@@ -69,7 +107,7 @@ service cloud.firestore {
           && resource.data.get('uid', userId) == userId
           && request.resource.data.get('uid', userId) == userId
           && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['followersCount', 'followingCount'])
+            .hasAny(['followersCount', 'followingCount', 'isDeleted', 'isSuspended'])
         )
         || (
           request.resource.data.diff(resource.data).affectedKeys()
@@ -118,7 +156,19 @@ service cloud.firestore {
             )
           )
         )
-      );
+      )
+        || (
+          isAdmin()
+          && request.resource.data.get('uid', userId) == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isDeleted'])
+        )
+        || (
+          isAdmin()
+          && request.resource.data.get('uid', userId) == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isSuspended'])
+        );
 
       allow delete: if isUser(userId);
 
@@ -353,7 +403,7 @@ service cloud.firestore {
 
     match /reports/{reportId} {
       allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid;
-      allow read, update, delete: if false;
+      allow read, update, delete: if isAdmin();
     }
 
     match /posts/{postId} {
@@ -425,9 +475,11 @@ service cloud.firestore {
 
       // Normal posts can be deleted by their author. A repost must remove its
       // marker and decrement the original counter in the same atomic operation.
-      allow delete: if isAuthenticated()
-        && resource.data.authorId == request.auth.uid
-        && (
+      allow delete: if isAdmin()
+        || (
+          isAuthenticated()
+          && resource.data.authorId == request.auth.uid
+          && (
           resource.data.isRepost != true
           || (
             resource.data.originalPostId is string
