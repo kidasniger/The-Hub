@@ -62,7 +62,9 @@ fun SplashScreen(
                         .get()
                         .await()
 
-                    if (userDoc.exists() && userDoc.getBoolean("isDeleted") != true) {
+                    if (userDoc.exists()
+                        && userDoc.getBoolean("isDeleted") != true
+                        && userDoc.getBoolean("isSuspended") != true) {
                         isSessionValid = true
                     } else {
                         authRepository.signOut()
