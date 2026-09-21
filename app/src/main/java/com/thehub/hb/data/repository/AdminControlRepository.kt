@@ -396,20 +396,22 @@ class AdminControlRepository(
                     else -> true
                 }
             }
-            val batch = firestore.batch()
             val campaign = firestore.collection("adminBroadcasts").document()
-            recipients.forEach { user ->
-                batch.set(
-                    firestore.collection("notifications").document(),
-                    mapOf(
-                        "recipientId" to user.id, "actorId" to currentAdminId, "actorUsername" to "thehub",
-                        "actorDisplayName" to auth.currentUser?.displayName.orEmpty().ifBlank { "The Hub" },
-                        "type" to "ADMIN_BROADCAST", "commentText" to body.take(1500), "title" to title.take(120),
-                        "batchId" to campaign.id, "createdAt" to Timestamp.now(), "isRead" to false, "pushSent" to false
+            recipients.chunked(400).forEach { chunk ->
+                val batch = firestore.batch()
+                chunk.forEach { user ->
+                    batch.set(
+                        firestore.collection("notifications").document(),
+                        mapOf(
+                            "recipientId" to user.id, "actorId" to currentAdminId, "actorUsername" to "thehub",
+                            "actorDisplayName" to auth.currentUser?.displayName.orEmpty().ifBlank { "The Hub" },
+                            "type" to "ADMIN_BROADCAST", "commentText" to body.take(1500), "title" to title.take(120),
+                            "batchId" to campaign.id, "createdAt" to Timestamp.now(), "isRead" to false, "pushSent" to false
+                        )
                     )
-                )
+                }
+                batch.commit().await()
             }
-            if (recipients.isNotEmpty()) batch.commit().await()
             campaign.set(
                 mapOf(
                     "title" to title.take(120), "body" to body.take(1500), "segment" to segment,
