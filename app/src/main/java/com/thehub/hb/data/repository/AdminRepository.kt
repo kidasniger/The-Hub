@@ -35,6 +35,57 @@ data class AdminLogRow(
     val createdAt: Timestamp?
 )
 
+data class AdminCommentRow(
+    val id: String,
+    val postId: String,
+    val authorId: String,
+    val text: String,
+    val createdAt: Timestamp?,
+    val likes: Long
+)
+
+data class AdminSupportTicketRow(
+    val id: String,
+    val userId: String,
+    val subject: String,
+    val message: String,
+    val status: String,
+    val priority: String,
+    val createdAt: Timestamp?
+)
+
+data class AdminAnnouncementRow(
+    val id: String,
+    val title: String,
+    val body: String,
+    val active: Boolean,
+    val createdAt: Timestamp?
+)
+
+data class AdminSystemConfig(
+    val maintenance: Boolean = false,
+    val maintenanceMessage: String = "",
+    val newRegistrations: Boolean = true,
+    val postsEnabled: Boolean = true,
+    val messagingEnabled: Boolean = true
+)
+
+data class AdminAnalytics(
+    val users: Int = 0,
+    val activeUsers: Int = 0,
+    val suspendedUsers: Int = 0,
+    val deletedUsers: Int = 0,
+    val posts: Int = 0,
+    val comments: Int = 0,
+    val reports: Int = 0,
+    val pendingReports: Int = 0,
+    val admins: Int = 0,
+    val users7d: Int = 0,
+    val posts7d: Int = 0,
+    val users30d: Int = 0,
+    val posts30d: Int = 0
+)
+
 data class AdminPostRow(
     val id: String,
     val authorId: String,
@@ -153,6 +204,263 @@ class AdminRepository(
             val reports = firestore.collection("reports").get().await().size()
             val admins = firestore.collection("admins").get().await().size()
             Result.success(AdminStats(users, posts, reports, admins))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalytics(): Result<AdminAnalytics> = withContext(Dispatchers.IO) {
+        try {
+            val now = System.currentTimeMillis()
+            val sevenDays = now - 7L * 24L * 60L * 60L * 1000L
+            val thirtyDays = now - 30L * 24L * 60L * 60L * 1000L
+
+            val userDocs = firestore.collection("users").limit(1000).get().await().documents
+            val postDocs = firestore.collection("posts").limit(1000).get().await().documents
+            val commentDocs = firestore.collectionGroup("comments").limit(1000).get().await().documents
+            val reportDocs = firestore.collection("reports").limit(1000).get().await().documents
+            val adminDocs = firestore.collection("admins").limit(100).get().await().documents
+            val presenceDocs = firestore.collectionGroup("presence").limit(1000).get().await().documents
+
+            fun createdMillis(doc: com.google.firebase.firestore.DocumentSnapshot): Long {
+                val value = doc.get("createdAt")
+                return when (value) {
+                    is Timestamp -> value.toDate().time
+                    is Number -> value.toLong()
+                    else -> 0L
+                }
+            }
+
+            val usersCount = userDocs.size
+            val suspended = userDocs.count { it.getBoolean("isSuspended") == true }
+            val deleted = userDocs.count { it.getBoolean("isDeleted") == true }
+            val active = userDocsCountActive(userDocs, now)
+            val users7 = userDocs.count { createdMillis(it) >= sevenDays }
+            val users30 = userDocs.count { createdMillis(it) >= thirtyDays }
+            val posts7 = postDocs.count { createdMillis(it) >= sevenDays }
+            val posts30 = postDocs.count { createdMillis(it) >= thirtyDays }
+            val activeWindow = now - 30L * 60L * 1000L
+            val activeUsers = presenceDocs.mapNotNull { it.getTimestamp("lastSeen")?.toDate()?.time }
+                .count { it >= activeWindow }
+
+            Result.success(
+                AdminAnalytics(
+                    users = usersCount,
+                    activeUsers = active.coerceAtLeast(activeUsers),
+                    suspendedUsers = suspended,
+                    deletedUsers = deleted,
+                    posts = postDocs.size,
+                    comments = commentDocs.size,
+                    reports = reportDocs.size,
+                    pendingReports = reportDocs.count { it.getString("status").orEmpty() != "resolved" },
+                    admins = adminDocs.size,
+                    users7d = users7,
+                    posts7d = posts7,
+                    users30d = users30,
+                    posts30d = posts30
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun userDocsCountActive(
+        docs: List<com.google.firebase.firestore.DocumentSnapshot>,
+        now: Long
+    ): Int {
+        return docs.count { doc ->
+            doc.getBoolean("isDeleted") != true
+                && doc.getBoolean("isSuspended") != true
+        }
+    }
+
+    suspend fun getComments(): Result<List<AdminCommentRow>> = withContext(Dispatchers.IO) {
+        try {
+            val rows = firestore.collectionGroup("comments")
+                .limit(300)
+                .get()
+                .await()
+                .documents
+                .map { doc ->
+                    AdminCommentRow(
+                        id = doc.id,
+                        postId = doc.reference.parent.parent?.id.orEmpty(),
+                        authorId = doc.getString("authorId").orEmpty(),
+                        text = doc.getString("text").orEmpty(),
+                        createdAt = doc.getTimestamp("createdAt"),
+                        likes = doc.getLong("likesCount") ?: 0L
+                    )
+                }
+                .sortedByDescending { it.createdAt?.seconds ?: 0L }
+            Result.success(rows)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteComment(postId: String, commentId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(postId.isNotBlank() && commentId.isNotBlank()) { "Commentaire invalide." }
+                firestore.collection("posts").document(postId)
+                    .collection("comments").document(commentId).delete().await()
+                try {
+                    firestore.collection("posts").document(postId)
+                        .update(
+                            "commentsCount",
+                            com.google.firebase.firestore.FieldValue.increment(-1)
+                        ).await()
+                } catch (_: Exception) {
+                }
+                writeLog("delete_comment", commentId)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getSupportTickets(): Result<List<AdminSupportTicketRow>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val rows = firestore.collection("supportTickets")
+                    .limit(300)
+                    .get()
+                    .await()
+                    .documents
+                    .map { doc ->
+                        AdminSupportTicketRow(
+                            id = doc.id,
+                            userId = doc.getString("userId").orEmpty(),
+                            subject = doc.getString("subject").orEmpty().ifBlank { "Demande de support" },
+                            message = doc.getString("message").orEmpty(),
+                            status = doc.getString("status").orEmpty().ifBlank { "open" },
+                            priority = doc.getString("priority").orEmpty().ifBlank { "normal" },
+                            createdAt = doc.getTimestamp("createdAt")
+                        )
+                    }
+                    .sortedByDescending { it.createdAt?.seconds ?: 0L }
+                Result.success(rows)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun resolveSupportTicket(ticketId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(ticketId.isNotBlank()) { "Ticket invalide." }
+                firestore.collection("supportTickets").document(ticketId)
+                    .update(
+                        mapOf(
+                            "status" to "resolved",
+                            "resolvedAt" to Timestamp.now(),
+                            "resolvedBy" to currentUserId
+                        )
+                    ).await()
+                writeLog("resolve_support_ticket", ticketId)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getAnnouncements(): Result<List<AdminAnnouncementRow>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val rows = firestore.collection("announcements")
+                    .limit(100)
+                    .get()
+                    .await()
+                    .documents
+                    .map { doc ->
+                        AdminAnnouncementRow(
+                            id = doc.id,
+                            title = doc.getString("title").orEmpty(),
+                            body = doc.getString("body").orEmpty(),
+                            active = doc.getBoolean("active") != false,
+                            createdAt = doc.getTimestamp("createdAt")
+                        )
+                    }
+                    .sortedByDescending { it.createdAt?.seconds ?: 0L }
+                Result.success(rows)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun publishAnnouncement(title: String, body: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                require(title.isNotBlank()) { "Titre obligatoire." }
+                require(body.isNotBlank()) { "Message obligatoire." }
+                firestore.collection("announcements").add(
+                    mapOf(
+                        "title" to title.trim().take(120),
+                        "body" to body.trim().take(2000),
+                        "active" to true,
+                        "createdAt" to Timestamp.now(),
+                        "createdBy" to currentUserId
+                    )
+                ).await()
+                writeLog("publish_announcement", null)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun setSystemConfig(config: AdminSystemConfig): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                firestore.collection("system").document("config")
+                    .set(
+                        mapOf(
+                            "maintenance" to config.maintenance,
+                            "maintenanceMessage" to config.maintenanceMessage.take(500),
+                            "newRegistrations" to config.newRegistrations,
+                            "postsEnabled" to config.postsEnabled,
+                            "messagingEnabled" to config.messagingEnabled,
+                            "updatedAt" to Timestamp.now(),
+                            "updatedBy" to currentUserId
+                        ),
+                        SetOptions.merge()
+                    ).await()
+                writeLog("update_system_config", null)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getSystemConfig(): Result<AdminSystemConfig> = withContext(Dispatchers.IO) {
+        try {
+            val doc = firestore.collection("system").document("config").get().await()
+            Result.success(
+                AdminSystemConfig(
+                    maintenance = doc.getBoolean("maintenance") == true,
+                    maintenanceMessage = doc.getString("maintenanceMessage").orEmpty(),
+                    newRegistrations = doc.getBoolean("newRegistrations") != false,
+                    postsEnabled = doc.getBoolean("postsEnabled") != false,
+                    messagingEnabled = doc.getBoolean("messagingEnabled") != false
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getActiveSessions(): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val cutoff = Timestamp(java.util.Date(System.currentTimeMillis() - 30L * 60L * 1000L))
+            val count = firestore.collectionGroup("presence")
+                .whereGreaterThanOrEqualTo("lastSeen", cutoff)
+                .limit(1000)
+                .get()
+                .await()
+                .documents
+                .count { it.getBoolean("online") == true || (it.getTimestamp("lastSeen")?.compareTo(cutoff) ?: -1) >= 0 }
+            Result.success(count)
         } catch (e: Exception) {
             Result.failure(e)
         }
