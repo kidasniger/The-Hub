@@ -603,6 +603,7 @@ class MessageRepository(
                 lastMessageText = "",
                 lastMessageAt = Timestamp.now(),
                 lastMessageSenderId = "",
+                lastMessageId = "",
                 unreadCount = mapOf(
                     currentUid to 0,
                     otherUserId to 0
@@ -743,8 +744,6 @@ class MessageRepository(
             )
 
             val messageRef = convRef.collection("messages").document()
-            val messageOpRef = convRef.collection("messageOps").document(currentUid)
-
             val messageData = hashMapOf<String, Any?>(
                 "senderId" to currentUid,
                 "text" to (if (trimmedText.isNullOrBlank()) null else trimmedText),
@@ -767,19 +766,13 @@ class MessageRepository(
 
             val batch = firestore.batch()
             batch.set(messageRef, messageData)
-            batch.set(
-                messageOpRef,
-                mapOf(
-                    "type" to "send",
-                    "targetId" to messageRef.id
-                )
-            )
             batch.update(
                 convRef,
                 mapOf(
                     "lastMessageText" to previewText,
                     "lastMessageAt" to FieldValue.serverTimestamp(),
                     "lastMessageSenderId" to currentUid,
+                    "lastMessageId" to messageRef.id,
                     "unreadCount" to updatedUnreadCount
                 )
             )
