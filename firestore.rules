@@ -22,6 +22,7 @@ service cloud.firestore {
         ).data.active == true;
     }
 
+    // Validation branch: keep the bootstrap allowlist explicit and server-enforced.
     // Only the verified Google account with the exact bootstrap email may
     // create its own initial admin document.
     function isBootstrapAdmin() {
