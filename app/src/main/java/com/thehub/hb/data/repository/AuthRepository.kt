@@ -194,6 +194,17 @@ class AuthRepository(
     }
 
     suspend fun signInWithGoogle(context: Context): GoogleSignInResult {
+        var previousPushUserId: String? = null
+
+        suspend fun restorePreviousPushRegistration() {
+            val uid = previousPushUserId
+            if (!uid.isNullOrBlank() && auth.currentUser?.uid == uid) {
+                try {
+                    NotificationRepository(firestore, auth).registerCurrentFcmToken()
+                } catch (_: Exception) {}
+            }
+        }
+
         return try {
             val credentialManager = CredentialManager.create(context)
             val googleIdOption = GetSignInWithGoogleOption.Builder(GOOGLE_WEB_CLIENT_ID)
@@ -221,6 +232,7 @@ class AuthRepository(
                 // account is still authenticated. Doing it after the auth switch
                 // would fail the Firestore ownership rule.
                 val previousUid = auth.currentUser?.uid
+                previousPushUserId = previousUid
                 if (!previousUid.isNullOrBlank()) {
                     try {
                         NotificationRepository(firestore, auth)
@@ -294,12 +306,15 @@ class AuthRepository(
                 GoogleSignInResult.Error("Type d'identifiant Google inattendu.")
             }
         } catch (e: GetCredentialCancellationException) {
+            restorePreviousPushRegistration()
             android.util.Log.d("AuthRepository", "Connexion Google annulée par l'utilisateur")
             GoogleSignInResult.Cancelled
         } catch (e: NoCredentialException) {
+            restorePreviousPushRegistration()
             android.util.Log.w("AuthRepository", "Aucun compte Google disponible", e)
             GoogleSignInResult.Error("Aucun compte Google disponible sur cet appareil.")
         } catch (e: Exception) {
+            restorePreviousPushRegistration()
             android.util.Log.e("AuthRepository", "Échec de connexion Google", e)
             if (e.message?.contains("cancel", ignoreCase = true) == true ||
                 e.cause?.message?.contains("cancel", ignoreCase = true) == true
