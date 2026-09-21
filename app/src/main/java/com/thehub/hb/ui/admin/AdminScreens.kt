@@ -909,3 +909,5 @@ fun AdminAdminsScreen(repository: AdminRepository) {
         )
     }
 }
+
+// Final CI validation marker.
