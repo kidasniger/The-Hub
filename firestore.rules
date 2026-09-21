@@ -29,6 +29,30 @@ service cloud.firestore {
         ).data.role == 'superadmin';
     }
 
+    function hasPermission(permission) {
+      return isSuperAdmin()
+        || (
+          isAdmin()
+          && exists(/databases/$(database)/documents/adminPermissions/$(request.auth.uid))
+          && get(/databases/$(database)/documents/adminPermissions/$(request.auth.uid))
+            .data.get('permissions', []).hasAny([permission])
+        );
+    }
+
+    function emergencyAllows(feature) {
+      return isAdmin()
+        || (
+          (
+            !exists(/databases/$(database)/documents/system/emergency)
+            || get(/databases/$(database)/documents/system/emergency).data.get('maintenance', false) == false
+          )
+          && (
+            !exists(/databases/$(database)/documents/system/emergency)
+            || get(/databases/$(database)/documents/system/emergency).data.get(feature, true) == true
+          )
+        );
+    }
+
     function hasRecentReauth() {
       return isAdmin()
         && exists(/databases/$(database)/documents/adminSecurity/$(request.auth.uid))
@@ -164,6 +188,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isUser(userId)
+        && emergencyAllows('registrations')
         && request.resource.data.uid == userId
         && request.resource.data.get('isVerified', false) == false
         && request.resource.data.get('verificationType', null) == null;
@@ -262,17 +287,16 @@ service cloud.firestore {
         )
       )
         || (
-          isAdmin()
+          hasPermission('users')
           && userId != request.auth.uid
           && request.resource.data.get('uid', userId) == userId
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['isDeleted'])
         )
         || (
-          isAdmin()
+          hasPermission('users')
           && hasRecentReauth()
           && userId != request.auth.uid
-          && hasRecentReauth()
           && request.resource.data.get('uid', userId) == userId
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['isSuspended', 'suspendedUntil'])
@@ -598,6 +622,7 @@ service cloud.firestore {
 
       // Counter fields are forced to zero for all new client-created posts.
       allow create: if isAuthenticated()
+        && emergencyAllows('posts')
         && !isUserSuspendedNow(request.auth.uid)
         && !isPostRestricted(request.auth.uid)
         && request.resource.data.authorId == request.auth.uid
@@ -612,7 +637,7 @@ service cloud.firestore {
       // Normal posts can be deleted by their author. Administrators can
       // delete any post for moderation. Reposts must keep the original counter
       // and marker consistent when the author deletes them.
-      allow delete: if (isAdmin() && hasRecentReauth())
+      allow delete: if (hasPermission('posts') && hasRecentReauth())
         || (
           isAuthenticated()
           && resource.data.authorId == request.auth.uid
@@ -691,14 +716,14 @@ service cloud.firestore {
           && commentsCountMutationIsAtomic()
         )
         || (
-          isAdmin()
+          hasPermission('posts')
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
           && resource.data.commentsCount is int
           && resource.data.commentsCount > 0
           && request.resource.data.commentsCount == resource.data.commentsCount - 1
         )
         || (
-          isAdmin()
+          hasPermission('posts')
           && hasRecentReauth()
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.createdAt == resource.data.createdAt
@@ -846,13 +871,14 @@ service cloud.firestore {
         }
 
         allow create: if isAuthenticated()
+          && emergencyAllows('comments')
           && !isUserSuspendedNow(request.auth.uid)
           && !isCommentRestricted(request.auth.uid)
           && request.resource.data.authorId == request.auth.uid
           && request.resource.data.likesCount == 0
           && commentCreateIsAtomic(commentId);
 
-        allow delete: if (isAdmin() && hasRecentReauth())
+        allow delete: if (hasPermission('moderation') && hasRecentReauth())
           || (
             isAuthenticated()
             && (
@@ -1253,7 +1279,8 @@ service cloud.firestore {
 
       allow read: if isParticipant();
 
-      allow create: if isValidConversationCreate()
+      allow create: if emergencyAllows('messaging')
+        && isValidConversationCreate()
         && canMessageTargetOnCreate();
 
       allow update: if isParticipant() && (
@@ -1431,7 +1458,8 @@ service cloud.firestore {
 
         allow read: if parentConversationIsAccessible();
 
-        allow create: if parentConversationIsAccessible()
+        allow create: if emergencyAllows('messaging')
+          && parentConversationIsAccessible()
           && validMessageFields();
 
         // Individual message deletion is not permitted. Conversation deletion
@@ -1518,6 +1546,7 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read: if isAuthenticated();
       allow create: if isSuperAdmin()
+        && hasPermission('announcements')
         && hasRecentReauth()
         && request.resource.data.title is string
         && request.resource.data.body is string
@@ -1525,6 +1554,7 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp
         && request.resource.data.createdBy == request.auth.uid;
       allow update: if isSuperAdmin()
+        && hasPermission('announcements')
         && hasRecentReauth()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'active', 'priority', 'publishAt', 'expiresAt', 'status']);
       allow delete: if isSuperAdmin() && hasRecentReauth();
@@ -1539,10 +1569,10 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp;
       allow read: if isAdmin()
         || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow update: if isAdmin()
+      allow update: if hasPermission('support')
         && hasRecentReauth()
         && request.resource.data.userId == resource.data.userId;
-      allow delete: if isAdmin();
+      allow delete: if hasPermission('support') && hasRecentReauth();
     }
 
     match /system/{configId} {
@@ -1578,14 +1608,14 @@ service cloud.firestore {
     }
 
     match /adminUserControls/{userId} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin() && hasRecentReauth();
+      allow read: if hasPermission('users');
+      allow create, update: if hasPermission('users') && hasRecentReauth();
       allow delete: if false;
     }
 
     match /sanctions/{sanctionId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin()
+      allow read: if hasPermission('sanctions');
+      allow create: if hasPermission('sanctions')
         && hasRecentReauth()
         && request.resource.data.userId is string
         && request.resource.data.type is string
@@ -1601,25 +1631,25 @@ service cloud.firestore {
     }
 
     match /moderationQueue/{queueId} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin() && hasRecentReauth();
+      allow read: if hasPermission('moderation');
+      allow create, update: if hasPermission('moderation') && hasRecentReauth();
       allow delete: if isSuperAdmin() && hasRecentReauth();
     }
 
     match /postModeration/{postId} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin() && hasRecentReauth();
+      allow read: if hasPermission('posts');
+      allow create, update: if hasPermission('posts') && hasRecentReauth();
       allow delete: if isSuperAdmin() && hasRecentReauth();
     }
 
     match /adminSessions/{adminId} {
-      allow read: if isAdmin();
+      allow read: if hasPermission('security');
       allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
 
     match /adminBroadcasts/{broadcastId} {
-      allow read: if isAdmin();
+      allow read: if hasPermission('notifications');
       allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
@@ -1631,7 +1661,7 @@ service cloud.firestore {
     }
 
     match /antiSpam/{configId} {
-      allow read: if isAdmin();
+      allow read: if hasPermission('antispam');
       allow create, update: if isSuperAdmin() && hasRecentReauth();
       allow delete: if false;
     }
@@ -1647,15 +1677,11 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
         && request.resource.data.isRead is bool;
 
-      allow create: if (
-        isAuthenticated()
+      allow create: if isAuthenticated()
+        && emergencyAllows('notifications')
         && request.resource.data.actorId == request.auth.uid
         && request.resource.data.recipientId != request.auth.uid
-      ) || (
-        isAdmin()
-        && request.resource.data.actorId == request.auth.uid
-        && request.resource.data.recipientId != request.auth.uid
-      );
+        && (!isAdmin() || hasPermission('notifications'));
     }
 
     match /users/{userId}/activeUsers/{dayId} {
