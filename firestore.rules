@@ -1,6 +1,7 @@
 rules_version = '2';
 // Production rules are deployed by the Firebase Admin SDK CI workflow.
 // Deployment verification trigger: keep production rules synchronized with main.
+// Validation marker: current admin security rules CI check.
 service cloud.firestore {
   match /databases/{database}/documents {
 
