@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
@@ -50,6 +51,14 @@ class UserRepository(
                     "Failed to unregister FCM token before sign out: " + e.message
                 )
             }
+        }
+        try {
+            FirebaseMessaging.getInstance().deleteToken().await()
+        } catch (e: Exception) {
+            Log.w(
+                "UserRepository",
+                "Failed to invalidate FCM token during sign out: " + e.message
+            )
         }
         auth.signOut()
     }
