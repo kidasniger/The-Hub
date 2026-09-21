@@ -22,6 +22,13 @@ service cloud.firestore {
         ).data.active == true;
     }
 
+    function isSuperAdmin() {
+      return isAdmin()
+        && get(
+          /databases/$(database)/documents/admins/$(request.auth.uid)
+        ).data.role == 'superadmin';
+    }
+
     // Only the verified Google account with the exact bootstrap email may
     // create its own initial admin document.
     function isBootstrapAdmin() {
@@ -37,7 +44,7 @@ service cloud.firestore {
       // The bootstrap account may only create its own administrator document,
       // with a tightly constrained set of fields.
       allow create: if (
-        isAdmin()
+        isSuperAdmin()
         && request.resource.data.uid == adminId
         && request.resource.data.role == 'admin'
         && request.resource.data.active == true
@@ -61,13 +68,13 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
       );
 
-      allow update: if isAdmin()
+      allow update: if isSuperAdmin()
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.role == resource.data.role
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['active', 'displayName', 'email']);
 
-      allow delete: if isAdmin() && adminId != request.auth.uid;
+      allow delete: if isSuperAdmin() && adminId != request.auth.uid;
     }
 
     match /adminLogs/{logId} {
