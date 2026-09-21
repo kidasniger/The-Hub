@@ -4,6 +4,7 @@ import android.content.Context
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.remote.AppUpdateDownloadManager
 import com.thehub.hb.data.remote.ImgbbService
+import com.thehub.hb.data.repository.AdminRepository
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.NotificationRepository
@@ -15,6 +16,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 interface AppContainer {
+    val adminRepository: AdminRepository
     val dataStoreManager: DataStoreManager
     val authRepository: AuthRepository
     val postRepository: PostRepository
@@ -36,6 +38,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         FirebaseAuth.getInstance()
     }
     private val imgbbServiceInstance: ImgbbService by lazy { ImgbbService() }
+
+    override val adminRepository: AdminRepository by lazy {
+        AdminRepository(
+            firestore = firestoreInstance,
+            auth = authInstance
+        )
+    }
 
     override val dataStoreManager: DataStoreManager by lazy {
         DataStoreManager(context)
