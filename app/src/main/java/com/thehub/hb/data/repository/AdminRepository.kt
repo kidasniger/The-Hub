@@ -99,31 +99,48 @@ class AdminRepository(
     suspend fun ensureBootstrapAdmin(): Boolean = withContext(Dispatchers.IO) {
         val user = auth.currentUser ?: return@withContext false
         val uid = user.uid
-        if (isCurrentUserAdmin()) return@withContext true
-
         val email = user.email?.trim()?.lowercase()
             ?: return@withContext false
+
+        val existing = firestore.collection("admins").document(uid).get().await()
+        if (
+            existing.getBoolean("active") == true
+            && existing.getString("role") == "superadmin"
+        ) {
+            return@withContext true
+        }
 
         if (!user.isEmailVerified || email != BOOTSTRAP_ADMIN_EMAIL) {
             return@withContext false
         }
 
         try {
-            firestore.collection("admins").document(uid)
-                .set(
+            if (existing.exists()) {
+                firestore.collection("admins").document(uid).update(
                     mapOf(
-                        "uid" to uid,
                         "email" to email,
                         "displayName" to (user.displayName ?: "KIDAS"),
                         "role" to "superadmin",
-                        "active" to true,
-                        "createdAt" to Timestamp.now(),
-                        "createdBy" to uid
-                    ),
-                    SetOptions.merge()
-                )
-                .await()
-            isCurrentUserAdmin()
+                        "active" to true
+                    )
+                ).await()
+            } else {
+                firestore.collection("admins").document(uid)
+                    .set(
+                        mapOf(
+                            "uid" to uid,
+                            "email" to email,
+                            "displayName" to (user.displayName ?: "KIDAS"),
+                            "role" to "superadmin",
+                            "active" to true,
+                            "createdAt" to Timestamp.now(),
+                            "createdBy" to uid
+                        ),
+                        SetOptions.merge()
+                    )
+                    .await()
+            }
+            isCurrentUserSuperAdmin()
         } catch (_: Exception) {
             false
         }
