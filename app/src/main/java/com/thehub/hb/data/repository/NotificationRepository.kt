@@ -1,5 +1,7 @@
 package com.thehub.hb.data.repository
 
+import com.thehub.hb.BuildConfig
+
 import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -95,6 +97,7 @@ class NotificationRepository(
                     mapOf(
                         "token" to token,
                         "platform" to "android",
+                        "appVersion" to BuildConfig.VERSION_NAME,
                         "updatedAt" to Timestamp.now()
                     ),
                     SetOptions.merge()
