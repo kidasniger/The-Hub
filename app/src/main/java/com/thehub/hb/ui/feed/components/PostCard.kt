@@ -1,5 +1,6 @@
 package com.thehub.hb.ui.feed.components
 
+import com.thehub.hb.ui.components.OfficialVerificationBadge
 import androidx.compose.foundation.background
 import com.thehub.hb.ui.theme.HubSurface
 import com.thehub.hb.ui.theme.HubOutline
@@ -32,7 +33,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -61,8 +61,6 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -170,19 +168,10 @@ fun PostCard(
                                 color = HubWhite
                             )
                             if (author.isVerified && author.verificationType == "admin") {
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Surface(
-                                    modifier = Modifier.size(16.dp),
-                                    shape = CircleShape,
-                                    color = Color(0xFFE53935)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = "Compte officiel certifié",
-                                        tint = Color.White,
-                                        modifier = Modifier.padding(2.dp)
-                                    )
-                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                OfficialVerificationBadge(
+                                    size = 17.dp
+                                )
                             }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
