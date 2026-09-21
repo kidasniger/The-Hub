@@ -264,7 +264,7 @@ class AdminRepository(
             Result.success(
                 AdminAnalytics(
                     users = usersCount,
-                    activeUsers = active.coerceAtLeast(activeUsers),
+                    activeUsers = maxOf(activeUsers, 0).coerceAtMost(usersCount),
                     suspendedUsers = suspended,
                     deletedUsers = deleted,
                     posts = postDocs.size,
