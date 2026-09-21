@@ -962,6 +962,10 @@ service cloud.firestore {
           : resource.data.participantIds[0];
         let oldUnread = resource.data.get('unreadCount', {});
         let newUnread = request.resource.data.get('unreadCount', {});
+        let newText = request.resource.data.get('lastMessageText', '');
+        let newAt = request.resource.data.get('lastMessageAt', null);
+        let newSender = request.resource.data.get('lastMessageSenderId', '');
+        let newId = request.resource.data.get('lastMessageId', '');
 
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'lastMessageText',
@@ -970,10 +974,11 @@ service cloud.firestore {
             'lastMessageId',
             'unreadCount'
           ])
-          && request.resource.data.lastMessageText is string
-          && request.resource.data.lastMessageSenderId == request.auth.uid
-          && request.resource.data.lastMessageAt == request.time
-          && request.resource.data.lastMessageId is string
+          && newText is string
+          && newSender == request.auth.uid
+          && newAt == request.time
+          && newId is string
+          && newId != ''
           && newUnread is map
           && newUnread.keys().hasOnly([
             resource.data.participantIds[0],
