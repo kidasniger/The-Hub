@@ -909,3 +909,5 @@ fun AdminAdminsScreen(repository: AdminRepository) {
         )
     }
 }
+
+// CI validation: premium admin redesign.
