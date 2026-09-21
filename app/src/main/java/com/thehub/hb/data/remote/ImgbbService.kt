@@ -5,11 +5,9 @@ import android.util.Log
 import com.thehub.hb.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
+import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -34,50 +32,83 @@ class ImgbbService(
     }
 
     suspend fun uploadImage(imageBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val key = API_KEY.trim()
-            val mediaType = "image/jpeg".toMediaTypeOrNull()
-
-            // ImgBB accepts either multipart file or base64 string
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("key", key)
-                .addFormDataPart("image", "upload.jpg", imageBytes.toRequestBody(mediaType))
-                .build()
-
-            val request = Request.Builder()
-                .url("$UPLOAD_URL?key=$key")
-                .post(requestBody)
-                .build()
-
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string().orEmpty()
-
-            Log.d(TAG, "ImgBB upload response code: ${response.code}")
-
-            if (!response.isSuccessful) {
-                val errorMsg = try {
-                    val json = JSONObject(responseBody)
-                    json.optJSONObject("error")?.optString("message") ?: "Erreur ${response.code}: $responseBody"
-                } catch (_: Exception) {
-                    "Échec de l'envoi de l'image (code ${response.code})"
-                }
-                return@withContext Result.failure(IOException(errorMsg))
-            }
-
-            val json = JSONObject(responseBody)
-            if (json.optBoolean("success")) {
-                val data = json.getJSONObject("data")
-                val url = data.getString("url")
-                Result.success(url)
-            } else {
-                val errorMsg = json.optJSONObject("error")?.optString("message") ?: "Erreur d'upload ImgBB"
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "ImgBB upload exception: ${e.message}", e)
-            Result.failure(e)
+        if (imageBytes.isEmpty()) {
+            return@withContext Result.failure(IOException("Image vide."))
         }
+
+        val key = API_KEY.trim()
+        if (key.isBlank() || key == "YOUR_IMGBB_API_KEY") {
+            return@withContext Result.failure(IOException("Clé ImgBB non configurée."))
+        }
+
+        // ImgBB accepts a base64 image in an x-www-form-urlencoded POST.
+        // This avoids multipart/file MIME mismatches for Android Photo Picker media.
+        val base64Image = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
+        if (base64Image.isBlank()) {
+            return@withContext Result.failure(IOException("Impossible d'encoder l'image."))
+        }
+
+        var lastFailure: Exception? = null
+
+        repeat(3) { attempt ->
+            try {
+                val requestBody = FormBody.Builder()
+                    .add("image", base64Image)
+                    .build()
+
+                val request = Request.Builder()
+                    .url("$UPLOAD_URL?key=$key")
+                    .header("Accept", "application/json")
+                    .post(requestBody)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string().orEmpty()
+                    Log.d(TAG, "ImgBB upload response code: " + response.code)
+
+                    val json = try {
+                        JSONObject(responseBody)
+                    } catch (_: Exception) {
+                        null
+                    }
+
+                    if (response.isSuccessful && json?.optBoolean("success") == true) {
+                        val data = json.optJSONObject("data")
+                        val url = data?.optString("url")?.trim().orEmpty()
+                        if (url.isNotBlank()) {
+                            Log.d(TAG, "ImgBB upload succeeded on attempt " + (attempt + 1))
+                            return@withContext Result.success(url)
+                        }
+                    }
+
+                    val errorObject = json?.optJSONObject("error")
+                    val errorMessage = errorObject?.optString("message")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: json?.optString("status")
+                            ?.takeIf { it.isNotBlank() }
+                        ?: responseBody.takeIf { it.isNotBlank() }
+                        ?: "Échec de l'envoi de l'image (HTTP " + response.code + ")"
+
+                    lastFailure = IOException(errorMessage)
+
+                    // Retry only transient HTTP failures. Client/configuration
+                    // errors are returned immediately with the real server message.
+                    if (response.code in 400..499) {
+                        return@withContext Result.failure(lastFailure!!)
+                    }
+                }
+            } catch (e: Exception) {
+                lastFailure = e
+            }
+
+            if (attempt < 2) {
+                kotlinx.coroutines.delay(750L * (attempt + 1))
+            }
+        }
+
+        Result.failure(
+            lastFailure ?: IOException("Échec de l'upload de l'image vers ImgBB.")
+        )
     }
 }
 
