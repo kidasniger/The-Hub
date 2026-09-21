@@ -1050,13 +1050,9 @@ service cloud.firestore {
             resource.data.participantIds[1]
           ])
         )
-        || (
-          request.resource.data.get('lastMessageId', '') == ''
-          && (
-            sendMetadataIsAtomic()
-            || unreadCountResetIsSafe()
-          )
-        )
+        || unreadCountResetIsSafe()
+        || sendMetadataIsAtomic()
+        || sendMetadataIsAtomicByMessageId()
       );
 
       allow delete: if isParticipant();
