@@ -204,7 +204,7 @@ private fun CategoryCard(
 
             Spacer(Modifier.height(12.dp))
 
-            category.sections.forEach { section ->
+            for (section in category.sections) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
