@@ -605,8 +605,9 @@ async function testMessageSecurityAndAtomicSend() {
 }
 
 async function testCurrentAppMessageBatchWithoutMessageOps() {
-  await establishMessagingRelation(legacyDb, "legacy", "bob");
-
+  // testLegacyConversationUnreadCountCompatibility() has already created
+  // and authorized legacy_bob; reusing it avoids turning the following write
+  // into a duplicate relation update.
   const conversationRef = doc(legacyDb, "conversations/legacy_bob");
   const messageRef = doc(
     legacyDb,
@@ -1371,46 +1372,25 @@ try {
   anonDb = testEnv.unauthenticatedContext().firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
-
-  console.log("RUN_SECURITY_TEST: testDirectCounterTampering");
   await testDirectCounterTampering();
-  console.log("RUN_SECURITY_TEST: testLikeCounterMustMatchLikeMutation");
   await testLikeCounterMustMatchLikeMutation();
-  console.log("RUN_SECURITY_TEST: testCommentCounterMustMatchCommentMutation");
   await testCommentCounterMustMatchCommentMutation();
-  console.log("RUN_SECURITY_TEST: testFollowerCounterMustMatchFollowMutation");
   await testFollowerCounterMustMatchFollowMutation();
-  console.log("RUN_SECURITY_TEST: testRepostCounterMustMatchRepostMutation");
   await testRepostCounterMustMatchRepostMutation();
-  console.log("RUN_SECURITY_TEST: testCommentDeleteCounterMustMatchDeletion");
   await testCommentDeleteCounterMustMatchDeletion();
-  console.log("RUN_SECURITY_TEST: testUnfollowCounterMustMatchDeletion");
   await testUnfollowCounterMustMatchDeletion();
-  console.log("RUN_SECURITY_TEST: testRelationshipSecurity");
   await testRelationshipSecurity();
-  console.log("RUN_SECURITY_TEST: testLikeAndBookmarkSecurity");
   await testLikeAndBookmarkSecurity();
-  console.log("RUN_SECURITY_TEST: testRepostDeleteCounterMustMatchDeletion");
   await testRepostDeleteCounterMustMatchDeletion();
-  console.log("RUN_SECURITY_TEST: testLegacyUserFollowCompatibility");
   await testLegacyUserFollowCompatibility();
-  console.log("RUN_SECURITY_TEST: testLegacyConversationUnreadCountCompatibility");
   await testLegacyConversationUnreadCountCompatibility();
-  console.log("RUN_SECURITY_TEST: testMessageSecurityAndAtomicSend");
   await testMessageSecurityAndAtomicSend();
-  console.log("RUN_SECURITY_TEST: testCurrentAppMessageBatchWithoutMessageOps");
   await testCurrentAppMessageBatchWithoutMessageOps();
-  console.log("RUN_SECURITY_TEST: testMessageCreationRejectsForgedMetadata");
   await testMessageCreationRejectsForgedMetadata();
-  console.log("RUN_SECURITY_TEST: testMessageRecipientCanMarkReadOnly");
   await testMessageRecipientCanMarkReadOnly();
-  console.log("RUN_SECURITY_TEST: testAdvancedMessengerSecurity");
   await testAdvancedMessengerSecurity();
-  console.log("RUN_SECURITY_TEST: testMessageAccessIsLimitedToParticipants");
   await testMessageAccessIsLimitedToParticipants();
-  console.log("RUN_SECURITY_TEST: testMessageDeletionMustBeAtomicWithConversationDeletion");
   await testMessageDeletionMustBeAtomicWithConversationDeletion();
-  console.log("RUN_SECURITY_TEST: testSensitiveCollectionWrites");
   await testSensitiveCollectionWrites();
 
   console.log("Firestore security tests (counters + messages): PASS");
