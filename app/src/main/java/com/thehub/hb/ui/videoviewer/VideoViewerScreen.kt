@@ -192,68 +192,20 @@ private fun YouTubePlayerContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    val playerView = remember(videoId, context, isShort) {
-        YouTubePlayerView(context).apply {
-            enableAutomaticInitialization = false
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
-
-            if (isShort) {
-                matchParent()
-            } else {
-                wrapContent()
-            }
-        }
-    }
-
-    DisposableEffect(lifecycleOwner, playerView, videoId) {
-        lifecycleOwner.lifecycle.addObserver(playerView)
-
-        val options = IFramePlayerOptions.Builder(context)
-            .origin("https://" + context.packageName.lowercase(Locale.ROOT))
-            .controls(1)
-            .fullscreen(if (isShort) 0 else 1)
-            .rel(0)
-            .build()
-
-        playerView.initialize(
-            object : AbstractYouTubePlayerListener() {
-                override fun onReady(player: YouTubePlayer) {
-                    player.loadVideo(videoId, 0f)
-                }
-            },
-            true,
-            options
-        )
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(playerView)
-            playerView.release()
-        }
-    }
+    val playerWidthRatio = if (isShort) 9f / 16f else 16f / 9f
+    val playerHeightRatio = if (isShort) 16f / 9f else 9f / 16f
 
     BoxWithConstraints(
         modifier = modifier.background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        val playerWidth = if (isShort) {
-            minOf(
-                maxWidth,
-                maxHeight * (9f / 16f)
-            )
-        } else {
-            minOf(
-                maxWidth,
-                maxHeight * (16f / 9f)
-            )
-        }
-
-        val playerHeight = if (isShort) {
-            playerWidth * (16f / 9f)
-        } else {
-            playerWidth * (9f / 16f)
-        }
+        val playerWidth = minOf(
+            maxWidth,
+            maxHeight * playerWidthRatio
+        )
+        val playerHeight = playerWidth * playerHeightRatio
 
         Box(
             modifier = Modifier
@@ -261,10 +213,38 @@ private fun YouTubePlayerContent(
                 .height(playerHeight)
                 .background(Color.Black)
         ) {
-            AndroidView(
-                factory = { playerView },
-                modifier = Modifier.fillMaxSize()
-            )
+            key(videoId, isShort) {
+                AndroidView(
+                    factory = { androidContext ->
+                        YouTubePlayerView(androidContext).apply {
+                            // Manual initialization lets us pass the iframe options
+                            // required for embedded playback. The view itself is
+                            // initialized once inside AndroidView's factory.
+                            enableAutomaticInitialization = false
+                            lifecycle.addObserver(this)
+
+                            val options = IFramePlayerOptions.Builder(androidContext)
+                                .origin("https://" + androidContext.packageName.lowercase(Locale.ROOT))
+                                .controls(1)
+                                .fullscreen(if (isShort) 0 else 1)
+                                .rel(0)
+                                .build()
+
+                            initialize(
+                                object : AbstractYouTubePlayerListener() {},
+                                true,
+                                options,
+                                videoId
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    onRelease = { playerView ->
+                        lifecycle.removeObserver(playerView)
+                        playerView.release()
+                    }
+                )
+            }
         }
     }
 }
