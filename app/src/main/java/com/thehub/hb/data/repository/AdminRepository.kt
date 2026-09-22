@@ -5,6 +5,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -447,15 +450,29 @@ class AdminRepository(
 
     suspend fun getStats(): Result<AdminStats> = withContext(Dispatchers.IO) {
         try {
-            val users = firestore.collection("users").get().await().size()
-            val posts = firestore.collection("posts").get().await().size()
-            val reports = firestore.collection("reports").get().await().size()
-            val admins = firestore.collection("admins").get().await().size()
+            val (users, posts, reports, admins) = coroutineScope {
+                val deferred = listOf(
+                    async { firestore.collection("users").get().await().size() },
+                    async { firestore.collection("posts").get().await().size() },
+                    async { firestore.collection("reports").get().await().size() },
+                    async { firestore.collection("admins").get().await().size() }
+                )
+                deferred.awaitAll().let { values ->
+                    QuadStats(values[0], values[1], values[2], values[3])
+                }
+            }
             Result.success(AdminStats(users, posts, reports, admins))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    private data class QuadStats(
+        val users: Int,
+        val posts: Int,
+        val reports: Int,
+        val admins: Int
+    )
 
     suspend fun getAnalytics(): Result<AdminAnalytics> = withContext(Dispatchers.IO) {
         try {
