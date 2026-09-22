@@ -40,7 +40,7 @@ internal fun rankSuggestedUsers(
         .groupBy { it.uid }
         .values
         .asSequence()
-        .mapNotNull { group -> group.maxWithOrNull(comparator) }
+        .mapNotNull { group -> group.minWithOrNull(comparator) }
         .sortedWith(comparator)
         .take(limit)
         .toList()
