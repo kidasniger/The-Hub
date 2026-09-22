@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
@@ -87,6 +88,7 @@ fun FeedScreen(
     onDiscoverUsers: () -> Unit = {},
     onAuthorClick: ((String) -> Unit)? = null,
     onEditPost: (Post) -> Unit = {},
+    messageRepository: MessageRepository? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -253,7 +255,8 @@ fun FeedScreen(
             SharePostBottomSheet(
                 post = post,
                 onDismiss = { postToShare = null },
-                onRepost = { viewModel.repost(it) }
+                onRepost = { viewModel.repost(it) },
+                messageRepository = messageRepository
             )
         }
 
