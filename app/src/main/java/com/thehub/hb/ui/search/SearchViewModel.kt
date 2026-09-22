@@ -61,6 +61,8 @@ class SearchViewModel(
 
     private val _queryDebounceFlow = MutableStateFlow("")
     private val followStatusJobs = mutableMapOf<String, Job>()
+    private var searchJob: Job? = null
+    private var trendingJob: Job? = null
 
     init {
         loadTrending()
@@ -72,6 +74,7 @@ class SearchViewModel(
                     if (text.isNotBlank()) {
                         performSearch(text, _uiState.value.searchMode)
                     } else {
+                        searchJob?.cancel()
                         _uiState.update {
                             it.copy(
                                 users = emptyList(),
@@ -87,7 +90,8 @@ class SearchViewModel(
     }
 
     fun loadTrending() {
-        viewModelScope.launch {
+        trendingJob?.cancel()
+        trendingJob = viewModelScope.launch {
             _uiState.update { it.copy(isTrendingLoading = true, trendingError = null) }
             val result = postRepository.getTrendingData(days = 7)
             result.fold(
@@ -160,7 +164,8 @@ class SearchViewModel(
             }
         }
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null, hasSearched = true) }
 
             when (mode) {

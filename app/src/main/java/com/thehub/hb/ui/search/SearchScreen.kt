@@ -862,7 +862,30 @@ private fun TrendingSection(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                if (uiState.isTrendingLoading && uiState.trendingHashtags.isEmpty()) {
+                if (uiState.trendingError != null && uiState.trendingHashtags.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Impossible de charger les tendances.",
+                            fontSize = 13.sp,
+                            color = HubSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        TextButton(onClick = onRefresh) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Réessayer",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Réessayer")
+                        }
+                    }
+                } else if (uiState.isTrendingLoading && uiState.trendingHashtags.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
