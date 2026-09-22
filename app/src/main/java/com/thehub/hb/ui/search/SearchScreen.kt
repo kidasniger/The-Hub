@@ -189,7 +189,10 @@ fun SearchScreen(
                                 onOpenLikes = onOpenLikes,
                                 onOpenShare = onOpenShare,
                                 onToggleBookmark = { viewModel.toggleBookmark(it) },
-                                onRefresh = { viewModel.loadTrending() }
+                                onRefresh = { viewModel.loadTrending() },
+                                onUserClick = onUserClick,
+                                onToggleFollow = { viewModel.toggleFollow(it) },
+                                onRefreshSuggestions = { viewModel.loadSuggestions() }
                             )
                         }
 
@@ -797,7 +800,10 @@ private fun TrendingSection(
     onOpenLikes: (String) -> Unit,
     onOpenShare: (Post) -> Unit,
     onToggleBookmark: (String) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onUserClick: ((User) -> Unit)?,
+    onToggleFollow: (String) -> Unit,
+    onRefreshSuggestions: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -922,7 +928,122 @@ private fun TrendingSection(
             }
         }
 
-        // Section 2: Header for Publications Tendance
+        // Section 2: Créateurs à découvrir
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(HubSurface)
+                    .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+                    .testTag("suggested_users_container")
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Créateurs à découvrir",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = HubWhite
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "Des profils actifs que vous ne suivez pas encore",
+                            fontSize = 12.sp,
+                            color = HubSecondary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onRefreshSuggestions,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("refresh_suggestions_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Actualiser les suggestions",
+                            tint = HubSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                when {
+                    uiState.isSuggestionsLoading && uiState.suggestedUsers.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(72.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = HubWhite,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    uiState.suggestionsError != null && uiState.suggestedUsers.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Impossible de charger les suggestions.",
+                                fontSize = 13.sp,
+                                color = HubSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            TextButton(onClick = onRefreshSuggestions) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Réessayer",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Réessayer")
+                            }
+                        }
+                    }
+
+                    uiState.suggestedUsers.isEmpty() -> {
+                        Text(
+                            text = "Aucun nouveau créateur à découvrir pour le moment.",
+                            fontSize = 13.sp,
+                            color = HubMuted,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
+                    else -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            uiState.suggestedUsers.take(6).forEach { user ->
+                                UserSearchResultRow(
+                                    user = user,
+                                    isFollowing = uiState.suggestedFollowingIds.contains(user.uid),
+                                    isSelf = false,
+                                    onToggleFollow = { onToggleFollow(user.uid) },
+                                    onClick = { onUserClick?.invoke(user) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section 3: Header for Publications Tendance
         item {
             Column(modifier = Modifier.padding(top = 8.dp)) {
                 Text(
@@ -939,7 +1060,7 @@ private fun TrendingSection(
             }
         }
 
-        // Section 3: Trending Posts List
+        // Section 4: Trending Posts List
         if (uiState.isTrendingLoading && uiState.trendingPosts.isEmpty()) {
             item {
                 Box(

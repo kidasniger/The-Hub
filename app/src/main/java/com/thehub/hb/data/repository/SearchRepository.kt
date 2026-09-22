@@ -8,9 +8,36 @@ import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+
+internal fun rankSuggestedUsers(
+    candidates: List<User>,
+    excludedIds: Set<String>,
+    currentUserId: String?,
+    limit: Int
+): List<User> {
+    if (limit <= 0) return emptyList()
+
+    val comparator = compareByDescending<User> { it.followersCount }
+        .thenByDescending { it.postsCount }
+        .thenByDescending { it.createdAt }
+        .thenBy { it.usernameLower }
+
+    return candidates.asSequence()
+        .filter { it.uid.isNotBlank() }
+        .filter { it.uid != currentUserId }
+        .filter { it.uid !in excludedIds }
+        .groupBy { it.uid }
+        .values
+        .asSequence()
+        .mapNotNull { group -> group.minWithOrNull(comparator) }
+        .sortedWith(comparator)
+        .take(limit)
+        .toList()
+}
 
 class SearchRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -32,6 +59,68 @@ class SearchRepository(
 
     suspend fun clearSearchHistory() {
         dataStoreManager.clearSearchHistory()
+    }
+
+    /**
+     * Build a lightweight discovery list from existing public profiles.
+     * Excludes the current user, followed users and blocked users.
+     */
+    suspend fun getSuggestedUsers(limit: Int = 8): Result<List<User>> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext Result.success(emptyList())
+        val safeLimit = limit.coerceIn(1, 20)
+
+        try {
+            val followingDeferred = async {
+                firestore.collection("users").document(uid)
+                    .collection("following").get().await()
+                    .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+            }
+            val blockedDeferred = async {
+                firestore.collection("users").document(uid)
+                    .collection("blockedUsers").get().await()
+                    .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+            }
+            val popularDeferred = async {
+                firestore.collection("users")
+                    .orderBy("followersCount", Query.Direction.DESCENDING)
+                    .limit(80)
+                    .get().await()
+            }
+            val recentDeferred = async {
+                firestore.collection("users")
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(80)
+                    .get().await()
+            }
+
+            val followingIds = followingDeferred.await()
+            val blockedIds = blockedDeferred.await()
+            val popularSnapshot = popularDeferred.await()
+            val recentSnapshot = recentDeferred.await()
+
+            val candidates = (popularSnapshot.documents + recentSnapshot.documents).mapNotNull { document ->
+                try {
+                    if (document.getBoolean("isDeleted") == true) return@mapNotNull null
+                    User.fromMap(document.data ?: emptyMap()).takeIf { it.uid.isNotBlank() }
+                } catch (e: Exception) {
+                    Log.w("SearchRepository", "Error parsing discovery user " + document.id + ": " + e.message)
+                    null
+                }
+            }
+
+            val excludedIds = followingIds + blockedIds
+            Result.success(
+                rankSuggestedUsers(
+                    candidates = candidates,
+                    excludedIds = excludedIds,
+                    currentUserId = uid,
+                    limit = safeLimit
+                )
+            )
+        } catch (e: Exception) {
+            Log.e("SearchRepository", "Error loading suggested users: " + e.message, e)
+            Result.failure(e)
+        }
     }
 
     /**

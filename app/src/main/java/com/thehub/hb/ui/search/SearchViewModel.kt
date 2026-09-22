@@ -39,7 +39,11 @@ data class SearchUiState(
     val isTrendingLoading: Boolean = false,
     val trendingHashtags: List<TrendingHashtag> = emptyList(),
     val trendingPosts: List<Post> = emptyList(),
-    val trendingError: String? = null
+    val trendingError: String? = null,
+    val suggestedUsers: List<User> = emptyList(),
+    val suggestedFollowingIds: Set<String> = emptySet(),
+    val isSuggestionsLoading: Boolean = false,
+    val suggestionsError: String? = null
 )
 
 @OptIn(FlowPreview::class)
@@ -61,11 +65,14 @@ class SearchViewModel(
 
     private val _queryDebounceFlow = MutableStateFlow("")
     private val followStatusJobs = mutableMapOf<String, Job>()
+    private val suggestedFollowStatusJobs = mutableMapOf<String, Job>()
     private var searchJob: Job? = null
     private var trendingJob: Job? = null
+    private var suggestionsJob: Job? = null
 
     init {
         loadTrending()
+        loadSuggestions()
         viewModelScope.launch {
             _queryDebounceFlow
                 .debounce(300)
@@ -86,6 +93,62 @@ class SearchViewModel(
                         }
                     }
                 }
+        }
+    }
+
+    fun loadSuggestions() {
+        suggestionsJob?.cancel()
+        suggestedFollowStatusJobs.values.forEach { it.cancel() }
+        suggestedFollowStatusJobs.clear()
+
+        suggestionsJob = viewModelScope.launch {
+            _uiState.update { it.copy(isSuggestionsLoading = true, suggestionsError = null) }
+            val result = searchRepository.getSuggestedUsers(limit = 8)
+            result.fold(
+                onSuccess = { users ->
+                    _uiState.update {
+                        it.copy(
+                            suggestedUsers = users,
+                            suggestedFollowingIds = emptySet(),
+                            isSuggestionsLoading = false,
+                            suggestionsError = null
+                        )
+                    }
+                    checkSuggestedFollowStatuses(users)
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSuggestionsLoading = false,
+                            suggestionsError = error.localizedMessage
+                                ?: "Impossible de charger les créateurs à découvrir."
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private fun checkSuggestedFollowStatuses(users: List<User>) {
+        val currentUid = currentUserId ?: return
+        suggestedFollowStatusJobs.values.forEach { it.cancel() }
+        suggestedFollowStatusJobs.clear()
+        _uiState.update { it.copy(suggestedFollowingIds = emptySet()) }
+
+        users.forEach { user ->
+            if (user.uid == currentUid) return@forEach
+            suggestedFollowStatusJobs[user.uid] = viewModelScope.launch {
+                notificationRepository.isFollowing(user.uid).collectLatest { isFollowing ->
+                    _uiState.update { state ->
+                        val updated = if (isFollowing) {
+                            state.suggestedFollowingIds + user.uid
+                        } else {
+                            state.suggestedFollowingIds - user.uid
+                        }
+                        state.copy(suggestedFollowingIds = updated)
+                    }
+                }
+            }
         }
     }
 
@@ -249,20 +312,29 @@ class SearchViewModel(
 
         val isCurrentlyFollowing = _uiState.value.followingIds.contains(targetUid)
         viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(
+                    followingIds = if (isCurrentlyFollowing) {
+                        state.followingIds - targetUid
+                    } else {
+                        state.followingIds + targetUid
+                    },
+                    suggestedFollowingIds = if (isCurrentlyFollowing) {
+                        state.suggestedFollowingIds - targetUid
+                    } else {
+                        state.suggestedFollowingIds + targetUid
+                    },
+                    errorMessage = null
+                )
+            }
+
             val result = if (isCurrentlyFollowing) {
-                _uiState.update { it.copy(followingIds = it.followingIds - targetUid, errorMessage = null) }
                 userRepository.unfollowUser(targetUid)
             } else {
-                _uiState.update { it.copy(followingIds = it.followingIds + targetUid, errorMessage = null) }
                 userRepository.followUser(targetUid)
             }
 
             if (result.isFailure) {
-                val fallback = if (isCurrentlyFollowing) {
-                    _uiState.value.followingIds + targetUid
-                } else {
-                    _uiState.value.followingIds - targetUid
-                }
                 val raw = result.exceptionOrNull()?.localizedMessage.orEmpty()
                 val friendly = when {
                     raw.contains("PERMISSION_DENIED", ignoreCase = true) ||
@@ -271,9 +343,18 @@ class SearchViewModel(
                     raw.isNotBlank() -> raw
                     else -> "Impossible de modifier l'abonnement."
                 }
-                _uiState.update {
-                    it.copy(
-                        followingIds = fallback,
+                _uiState.update { state ->
+                    state.copy(
+                        followingIds = if (isCurrentlyFollowing) {
+                            state.followingIds + targetUid
+                        } else {
+                            state.followingIds - targetUid
+                        },
+                        suggestedFollowingIds = if (isCurrentlyFollowing) {
+                            state.suggestedFollowingIds + targetUid
+                        } else {
+                            state.suggestedFollowingIds - targetUid
+                        },
                         errorMessage = friendly
                     )
                 }

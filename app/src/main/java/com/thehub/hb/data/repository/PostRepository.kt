@@ -1314,34 +1314,38 @@ class PostRepository(
                 .sortedByDescending { it.likesCount }
                 .take(20)
 
-            // Hydrate likes and bookmarks for top posts
+            // Hydrate independent post states in parallel to keep discovery responsive.
             val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
 
-            val hydratedTopPosts = topPosts.map { post ->
-                var isLiked = false
-                if (currentUid != null) {
-                    try {
-                        val likeDoc = firestore.collection("posts").document(post.id)
-                            .collection("likes").document(currentUid).get().await()
-                        isLiked = likeDoc.exists()
-                    } catch (_: Exception) {}
-                }
-
-                var original: Post? = null
-                if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
-                    try {
-                        val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
-                        if (origDoc.exists()) {
-                            original = Post.fromSnapshot(origDoc, currentUid)
+            val hydratedTopPosts = coroutineScope {
+                topPosts.map { post ->
+                    async {
+                        var isLiked = false
+                        if (currentUid != null) {
+                            try {
+                                val likeDoc = firestore.collection("posts").document(post.id)
+                                    .collection("likes").document(currentUid).get().await()
+                                isLiked = likeDoc.exists()
+                            } catch (_: Exception) {}
                         }
-                    } catch (_: Exception) {}
-                }
 
-                post.copy(
-                    isLikedByCurrentUser = isLiked,
-                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
-                    originalPost = original
-                )
+                        var original: Post? = null
+                        if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                            try {
+                                val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                                if (origDoc.exists()) {
+                                    original = Post.fromSnapshot(origDoc, currentUid)
+                                }
+                            } catch (_: Exception) {}
+                        }
+
+                        post.copy(
+                            isLikedByCurrentUser = isLiked,
+                            isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id),
+                            originalPost = original
+                        )
+                    }
+                }.awaitAll()
             }
 
             // Calculate popular hashtags across recent posts
@@ -1387,12 +1391,20 @@ class PostRepository(
 
             val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
 
-            val matchingPosts = snapshot.documents.mapNotNull { doc ->
+            val candidatePosts = snapshot.documents.mapNotNull { doc ->
                 try {
                     val post = Post.fromSnapshot(doc, currentUid)
                     val hasTag = post.hashtags.any { it.equals(cleanTag, ignoreCase = true) }
                     val textMatches = post.text.contains("#$cleanTag", ignoreCase = true)
-                    if (hasTag || textMatches) {
+                    post.takeIf { hasTag || textMatches }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            val matchingPosts = coroutineScope {
+                candidatePosts.map { post ->
+                    async {
                         var isLiked = false
                         if (currentUid != null) {
                             try {
@@ -1405,10 +1417,8 @@ class PostRepository(
                             isLikedByCurrentUser = isLiked,
                             isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
                         )
-                    } else null
-                } catch (_: Exception) {
-                    null
-                }
+                    }
+                }.awaitAll()
             }
 
             Result.success(matchingPosts)
