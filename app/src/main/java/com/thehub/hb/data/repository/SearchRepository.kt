@@ -13,13 +13,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-private data class DiscoverySources(
-    val followingIds: Set<String>,
-    val blockedIds: Set<String>,
-    val popularSnapshot: com.google.firebase.firestore.QuerySnapshot,
-    val recentSnapshot: com.google.firebase.firestore.QuerySnapshot
-)
-
 internal fun rankSuggestedUsers(
     candidates: List<User>,
     excludedIds: Set<String>,
