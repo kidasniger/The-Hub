@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 enum class SearchMode(val title: String) {
     USERS("Utilisateurs"),
@@ -69,6 +71,10 @@ class SearchViewModel(
     private var searchJob: Job? = null
     private var trendingJob: Job? = null
     private var suggestionsJob: Job? = null
+    private val socialActionMutexes = mutableMapOf<String, Mutex>()
+
+    private fun socialActionMutexFor(key: String): Mutex =
+        socialActionMutexes.getOrPut(key) { Mutex() }
 
     init {
         loadTrending()
@@ -310,53 +316,55 @@ class SearchViewModel(
     fun toggleFollow(targetUid: String) {
         if (targetUid == currentUserId) return
 
-        val isCurrentlyFollowing = _uiState.value.followingIds.contains(targetUid)
         viewModelScope.launch {
-            _uiState.update { state ->
-                state.copy(
-                    followingIds = if (isCurrentlyFollowing) {
-                        state.followingIds - targetUid
-                    } else {
-                        state.followingIds + targetUid
-                    },
-                    suggestedFollowingIds = if (isCurrentlyFollowing) {
-                        state.suggestedFollowingIds - targetUid
-                    } else {
-                        state.suggestedFollowingIds + targetUid
-                    },
-                    errorMessage = null
-                )
-            }
-
-            val result = if (isCurrentlyFollowing) {
-                userRepository.unfollowUser(targetUid)
-            } else {
-                userRepository.followUser(targetUid)
-            }
-
-            if (result.isFailure) {
-                val raw = result.exceptionOrNull()?.localizedMessage.orEmpty()
-                val friendly = when {
-                    raw.contains("PERMISSION_DENIED", ignoreCase = true) ||
-                        raw.contains("insufficient permissions", ignoreCase = true) ->
-                        "Impossible de modifier l'abonnement : autorisations Firestore insuffisantes."
-                    raw.isNotBlank() -> raw
-                    else -> "Impossible de modifier l'abonnement."
-                }
+            socialActionMutexFor("follow:$targetUid").withLock {
+                val isCurrentlyFollowing = _uiState.value.followingIds.contains(targetUid)
                 _uiState.update { state ->
                     state.copy(
                         followingIds = if (isCurrentlyFollowing) {
-                            state.followingIds + targetUid
-                        } else {
                             state.followingIds - targetUid
+                        } else {
+                            state.followingIds + targetUid
                         },
                         suggestedFollowingIds = if (isCurrentlyFollowing) {
-                            state.suggestedFollowingIds + targetUid
-                        } else {
                             state.suggestedFollowingIds - targetUid
+                        } else {
+                            state.suggestedFollowingIds + targetUid
                         },
-                        errorMessage = friendly
+                        errorMessage = null
                     )
+                }
+
+                val result = if (isCurrentlyFollowing) {
+                    userRepository.unfollowUser(targetUid)
+                } else {
+                    userRepository.followUser(targetUid)
+                }
+
+                if (result.isFailure) {
+                    val raw = result.exceptionOrNull()?.localizedMessage.orEmpty()
+                    val friendly = when {
+                        raw.contains("PERMISSION_DENIED", ignoreCase = true) ||
+                            raw.contains("insufficient permissions", ignoreCase = true) ->
+                            "Impossible de modifier l'abonnement : autorisations Firestore insuffisantes."
+                        raw.isNotBlank() -> raw
+                        else -> "Impossible de modifier l'abonnement."
+                    }
+                    _uiState.update { state ->
+                        state.copy(
+                            followingIds = if (isCurrentlyFollowing) {
+                                state.followingIds + targetUid
+                            } else {
+                                state.followingIds - targetUid
+                            },
+                            suggestedFollowingIds = if (isCurrentlyFollowing) {
+                                state.suggestedFollowingIds + targetUid
+                            } else {
+                                state.suggestedFollowingIds - targetUid
+                            },
+                            errorMessage = friendly
+                        )
+                    }
                 }
             }
         }
@@ -364,36 +372,39 @@ class SearchViewModel(
 
     fun toggleLike(postId: String) {
         viewModelScope.launch {
-            // Optimistic update for both search results and trending posts
-            _uiState.update { state ->
-                val updatePost: (Post) -> Post = { p ->
-                    if (p.id == postId) {
-                        val newLiked = !p.isLikedByCurrentUser
-                        val newCount = if (newLiked) p.likesCount + 1 else (p.likesCount - 1).coerceAtLeast(0)
-                        p.copy(isLikedByCurrentUser = newLiked, likesCount = newCount)
-                    } else p
-                }
-                state.copy(
-                    posts = state.posts.map(updatePost),
-                    trendingPosts = state.trendingPosts.map(updatePost)
-                )
-            }
+            socialActionMutexFor("like:$postId").withLock {
+                val beforeLiked = _uiState.value.posts.firstOrNull { it.id == postId }?.isLikedByCurrentUser
+                    ?: _uiState.value.trendingPosts.firstOrNull { it.id == postId }?.isLikedByCurrentUser
+                    ?: return@withLock
 
-            val result = postRepository.toggleLike(postId)
-            if (result.isFailure) {
-                // Revert on failure
                 _uiState.update { state ->
-                    val revertPost: (Post) -> Post = { p ->
+                    val updatePost: (Post) -> Post = { p ->
                         if (p.id == postId) {
-                            val originalLiked = !p.isLikedByCurrentUser
-                            val originalCount = if (originalLiked) p.likesCount + 1 else (p.likesCount - 1).coerceAtLeast(0)
-                            p.copy(isLikedByCurrentUser = originalLiked, likesCount = originalCount)
+                            val newLiked = !beforeLiked
+                            val newCount = if (newLiked) p.likesCount + 1 else (p.likesCount - 1).coerceAtLeast(0)
+                            p.copy(isLikedByCurrentUser = newLiked, likesCount = newCount)
                         } else p
                     }
                     state.copy(
-                        posts = state.posts.map(revertPost),
-                        trendingPosts = state.trendingPosts.map(revertPost)
+                        posts = state.posts.map(updatePost),
+                        trendingPosts = state.trendingPosts.map(updatePost)
                     )
+                }
+
+                val result = postRepository.toggleLike(postId)
+                if (result.isFailure) {
+                    _uiState.update { state ->
+                        val revertPost: (Post) -> Post = { p ->
+                            if (p.id == postId) {
+                                val originalCount = if (beforeLiked) p.likesCount + 1 else (p.likesCount - 1).coerceAtLeast(0)
+                                p.copy(isLikedByCurrentUser = beforeLiked, likesCount = originalCount)
+                            } else p
+                        }
+                        state.copy(
+                            posts = state.posts.map(revertPost),
+                            trendingPosts = state.trendingPosts.map(revertPost)
+                        )
+                    }
                 }
             }
         }
@@ -401,32 +412,36 @@ class SearchViewModel(
 
     fun toggleBookmark(postId: String) {
         viewModelScope.launch {
-            // Optimistic bookmark update
-            _uiState.update { state ->
-                val updatePost: (Post) -> Post = { p ->
-                    if (p.id == postId) {
-                        p.copy(isBookmarkedByCurrentUser = !p.isBookmarkedByCurrentUser)
-                    } else p
-                }
-                state.copy(
-                    posts = state.posts.map(updatePost),
-                    trendingPosts = state.trendingPosts.map(updatePost)
-                )
-            }
+            socialActionMutexFor("bookmark:$postId").withLock {
+                val beforeBookmarked = _uiState.value.posts.firstOrNull { it.id == postId }?.isBookmarkedByCurrentUser
+                    ?: _uiState.value.trendingPosts.firstOrNull { it.id == postId }?.isBookmarkedByCurrentUser
+                    ?: return@withLock
 
-            val result = postRepository.toggleBookmark(postId)
-            if (result.isFailure) {
-                // Revert
                 _uiState.update { state ->
-                    val revertPost: (Post) -> Post = { p ->
+                    val updatePost: (Post) -> Post = { p ->
                         if (p.id == postId) {
-                            p.copy(isBookmarkedByCurrentUser = !p.isBookmarkedByCurrentUser)
+                            p.copy(isBookmarkedByCurrentUser = !beforeBookmarked)
                         } else p
                     }
                     state.copy(
-                        posts = state.posts.map(revertPost),
-                        trendingPosts = state.trendingPosts.map(revertPost)
+                        posts = state.posts.map(updatePost),
+                        trendingPosts = state.trendingPosts.map(updatePost)
                     )
+                }
+
+                val result = postRepository.toggleBookmark(postId)
+                if (result.isFailure) {
+                    _uiState.update { state ->
+                        val revertPost: (Post) -> Post = { p ->
+                            if (p.id == postId) {
+                                p.copy(isBookmarkedByCurrentUser = beforeBookmarked)
+                            } else p
+                        }
+                        state.copy(
+                            posts = state.posts.map(revertPost),
+                            trendingPosts = state.trendingPosts.map(revertPost)
+                        )
+                    }
                 }
             }
         }
