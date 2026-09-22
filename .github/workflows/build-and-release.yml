@@ -1,4 +1,4 @@
-name: Build, Tag and Release
+name: Build, Tag and Release APK
 
 on:
   push:
@@ -24,7 +24,7 @@ concurrency:
 jobs:
   build-and-release:
     if: github.actor != 'github-actions[bot]'
-    name: Build, Test & Release Android APK & AAB
+    name: Build, Test & Release Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -293,12 +293,6 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-configuration-cache
 
-      - name: Build Release AAB (Android App Bundle)
-        env:
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleRelease --no-configuration-cache
 
       - name: Verify Artifacts, Signing & Integrity
         run: |
@@ -306,10 +300,7 @@ jobs:
           mkdir -p release-artifacts
 
           APK_FILE="app/build/outputs/apk/release/app-release.apk"
-          AAB_FILE="app/build/outputs/bundle/release/app-release.aab"
-
           test -s "$APK_FILE" || { echo "ERROR: APK missing or empty"; exit 1; }
-          test -s "$AAB_FILE" || { echo "ERROR: AAB missing or empty"; exit 1; }
 
           CONFIGURED_NAME="$(grep "^versionName=" gradle/version.properties | cut -d= -f2)"
           CONFIGURED_CODE="$(grep "^versionCode=" gradle/version.properties | cut -d= -f2)"
@@ -346,14 +337,8 @@ jobs:
           fi
           echo "APK signing certificate fingerprint verified: $ACTUAL_CERT_SHA1_NORMALIZED"
 
-          jarsigner -verify -verbose -certs "$AAB_FILE" >/tmp/aab-signature.txt 2>&1 || {
-            cat /tmp/aab-signature.txt
-            echo "ERROR: AAB signature verification failed"
-            exit 1
-          }
 
           cp "$APK_FILE" "release-artifacts/TheHub-${TAG}.apk"
-          cp "$AAB_FILE" "release-artifacts/TheHub-${TAG}.aab"
           sha256sum release-artifacts/*
 
       - name: Create Git Tag
@@ -374,7 +359,6 @@ jobs:
           name: "The Hub ${{ env.TAG }}"
           files: |
             release-artifacts/*.apk
-            release-artifacts/*.aab
           generate_release_notes: true
           draft: false
           prerelease: false
@@ -390,7 +374,6 @@ jobs:
           test "$RELEASE_TAG" = "$TAG"
           test "$RELEASE_NAME" = "The Hub $TAG"
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk"
-          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.aab"
           echo "GitHub Release verified: $RELEASE_NAME"
       - name: Send App Update Notifications
         env:
