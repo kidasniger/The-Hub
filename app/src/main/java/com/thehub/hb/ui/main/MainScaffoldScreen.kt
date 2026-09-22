@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
+import com.thehub.hb.data.repository.SystemControls
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
@@ -139,6 +140,8 @@ fun MainScaffoldScreen(
     onNavigateToChat: (String) -> Unit,
     onNavigateToBookmarks: () -> Unit = {},
     onSignOut: () -> Unit,
+    systemControls: SystemControls = SystemControls(),
+    bypassMaintenance: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -152,6 +155,15 @@ fun MainScaffoldScreen(
     var postToShare by remember { mutableStateOf<Post?>(null) }
     var lastBackPressedTime by remember { mutableLongStateOf(0L) }
     val unreadNotificationsCount by notificationsViewModel.unreadCount.collectAsState()
+    val postsEnabled = systemControls.postsEnabled()
+    val messagingEnabled = systemControls.messagingEnabled()
+    val maintenanceActive = systemControls.emergency.maintenance && !bypassMaintenance
+
+
+    if (maintenanceActive) {
+        SystemMaintenanceNotice(message = systemControls.emergency.message)
+        return
+    }
 
     // Back button handling: pop tab history first, or exit if already on FEED
     BackHandler(enabled = true) {
@@ -184,9 +196,18 @@ fun MainScaffoldScreen(
                 selectedTab = MainTab.entries[selectedTab],
                 unreadNotificationsCount = unreadNotificationsCount,
                 onTabSelected = { tab ->
-                    if (selectedTab != tab.ordinal) {
-                        tabHistory.add(selectedTab)
-                        selectedTab = tab.ordinal
+                    when {
+                        tab == MainTab.CREATE && !postsEnabled -> {
+                            Toast.makeText(
+                                context,
+                                "La publication est temporairement désactivée.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        selectedTab != tab.ordinal -> {
+                            tabHistory.add(selectedTab)
+                            selectedTab = tab.ordinal
+                        }
                     }
                 }
             )
@@ -207,11 +228,29 @@ fun MainScaffoldScreen(
                         onOpenComments = onOpenComments,
                         onOpenLikes = onOpenLikes,
                         onCreatePost = {
-                            createPostViewModel.reset()
-                            tabHistory.add(selectedTab)
-                            selectedTab = MainTab.CREATE.ordinal
+                            if (postsEnabled) {
+                                createPostViewModel.reset()
+                                tabHistory.add(selectedTab)
+                                selectedTab = MainTab.CREATE.ordinal
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "La publication est temporairement désactivée.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         },
-                        onOpenMessenger = onOpenMessenger,
+                        onOpenMessenger = {
+                            if (messagingEnabled) {
+                                onOpenMessenger()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "La messagerie est temporairement désactivée.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
                         onOpenFriends = onOpenFriends,
                         onDiscoverUsers = {
                             tabHistory.add(selectedTab)
@@ -305,6 +344,39 @@ fun MainScaffoldScreen(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SystemMaintenanceNotice(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HubBlack)
+            .statusBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 28.dp)
+        ) {
+            Text(
+                text = "The Hub est temporairement indisponible",
+                color = HubWhite,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = message.ifBlank {
+                    "Une maintenance est en cours. Revenez dans quelques instants."
+                },
+                color = HubMuted,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
