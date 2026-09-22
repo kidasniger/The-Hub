@@ -86,7 +86,7 @@ fun HubNavGraph(
     val currentRoute = currentBackStackEntry?.destination?.route
     val authRoutingScope = rememberCoroutineScope()
     val systemControls by appContainer.systemControlRepository.controls.collectAsState()
-    var isCurrentUserAdmin by remember { mutableStateOf(false) }
+    val isCurrentUserAdmin = remember { mutableStateOf(false) }
 
     fun routeAfterAuthentication() {
         authRoutingScope.launch {
@@ -118,10 +118,10 @@ fun HubNavGraph(
     LaunchedEffect(currentUser?.uid) {
         if (currentUser?.uid != null) {
             appContainer.systemControlRepository.refresh()
-            isCurrentUserAdmin = appContainer.adminRepository.isCurrentUserAdmin()
+            isCurrentUserAdmin.value = appContainer.adminRepository.isCurrentUserAdmin()
         } else {
             appContainer.systemControlRepository.reset()
-            isCurrentUserAdmin = false
+            isCurrentUserAdmin.value = false
         }
     }
     // Global in-app update bottom sheet
@@ -318,7 +318,7 @@ fun HubNavGraph(
                 profileViewModel = profileViewModel,
                 authRepository = authRepository,
                 systemControls = systemControls,
-                bypassMaintenance = isCurrentUserAdmin,
+                bypassMaintenance = isCurrentUserAdmin.value,
                 onPostClick = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
                 },

@@ -114,4 +114,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val updateDownloadManager: AppUpdateDownloadManager by lazy {
         AppUpdateDownloadManager(context)
     }
+
+    override val systemControlRepository: SystemControlRepository by lazy {
+        SystemControlRepository(
+            firestore = firestoreInstance,
+            auth = authInstance
+        )
+    }
 }
