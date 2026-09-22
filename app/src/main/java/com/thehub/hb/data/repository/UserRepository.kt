@@ -21,6 +21,7 @@ import com.thehub.hb.data.remote.ImgbbService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -96,35 +97,46 @@ class UserRepository(
             }
             val baseUser = User.fromMap(doc.data ?: emptyMap())
 
-            // Reconcile actual counts
-            val actualPosts = try {
-                firestore.collection("posts")
-                    .whereEqualTo("authorId", uid)
-                    .count()
-                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                    .await().count.toInt()
-            } catch (_: Exception) {
-                baseUser.postsCount
-            }
-
-            val actualFollowers = try {
-                firestore.collection("users").document(uid)
-                    .collection("followers")
-                    .count()
-                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                    .await().count.toInt()
-            } catch (_: Exception) {
-                baseUser.followersCount
-            }
-
-            val actualFollowing = try {
-                firestore.collection("users").document(uid)
-                    .collection("following")
-                    .count()
-                    .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                    .await().count.toInt()
-            } catch (_: Exception) {
-                baseUser.followingCount
+            // Reconcile counts in parallel: the three aggregate reads are independent.
+            val (actualPosts, actualFollowers, actualFollowing) = coroutineScope {
+                val postsDeferred = async {
+                    try {
+                        firestore.collection("posts")
+                            .whereEqualTo("authorId", uid)
+                            .count()
+                            .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                            .await().count.toInt()
+                    } catch (_: Exception) {
+                        baseUser.postsCount
+                    }
+                }
+                val followersDeferred = async {
+                    try {
+                        firestore.collection("users").document(uid)
+                            .collection("followers")
+                            .count()
+                            .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                            .await().count.toInt()
+                    } catch (_: Exception) {
+                        baseUser.followersCount
+                    }
+                }
+                val followingDeferred = async {
+                    try {
+                        firestore.collection("users").document(uid)
+                            .collection("following")
+                            .count()
+                            .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                            .await().count.toInt()
+                    } catch (_: Exception) {
+                        baseUser.followingCount
+                    }
+                }
+                Triple(
+                    postsDeferred.await(),
+                    followersDeferred.await(),
+                    followingDeferred.await()
+                )
             }
 
             val reconciled = baseUser.copy(
