@@ -92,7 +92,7 @@ fun TermsScreen(
         ) {
             TermSection(
                 title = "1. Introduction",
-                content = "The Hub est un réseau social minimaliste axé sur le partage texte + image uniquement. Aucun tracking publicitaire, aucun flux infini."
+                content = "The Hub est un réseau social axé sur le partage de texte, d’images et de liens vidéo. Aucun tracking publicitaire, aucun flux infini."
             )
 
             TermSection(
@@ -102,7 +102,7 @@ fun TermsScreen(
 
             TermSection(
                 title = "3. Contenu et respect",
-                content = "Texte et image uniquement. Pas de vidéo, pas d'audio. Nous encourageons le silence et la lenteur. Tout contenu haineux ou illégal est immédiatement modéré."
+                content = "Texte, images et liens vidéo peuvent être partagés. L’audio autonome n’est pas pris en charge. Tout contenu haineux ou illégal est immédiatement modéré."
             )
 
             TermSection(

@@ -363,6 +363,20 @@ class ProfileViewModel(
         }
     }
 
+    fun repost(post: Post, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val result = postRepository.repost(post.id)
+            result.onSuccess {
+                onSuccess()
+                refresh()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(errorMessage = error.message ?: "Impossible de repartager cette publication")
+                }
+            }
+        }
+    }
+
     fun toggleLike(postId: String) {
         val currentPosts = _uiState.value.posts
         val updatedPosts = currentPosts.map { post ->
