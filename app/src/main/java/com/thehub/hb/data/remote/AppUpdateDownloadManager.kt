@@ -14,6 +14,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.util.Log
+import java.security.MessageDigest
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -411,7 +412,26 @@ class AppUpdateDownloadManager(
 
         val actualVersion = packageInfo.versionName?.trim().orEmpty()
         return packageInfo.packageName == context.packageName &&
-            normalizeVersion(actualVersion) == normalizeVersion(expectedVersion)
+            normalizeVersion(actualVersion) == normalizeVersion(expectedVersion) &&
+            hasExpectedProductionCertificate(packageInfo)
+    }
+
+    private fun hasExpectedProductionCertificate(
+        packageInfo: android.content.pm.PackageInfo
+    ): Boolean {
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.signingInfo?.apkContentsSigners?.toList().orEmpty()
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.signatures?.toList().orEmpty()
+        }
+        if (signatures.isEmpty()) return false
+
+        return signatures.any { signature ->
+            val digest = MessageDigest.getInstance("SHA-1").digest(signature.toByteArray())
+            digest.joinToString(":") { byte -> "%02X".format(java.util.Locale.ROOT, byte) } ==
+                "F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
+        }
     }
 
     private fun normalizeVersion(raw: String): String {
