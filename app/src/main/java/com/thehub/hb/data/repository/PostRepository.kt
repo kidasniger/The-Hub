@@ -27,6 +27,12 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
 
+data class FeedPage(
+    val posts: List<Post>,
+    val lastVisible: DocumentSnapshot?,
+    val hasMore: Boolean
+)
+
 class PostRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -120,11 +126,14 @@ class PostRepository(
     suspend fun getFeed(
         pageSize: Long = 20,
         lastVisible: DocumentSnapshot? = null
-    ): Result<Pair<List<Post>, DocumentSnapshot?>> = withContext(Dispatchers.IO) {
+    ): Result<FeedPage> = withContext(Dispatchers.IO) {
         try {
+            val safePageSize = pageSize.coerceAtLeast(1)
+            val fetchLimit = (safePageSize * 4).coerceAtMost(100).coerceAtLeast(safePageSize)
+
             var query = firestore.collection("posts")
                 .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(pageSize)
+                .limit(fetchLimit)
 
             if (lastVisible != null) {
                 query = query.startAfter(lastVisible)
@@ -132,35 +141,46 @@ class PostRepository(
 
             val snapshot = query.get().await()
             val currentUid = currentUserId
-
-            val posts = snapshot.documents.map { doc ->
-                val post = Post.fromSnapshot(doc, currentUid)
-                post
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
             }
 
+            val visibleDocuments = snapshot.documents.filter { document ->
+                val authorId = document.getString("authorId").orEmpty()
+                authorId.isBlank() || authorId !in blockedIds
+            }
+            val pageDocuments = visibleDocuments.take(safePageSize.toInt())
+            val posts = pageDocuments.map { Post.fromSnapshot(it, currentUid) }
             val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
 
-            // Hydrate only the posts from this page. Run independent Firestore reads in parallel
-            // so loading the next page does not scale linearly with the number of posts.
             val hydratedPosts = coroutineScope {
                 posts.map { post ->
                     async {
                         var isLiked = false
                         if (currentUid != null) {
                             try {
-                                val likeDoc = firestore.collection("posts").document(post.id)
-                                    .collection("likes").document(currentUid)
-                                    .get().await()
-                                isLiked = likeDoc.exists()
+                                isLiked = firestore.collection("posts").document(post.id)
+                                    .collection("likes").document(currentUid).get().await().exists()
                             } catch (_: Exception) {}
                         }
 
                         var original: Post? = null
-                        if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                        if (post.isRepost && !post.originalPostId.isNullOrBlank() &&
+                            post.originalPostId !in blockedIds
+                        ) {
                             try {
-                                val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
-                                if (origDoc.exists()) {
-                                    original = Post.fromSnapshot(origDoc, currentUid)
+                                val originalDoc = firestore.collection("posts")
+                                    .document(post.originalPostId).get().await()
+                                if (originalDoc.exists()) {
+                                    original = Post.fromSnapshot(originalDoc, currentUid)
                                 }
                             } catch (_: Exception) {}
                         }
@@ -174,8 +194,22 @@ class PostRepository(
                 }.awaitAll()
             }
 
-            val newLastVisible = snapshot.documents.lastOrNull()
-            Result.success(Pair(hydratedPosts, newLastVisible))
+            val newLastVisible = when {
+                pageDocuments.isNotEmpty() -> pageDocuments.last()
+                snapshot.documents.isNotEmpty() -> snapshot.documents.last()
+                else -> null
+            }
+            val hasMore =
+                snapshot.documents.size == fetchLimit ||
+                    visibleDocuments.size > pageDocuments.size
+
+            Result.success(
+                FeedPage(
+                    posts = hydratedPosts,
+                    lastVisible = newLastVisible,
+                    hasMore = hasMore
+                )
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -195,7 +229,7 @@ class PostRepository(
                 Log.w("PostRepository", "observeFeed error: ${error.message}")
                 launch(Dispatchers.IO) {
                     val result = getFeed(pageSize = limit, lastVisible = null)
-                    result.onSuccess { (posts, _) -> trySend(posts) }
+                    result.onSuccess { page -> trySend(page.posts) }
                 }
                 return@addSnapshotListener
             }
@@ -205,7 +239,14 @@ class PostRepository(
             launch(Dispatchers.IO) {
                 val uid = currentUserId
                 try {
-                    val basePosts = docs.map { doc -> Post.fromSnapshot(doc, uid) }
+                    val blockedIds = getBlockedUserIds(uid)
+                    val basePosts = docs
+                        .filter { doc ->
+                            val authorId = doc.getString("authorId").orEmpty()
+                            authorId.isBlank() || authorId !in blockedIds
+                        }
+                        .map { doc -> Post.fromSnapshot(doc, uid) }
+
                     // Immediate emission for instantaneous UI responsiveness
                     trySend(basePosts)
 
@@ -268,6 +309,13 @@ class PostRepository(
 
                 launch(Dispatchers.IO) {
                     try {
+                        val blockedIds = getBlockedUserIds(currentUid)
+                        val authorId = snapshot.getString("authorId").orEmpty()
+                        if (authorId.isNotBlank() && authorId in blockedIds) {
+                            trySend(null)
+                            return@launch
+                        }
+
                         val post = Post.fromSnapshot(snapshot, currentUid)
                         var isLiked = false
                         var isBookmarked = false
@@ -313,32 +361,51 @@ class PostRepository(
      */
     suspend fun getPost(postId: String): Result<Post> = withContext(Dispatchers.IO) {
         try {
+            val currentUid = currentUserId
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
+
             val doc = firestore.collection("posts").document(postId).get().await()
             if (!doc.exists()) {
                 return@withContext Result.failure(Exception("Publication introuvable"))
             }
-            val currentUid = currentUserId
-            val post = Post.fromSnapshot(doc, currentUid)
 
+            val authorId = doc.getString("authorId").orEmpty()
+            if (authorId.isNotBlank() && authorId in blockedIds) {
+                return@withContext Result.failure(Exception("Publication indisponible"))
+            }
+
+            val post = Post.fromSnapshot(doc, currentUid)
             var isLiked = false
             var isBookmarked = false
+
             if (currentUid != null) {
                 try {
-                    val likeDoc = firestore.collection("posts").document(postId)
-                        .collection("likes").document(currentUid).get().await()
-                    isLiked = likeDoc.exists()
+                    isLiked = firestore.collection("posts").document(postId)
+                        .collection("likes").document(currentUid).get().await().exists()
                 } catch (_: Exception) {}
 
-                val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
-                isBookmarked = bookmarkedIds.contains(postId)
+                isBookmarked = getEffectiveBookmarkedIds(currentUid).contains(postId)
             }
 
             var original: Post? = null
-            if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+            if (post.isRepost && !post.originalPostId.isNullOrBlank() &&
+                post.originalPostId !in blockedIds
+            ) {
                 try {
-                    val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
-                    if (origDoc.exists()) {
-                        original = Post.fromSnapshot(origDoc, currentUid)
+                    val originalDoc = firestore.collection("posts")
+                        .document(post.originalPostId).get().await()
+                    if (originalDoc.exists()) {
+                        original = Post.fromSnapshot(originalDoc, currentUid)
                     }
                 } catch (_: Exception) {}
             }
@@ -1303,7 +1370,22 @@ class PostRepository(
                 .get()
                 .await()
 
-            val allRecentPosts = snapshot.documents.map { Post.fromSnapshot(it, currentUid) }
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
+
+            val allRecentPosts = snapshot.documents
+                .map { Post.fromSnapshot(it, currentUid) }
+                .filter { it.authorId.isBlank() || it.authorId !in blockedIds }
+
             // Filter within 7 days, fallback to all recent if none in window
             val inWindowPosts = allRecentPosts.filter {
                 it.createdAt.toDate().time >= sevenDaysAgoMillis
@@ -1390,10 +1472,24 @@ class PostRepository(
                 .await()
 
             val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
 
             val candidatePosts = snapshot.documents.mapNotNull { doc ->
                 try {
                     val post = Post.fromSnapshot(doc, currentUid)
+                    if (post.authorId.isNotBlank() && post.authorId in blockedIds) {
+                        return@mapNotNull null
+                    }
                     val hasTag = post.hashtags.any { it.equals(cleanTag, ignoreCase = true) }
                     val textMatches = post.text.contains("#$cleanTag", ignoreCase = true)
                     post.takeIf { hasTag || textMatches }
