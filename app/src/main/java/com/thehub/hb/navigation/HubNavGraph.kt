@@ -121,6 +121,18 @@ fun HubNavGraph(
         }
     }
 
+    LaunchedEffect(pendingNotificationDeepLink, currentUser?.uid) {
+        val rawDeepLink = pendingNotificationDeepLink
+        if (!rawDeepLink.isNullOrBlank() && currentUser?.uid != null) {
+            HubDeepLink.toRoute(rawDeepLink)?.let { route ->
+                navController.navigate(route) {
+                    launchSingleTop = true
+                }
+            }
+            onNotificationDeepLinkConsumed()
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route
@@ -328,8 +340,10 @@ fun HubNavGraph(
                 onNavigateToFollowing = { userId ->
                     navController.navigate(Screen.FollowingList.createRoute(userId))
                 },
-                onNavigateToChat = {
-                    navController.navigate(Screen.Messenger.route)
+                onNavigateToChat = { conversationId ->
+                    navController.navigate(Screen.Chat.createRoute(conversationId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToBookmarks = {
                     navController.navigate(Screen.Bookmarks.route)

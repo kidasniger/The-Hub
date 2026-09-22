@@ -456,7 +456,7 @@ fun ProfileScreen(
         SharePostBottomSheet(
             post = post,
             onDismiss = { postToShare = null },
-            onRepost = { }
+            onRepost = { p -> viewModel.repost(p) }
         )
     }
 }

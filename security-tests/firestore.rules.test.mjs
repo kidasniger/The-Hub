@@ -423,6 +423,7 @@ async function testLikeAndBookmarkSecurity() {
 
   const bookmarkRef = doc(charlieDb, "users/charlie/bookmarks/post-1");
   await assertSucceeds(setDoc(bookmarkRef, { savedAt: new Date() }));
+  await assertFails(getDoc(doc(bobDb, "users/charlie/bookmarks/post-1")));
   await assertFails(setDoc(
     doc(charlieDb, "users/charlie/bookmarks/does-not-exist"),
     { savedAt: new Date() }
@@ -1008,6 +1009,7 @@ async function testSensitiveCollectionWrites() {
   // bookmarks: owner create/update/delete; target and extra fields are checked.
   const bookmarkRef = doc(eveDb, "users/eve/bookmarks/eve-security-post");
   await assertSucceeds(setDoc(bookmarkRef, { savedAt: new Date() }));
+  await assertFails(getDoc(doc(bobDb, "users/eve/bookmarks/eve-security-post")));
   await assertFails(setDoc(
     doc(bobDb, "users/eve/bookmarks/eve-security-post"),
     { savedAt: new Date() }

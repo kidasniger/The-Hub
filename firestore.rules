@@ -532,7 +532,7 @@ service cloud.firestore {
       }
 
       match /bookmarks/{bookmarkId} {
-        allow read: if isAuthenticated();
+        allow read: if isUser(userId);
 
         allow create: if isUser(userId)
           && exists(/databases/$(database)/documents/posts/$(bookmarkId))
