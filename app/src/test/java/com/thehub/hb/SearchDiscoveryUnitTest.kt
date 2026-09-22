@@ -42,7 +42,7 @@ class SearchDiscoveryUnitTest {
             limit = 3
         )
 
-        assertEquals(listOf("recent", "active", "popular"), result.map { it.uid })
+        assertEquals(listOf("popular", "recent", "active"), result.map { it.uid })
         assertFalse(result.any { it.uid == "self" })
         assertFalse(result.any { it.uid == "followed" })
         assertFalse(result.any { it.uid == "blocked" })
