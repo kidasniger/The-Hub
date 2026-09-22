@@ -208,9 +208,10 @@ fun SearchScreen(
                 }
 
                 uiState.searchMode == SearchMode.USERS -> {
-                    if (uiState.errorMessage != null) {
+                    val searchError = uiState.errorMessage
+                    if (searchError != null) {
                         SearchErrorState(
-                            message = uiState.errorMessage,
+                            message = searchError,
                             onRetry = { viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = false) }
                         )
                     } else if (uiState.users.isEmpty() && uiState.hasSearched) {
@@ -246,9 +247,10 @@ fun SearchScreen(
                 }
 
                 uiState.searchMode == SearchMode.POSTS -> {
-                    if (uiState.errorMessage != null) {
+                    val searchError = uiState.errorMessage
+                    if (searchError != null) {
                         SearchErrorState(
-                            message = uiState.errorMessage,
+                            message = searchError,
                             onRetry = { viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = false) }
                         )
                     } else if (uiState.posts.isEmpty() && uiState.hasSearched) {
