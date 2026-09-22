@@ -74,6 +74,7 @@ import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.SystemControls
 import com.thehub.hb.data.repository.AuthRepository
+import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.UserAvatar
@@ -142,6 +143,7 @@ fun MainScaffoldScreen(
     onSignOut: () -> Unit,
     systemControls: SystemControls = SystemControls(),
     bypassMaintenance: Boolean = false,
+    messageRepository: MessageRepository? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -261,7 +263,8 @@ fun MainScaffoldScreen(
                             createPostViewModel.initForEdit(post.id, post.text, post.videoUrl)
                             tabHistory.add(selectedTab)
                             selectedTab = MainTab.CREATE.ordinal
-                        }
+                        },
+                        messageRepository = messageRepository
                     )
                 }
 
