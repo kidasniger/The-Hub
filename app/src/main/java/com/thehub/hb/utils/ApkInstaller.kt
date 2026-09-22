@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import com.thehub.hb.data.remote.UpdateSecurity
 import androidx.core.content.FileProvider
 import java.io.File
 
@@ -42,6 +43,11 @@ object ApkInstaller {
      * Uses [FileProvider] to grant secure read URI permission to the system installer.
      */
     fun installApk(context: Context, apkFile: File): Boolean {
+        if (!isAllowedApkFile(context, apkFile)) {
+            Log.e(TAG, "Cannot install APK outside the managed updater directory.")
+            return false
+        }
+
         if (!apkFile.exists() || apkFile.length() == 0L) {
             Log.e(TAG, "Cannot install APK: file does not exist or is empty at ${apkFile.absolutePath}")
             return false
@@ -63,5 +69,16 @@ object ApkInstaller {
             Log.e(TAG, "Error launching APK install intent", e)
             return false
         }
+    }
+
+    private fun isAllowedApkFile(context: Context, apkFile: File): Boolean {
+        if (!UpdateSecurity.isSafeApkFileName(apkFile.name)) return false
+
+        val downloadDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+            ?: return false
+        val root = runCatching { downloadDir.canonicalFile }.getOrNull() ?: return false
+        val candidate = runCatching { apkFile.canonicalFile }.getOrNull() ?: return false
+        val rootPath = root.path.trimEnd(File.separatorChar) + File.separator
+        return candidate.path.startsWith(rootPath)
     }
 }

@@ -71,8 +71,11 @@ class GitHubUpdateService(
                     val contentType = asset.optString("content_type", "")
                     val downloadUrl = asset.optString("browser_download_url", "")
 
-                    if (name.endsWith(".apk", ignoreCase = true) ||
-                        contentType == "application/vnd.android.package-archive"
+                    if (
+                        (name.endsWith(".apk", ignoreCase = true) ||
+                            contentType == "application/vnd.android.package-archive") &&
+                        UpdateSecurity.isTrustedApkUrl(downloadUrl) &&
+                        UpdateSecurity.isSafeApkFileName(name, tagName)
                     ) {
                         apkDownloadUrl = downloadUrl
                         apkFileName = name
@@ -84,7 +87,14 @@ class GitHubUpdateService(
 
             val isNewer = isVersionGreater(remoteVersion = tagName, currentVersion = currentVersion)
 
-            if (isNewer && apkDownloadUrl.isNotBlank()) {
+            if (
+                isNewer &&
+                UpdateSecurity.isValidUpdate(
+                    apkUrl = apkDownloadUrl,
+                    fileName = apkFileName,
+                    versionName = tagName
+                )
+            ) {
                 val updateInfo = AppUpdateInfo(
                     latestVersion = tagName,
                     currentVersion = currentVersion,

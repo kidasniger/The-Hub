@@ -6,6 +6,7 @@ import com.thehub.hb.data.model.UpdateCheckResult
 import com.thehub.hb.data.remote.GitHubUpdateService
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import com.thehub.hb.data.remote.UpdateSecurity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,11 +38,15 @@ class UpdateRepository(
             val versionName = policy.getString("versionName").orEmpty()
             val force = policy.getBoolean("forceUpdate") == true
             val currentCode = BuildConfig.VERSION_CODE.toLong()
-            val mustUpdate = apkUrl.isNotBlank() && (
-                currentCode < minimumCode ||
-                    (force && targetCode > currentCode) ||
-                    (!versionName.isNullOrBlank() && targetCode > currentCode)
+            val fileName = if (versionName.isNotBlank()) "TheHub-$versionName.apk" else ""
+            val isTrustedPolicyUpdate = UpdateSecurity.isValidUpdate(
+                apkUrl = apkUrl,
+                fileName = fileName,
+                versionName = versionName
             )
+            val mustUpdate = isTrustedPolicyUpdate &&
+                targetCode > currentCode &&
+                (currentCode < minimumCode || force || versionName.isNotBlank())
             if (mustUpdate && versionName.isNotBlank()) {
                 UpdateCheckResult.UpdateAvailable(
                     AppUpdateInfo(
@@ -50,7 +55,7 @@ class UpdateRepository(
                         releaseTitle = "Mise à jour The Hub",
                         releaseNotes = releaseNotes.ifBlank { "Une nouvelle version est disponible." },
                         apkDownloadUrl = apkUrl,
-                        apkFileName = "TheHub-$versionName.apk",
+                        apkFileName = fileName,
                         apkSizeInBytes = 0L,
                         isUpdateAvailable = true
                     )
