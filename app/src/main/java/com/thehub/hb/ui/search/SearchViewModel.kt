@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 enum class SearchMode(val title: String) {
@@ -59,6 +60,7 @@ class SearchViewModel(
         get() = searchRepository.currentUserId
 
     private val _queryDebounceFlow = MutableStateFlow("")
+    private val followStatusJobs = mutableMapOf<String, Job>()
 
     init {
         loadTrending()
@@ -115,7 +117,6 @@ class SearchViewModel(
         val formatted = if (tag.startsWith("#")) tag else "#$tag"
         _uiState.update { it.copy(query = formatted, searchMode = SearchMode.POSTS) }
         _queryDebounceFlow.value = formatted
-        performSearch(formatted, SearchMode.POSTS, saveToHistory = true)
     }
 
     fun onQueryChanged(newQuery: String) {
@@ -135,7 +136,6 @@ class SearchViewModel(
     fun onHistoryItemClicked(item: String) {
         _uiState.update { it.copy(query = item) }
         _queryDebounceFlow.value = item
-        performSearch(item, _uiState.value.searchMode, saveToHistory = true)
     }
 
     fun onRemoveHistoryItem(item: String) {
@@ -215,9 +215,16 @@ class SearchViewModel(
 
     private fun checkFollowStatuses(users: List<User>) {
         val currentUid = currentUserId ?: return
+
+        // Cancel collectors from the previous result set so repeated searches do not
+        // accumulate long-lived Firestore listeners for stale users.
+        followStatusJobs.values.forEach { it.cancel() }
+        followStatusJobs.clear()
+        _uiState.update { it.copy(followingIds = emptySet()) }
+
         for (user in users) {
             if (user.uid == currentUid) continue
-            viewModelScope.launch {
+            followStatusJobs[user.uid] = viewModelScope.launch {
                 notificationRepository.isFollowing(user.uid).collectLatest { isFollowing ->
                     _uiState.update { state ->
                         val updated = if (isFollowing) {

@@ -6,6 +6,7 @@ import com.thehub.hb.ui.theme.HubOutline
 import androidx.compose.material3.MaterialTheme
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -104,13 +105,24 @@ fun SharePostBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Option 2: Envoyer en message (stub disabled)
+            // Option 2: Share through another installed app (Messages, WhatsApp, etc.)
             ShareOptionItem(
                 icon = Icons.AutoMirrored.Outlined.Send,
-                title = "Envoyer en message",
-                subtitle = "Disponible bientôt",
-                enabled = false,
-                onClick = {},
+                title = "Partager via une autre application",
+                subtitle = "Messages, WhatsApp, etc.",
+                enabled = true,
+                onClick = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "thehub://post/" + post.id)
+                    }
+                    try {
+                        context.startActivity(Intent.createChooser(shareIntent, "Partager la publication"))
+                        onDismiss()
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Aucune application compatible pour le partage.", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 testTag = "share_option_message"
             )
 

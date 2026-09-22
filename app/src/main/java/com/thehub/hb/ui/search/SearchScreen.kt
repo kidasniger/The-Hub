@@ -208,7 +208,12 @@ fun SearchScreen(
                 }
 
                 uiState.searchMode == SearchMode.USERS -> {
-                    if (uiState.users.isEmpty() && uiState.hasSearched) {
+                    if (uiState.errorMessage != null) {
+                        SearchErrorState(
+                            message = uiState.errorMessage,
+                            onRetry = { viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = false) }
+                        )
+                    } else if (uiState.users.isEmpty() && uiState.hasSearched) {
                         EmptySearchResults(
                             query = uiState.query,
                             message = "Aucun utilisateur trouvé pour \"${uiState.query}\""
@@ -241,7 +246,12 @@ fun SearchScreen(
                 }
 
                 uiState.searchMode == SearchMode.POSTS -> {
-                    if (uiState.posts.isEmpty() && uiState.hasSearched) {
+                    if (uiState.errorMessage != null) {
+                        SearchErrorState(
+                            message = uiState.errorMessage,
+                            onRetry = { viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = false) }
+                        )
+                    } else if (uiState.posts.isEmpty() && uiState.hasSearched) {
                         EmptySearchResults(
                             query = uiState.query,
                             message = "Aucune publication trouvée pour \"${uiState.query}\""
@@ -274,6 +284,54 @@ fun SearchScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchErrorState(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .testTag("search_error_state"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Refresh,
+            contentDescription = null,
+            tint = HubSecondary,
+            modifier = Modifier.size(36.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Impossible de charger les résultats",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = HubWhite
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = message,
+            fontSize = 13.sp,
+            color = HubSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        TextButton(onClick = onRetry) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Réessayer",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Réessayer")
         }
     }
 }
