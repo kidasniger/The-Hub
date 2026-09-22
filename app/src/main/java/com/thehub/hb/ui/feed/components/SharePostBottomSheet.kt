@@ -1,8 +1,6 @@
 package com.thehub.hb.ui.feed.components
 
 import android.content.ClipData
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
 import androidx.compose.material3.MaterialTheme
 import android.content.ClipboardManager
 import android.content.Context
@@ -25,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -190,7 +189,7 @@ fun SharePostBottomSheet(
                 ) {
                     IconButton(onClick = { showConversationPicker = false }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.Send,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Retour",
                             tint = HubWhite
                         )
