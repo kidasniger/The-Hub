@@ -77,6 +77,12 @@ import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.ui.components.UserAvatar
 import kotlinx.coroutines.launch
 
+private enum class AdminReportFilter(val title: String) {
+    PENDING("À traiter"),
+    ALL("Tous"),
+    RESOLVED("Traités")
+}
+
 @Composable
 private fun AdminHeader(
     title: String,
@@ -695,6 +701,7 @@ fun AdminPostsScreen(repository: AdminRepository) {
 fun AdminReportsScreen(repository: AdminRepository) {
     var reports by remember { mutableStateOf<List<AdminReportRow>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var filter by remember { mutableStateOf(AdminReportFilter.PENDING) }
     val scope = rememberCoroutineScope()
 
     fun reload() {
@@ -708,6 +715,11 @@ fun AdminReportsScreen(repository: AdminRepository) {
     LaunchedEffect(Unit) { reload() }
 
     val pending = reports.count { it.status != "resolved" }
+    val filteredReports = when (filter) {
+        AdminReportFilter.PENDING -> reports.filter { it.status != "resolved" }
+        AdminReportFilter.ALL -> reports
+        AdminReportFilter.RESOLVED -> reports.filter { it.status == "resolved" }
+    }
 
     Column(Modifier.fillMaxSize()) {
         AdminHeader(
@@ -720,15 +732,46 @@ fun AdminReportsScreen(repository: AdminRepository) {
                 if (pending == 0) Icons.Filled.CheckCircle else Icons.Filled.Flag
             )
         }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AdminReportFilter.entries.forEach { option ->
+                OutlinedButton(
+                    onClick = { filter = option },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        option.title,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (filter == option) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+
         when {
             loading -> AdminLoading()
-            reports.isEmpty() -> AdminEmpty("Tout est calme", "Aucun signalement à traiter actuellement.", Icons.Filled.Flag)
+            filteredReports.isEmpty() -> AdminEmpty(
+                if (filter == AdminReportFilter.PENDING) "Tout est calme" else "Aucun signalement",
+                when (filter) {
+                    AdminReportFilter.PENDING -> "Aucun signalement à traiter actuellement."
+                    AdminReportFilter.ALL -> "Aucun signalement enregistré."
+                    AdminReportFilter.RESOLVED -> "Aucun signalement traité actuellement."
+                },
+                Icons.Filled.Flag
+            )
             else -> LazyColumn(
                 Modifier.weight(1f),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(reports, key = { it.id }) { report ->
+                items(filteredReports, key = { it.id }) { report ->
                     val resolved = report.status == "resolved"
                     Card(
                         Modifier.fillMaxWidth(),

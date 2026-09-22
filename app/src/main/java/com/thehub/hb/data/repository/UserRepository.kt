@@ -21,6 +21,7 @@ import com.thehub.hb.data.remote.ImgbbService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -96,44 +97,47 @@ class UserRepository(
             }
             val baseUser = User.fromMap(doc.data ?: emptyMap())
 
-            // Reconcile actual counts concurrently; these reads are independent.
-            val actualPostsDeferred = async {
-                try {
-                    firestore.collection("posts")
-                        .whereEqualTo("authorId", uid)
-                        .count()
-                        .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                        .await().count.toInt()
-                } catch (_: Exception) {
-                    baseUser.postsCount
+            // Reconcile counts in parallel: the three aggregate reads are independent.
+            val (actualPosts, actualFollowers, actualFollowing) = coroutineScope {
+                val postsDeferred = async {
+                    try {
+                        firestore.collection("posts")
+                            .whereEqualTo("authorId", uid)
+                            .count()
+                            .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                            .await().count.toInt()
+                    } catch (_: Exception) {
+                        baseUser.postsCount
+                    }
                 }
-            }
-            val actualFollowersDeferred = async {
-                try {
-                    firestore.collection("users").document(uid)
-                        .collection("followers")
-                        .count()
-                        .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                        .await().count.toInt()
-                } catch (_: Exception) {
-                    baseUser.followersCount
+                val followersDeferred = async {
+                    try {
+                        firestore.collection("users").document(uid)
+                            .collection("followers")
+                            .count()
+                            .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                            .await().count.toInt()
+                    } catch (_: Exception) {
+                        baseUser.followersCount
+                    }
                 }
-            }
-            val actualFollowingDeferred = async {
-                try {
-                    firestore.collection("users").document(uid)
-                        .collection("following")
-                        .count()
-                        .get(com.google.firebase.firestore.AggregateSource.SERVER)
-                        .await().count.toInt()
-                } catch (_: Exception) {
-                    baseUser.followingCount
+                val followingDeferred = async {
+                    try {
+                        firestore.collection("users").document(uid)
+                            .collection("following")
+                            .count()
+                            .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                            .await().count.toInt()
+                    } catch (_: Exception) {
+                        baseUser.followingCount
+                    }
                 }
+                Triple(
+                    postsDeferred.await(),
+                    followersDeferred.await(),
+                    followingDeferred.await()
+                )
             }
-
-            val actualPosts = actualPostsDeferred.await()
-            val actualFollowers = actualFollowersDeferred.await()
-            val actualFollowing = actualFollowingDeferred.await()
 
             val reconciled = baseUser.copy(
                 postsCount = actualPosts,
@@ -698,12 +702,11 @@ class UserRepository(
                             parsed.copy(uid = parsed.uid.ifBlank { followerId })
                         }
                     } catch (e: Exception) {
-                        Log.w("UserRepository", "Could not fetch follower $followerId: " + e.message)
+                        Log.w("UserRepository", "Could not fetch follower " + followerId + ": " + e.message)
                         null
                     }
                 }
             }.awaitAll().filterNotNull()
-
             Result.success(users)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error getting followers for $uid: ${e.message}", e)
@@ -735,12 +738,11 @@ class UserRepository(
                             parsed.copy(uid = parsed.uid.ifBlank { followingId })
                         }
                     } catch (e: Exception) {
-                        Log.w("UserRepository", "Could not fetch followed user $followingId: " + e.message)
+                        Log.w("UserRepository", "Could not fetch followed user " + followingId + ": " + e.message)
                         null
                     }
                 }
             }.awaitAll().filterNotNull()
-
             Result.success(users)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error getting following for $uid: ${e.message}", e)

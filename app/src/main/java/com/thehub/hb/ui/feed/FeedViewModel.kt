@@ -10,6 +10,8 @@ import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -54,6 +56,10 @@ class FeedViewModel(
 
     private var feedJob: Job? = null
     private var lastFeedVisible: DocumentSnapshot? = null
+    private val postActionMutexes = mutableMapOf<String, Mutex>()
+
+    private fun actionMutexFor(postId: String): Mutex =
+        postActionMutexes.getOrPut(postId) { Mutex() }
     private var hasMoreFeedPages = true
 
     init {
@@ -96,12 +102,14 @@ class FeedViewModel(
                     lastVisible = null
                 )
 
-                result.onSuccess { (posts, lastVisible) ->
+                result.onSuccess { page ->
+                    val posts = page.posts
+                    val lastVisible = page.lastVisible
                     val authorIds = posts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
                     com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
 
                     lastFeedVisible = lastVisible
-                    hasMoreFeedPages = posts.size.toLong() == PAGE_SIZE && lastVisible != null
+                    hasMoreFeedPages = page.hasMore && lastVisible != null
 
                     if (posts.isEmpty()) {
                         _uiState.value = FeedUiState.Empty
@@ -170,12 +178,14 @@ class FeedViewModel(
                     lastVisible = cursor
                 )
 
-                result.onSuccess { (newPosts, newLastVisible) ->
+                result.onSuccess { page ->
+                    val newPosts = page.posts
+                    val newLastVisible = page.lastVisible
                     val authorIds = newPosts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
                     com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
 
                     lastFeedVisible = newLastVisible
-                    hasMoreFeedPages = newPosts.size.toLong() == PAGE_SIZE && newLastVisible != null
+                    hasMoreFeedPages = page.hasMore && newLastVisible != null
 
                     val latestState = _uiState.value
                     if (latestState is FeedUiState.Success) {
@@ -214,44 +224,56 @@ class FeedViewModel(
     }
 
     fun toggleLike(postId: String) {
-        val currentState = _uiState.value as? FeedUiState.Success ?: return
-        val originalPosts = currentState.posts
-
-        // Optimistic UI update
-        val updatedPosts = originalPosts.map { post ->
-            if (post.id == postId) {
-                val newLikedState = !post.isLikedByCurrentUser
-                val newLikesCount = if (newLikedState) post.likesCount + 1 else (post.likesCount - 1).coerceAtLeast(0)
-                post.copy(isLikedByCurrentUser = newLikedState, likesCount = newLikesCount)
-            } else post
-        }
-        _uiState.value = currentState.copy(posts = updatedPosts)
-
         viewModelScope.launch {
-            val result = postRepository.toggleLike(postId)
-            result.onFailure {
-                // Revert on error
-                _uiState.value = currentState.copy(posts = originalPosts)
+            actionMutexFor(postId).withLock {
+                val currentState = _uiState.value as? FeedUiState.Success ?: return@withLock
+                val originalPost = currentState.posts.firstOrNull { it.id == postId } ?: return@withLock
+                val updatedPost = originalPost.copy(
+                    isLikedByCurrentUser = !originalPost.isLikedByCurrentUser,
+                    likesCount = if (!originalPost.isLikedByCurrentUser) {
+                        originalPost.likesCount + 1
+                    } else {
+                        (originalPost.likesCount - 1).coerceAtLeast(0)
+                    }
+                )
+                _uiState.value = currentState.copy(
+                    posts = currentState.posts.map { if (it.id == postId) updatedPost else it }
+                )
+
+                val result = postRepository.toggleLike(postId)
+                if (result.isFailure) {
+                    val latest = _uiState.value as? FeedUiState.Success
+                    if (latest != null) {
+                        _uiState.value = latest.copy(
+                            posts = latest.posts.map { if (it.id == postId) originalPost else it }
+                        )
+                    }
+                }
             }
         }
     }
 
     fun toggleBookmark(postId: String) {
-        val currentState = _uiState.value as? FeedUiState.Success ?: return
-        val originalPosts = currentState.posts
-
-        val updatedPosts = originalPosts.map { post ->
-            if (post.id == postId) {
-                post.copy(isBookmarkedByCurrentUser = !post.isBookmarkedByCurrentUser)
-            } else post
-        }
-        _uiState.value = currentState.copy(posts = updatedPosts)
-
         viewModelScope.launch {
-            val result = postRepository.toggleBookmark(postId)
-            result.onFailure {
-                // Revert on error
-                _uiState.value = currentState.copy(posts = originalPosts)
+            actionMutexFor("bookmark:$postId").withLock {
+                val currentState = _uiState.value as? FeedUiState.Success ?: return@withLock
+                val originalPost = currentState.posts.firstOrNull { it.id == postId } ?: return@withLock
+                val updatedPost = originalPost.copy(
+                    isBookmarkedByCurrentUser = !originalPost.isBookmarkedByCurrentUser
+                )
+                _uiState.value = currentState.copy(
+                    posts = currentState.posts.map { if (it.id == postId) updatedPost else it }
+                )
+
+                val result = postRepository.toggleBookmark(postId)
+                if (result.isFailure) {
+                    val latest = _uiState.value as? FeedUiState.Success
+                    if (latest != null) {
+                        _uiState.value = latest.copy(
+                            posts = latest.posts.map { if (it.id == postId) originalPost else it }
+                        )
+                    }
+                }
             }
         }
     }

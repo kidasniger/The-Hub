@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed interface PostDetailUiState {
     data object Loading : PostDetailUiState
@@ -32,6 +34,8 @@ class PostDetailViewModel(
 
     private val _uiState = MutableStateFlow<PostDetailUiState>(PostDetailUiState.Loading)
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
+
+    private val postActionMutex = Mutex()
 
     val currentUserId: String?
         get() = postRepository.currentUserId
@@ -126,40 +130,50 @@ class PostDetailViewModel(
     }
 
     fun toggleLike() {
-        val currentState = _uiState.value as? PostDetailUiState.Success ?: return
-        val currentPost = currentState.post
-
-        val newLikedState = !currentPost.isLikedByCurrentUser
-        val newLikesCount = if (newLikedState) currentPost.likesCount + 1 else (currentPost.likesCount - 1).coerceAtLeast(0)
-        val updatedPost = currentPost.copy(
-            isLikedByCurrentUser = newLikedState,
-            likesCount = newLikesCount
-        )
-
-        _uiState.value = currentState.copy(post = updatedPost)
-
         viewModelScope.launch {
-            val result = postRepository.toggleLike(postId)
-            if (result.isFailure) {
-                // Revert
-                _uiState.value = currentState.copy(post = currentPost)
+            postActionMutex.withLock {
+                val currentState = _uiState.value as? PostDetailUiState.Success ?: return@withLock
+                val currentPost = currentState.post
+                val newLikedState = !currentPost.isLikedByCurrentUser
+                val updatedPost = currentPost.copy(
+                    isLikedByCurrentUser = newLikedState,
+                    likesCount = if (newLikedState) {
+                        currentPost.likesCount + 1
+                    } else {
+                        (currentPost.likesCount - 1).coerceAtLeast(0)
+                    }
+                )
+
+                _uiState.value = currentState.copy(post = updatedPost)
+
+                val result = postRepository.toggleLike(postId)
+                if (result.isFailure) {
+                    val latest = _uiState.value as? PostDetailUiState.Success
+                    if (latest != null) {
+                        _uiState.value = latest.copy(post = currentPost)
+                    }
+                }
             }
         }
     }
 
     fun toggleBookmark() {
-        val currentState = _uiState.value as? PostDetailUiState.Success ?: return
-        val currentPost = currentState.post
-
-        val newBookmarkedState = !currentPost.isBookmarkedByCurrentUser
-        val updatedPost = currentPost.copy(isBookmarkedByCurrentUser = newBookmarkedState)
-        _uiState.value = currentState.copy(post = updatedPost)
-
         viewModelScope.launch {
-            val result = postRepository.toggleBookmark(postId)
-            if (result.isFailure) {
-                // Revert
-                _uiState.value = currentState.copy(post = currentPost)
+            postActionMutex.withLock {
+                val currentState = _uiState.value as? PostDetailUiState.Success ?: return@withLock
+                val currentPost = currentState.post
+                val updatedPost = currentPost.copy(
+                    isBookmarkedByCurrentUser = !currentPost.isBookmarkedByCurrentUser
+                )
+                _uiState.value = currentState.copy(post = updatedPost)
+
+                val result = postRepository.toggleBookmark(postId)
+                if (result.isFailure) {
+                    val latest = _uiState.value as? PostDetailUiState.Success
+                    if (latest != null) {
+                        _uiState.value = latest.copy(post = currentPost)
+                    }
+                }
             }
         }
     }
