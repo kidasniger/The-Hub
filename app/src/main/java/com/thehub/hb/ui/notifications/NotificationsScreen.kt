@@ -90,6 +90,11 @@ fun NotificationsScreen(
             onMarkAllAsRead = { viewModel.onMarkAllAsRead() }
         )
 
+        NotificationFilterBar(
+            selectedFilter = uiState.selectedFilter,
+            onFilterSelected = viewModel::setFilter
+        )
+
         HorizontalDivider(color = HubBorder, thickness = 1.dp)
 
         // Content
@@ -114,8 +119,8 @@ fun NotificationsScreen(
                     }
                 }
 
-                uiState.notifications.isEmpty() -> {
-                    EmptyNotifications()
+                uiState.visibleNotifications.isEmpty() -> {
+                    EmptyNotifications(filter = uiState.selectedFilter)
                 }
 
                 else -> {
@@ -450,7 +455,48 @@ private fun getBadgeForType(type: String): NotificationBadge {
 }
 
 @Composable
-private fun EmptyNotifications() {
+private fun NotificationFilterBar(
+    selectedFilter: NotificationFilter,
+    onFilterSelected: (NotificationFilter) -> Unit
+) {
+    val filters = listOf(
+        NotificationFilter.ALL to "Tout",
+        NotificationFilter.UNREAD to "Non lues",
+        NotificationFilter.ACTIVITY to "Activité",
+        NotificationFilter.MESSAGES to "Messages"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .testTag("notification_filter_bar"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        filters.forEach { (filter, label) ->
+            val selected = filter == selectedFilter
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(if (selected) HubWhite else HubSurfaceDark)
+                    .border(1.dp, if (selected) HubWhite else HubBorder, RoundedCornerShape(18.dp))
+                    .clickable { onFilterSelected(filter) }
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                    .testTag("notification_filter_${filter.name.lowercase()}")
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selected) HubBlack else HubSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyNotifications(filter: NotificationFilter = NotificationFilter.ALL) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -480,7 +526,12 @@ private fun EmptyNotifications() {
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "Toutes vos notifications sont à jour",
+                text = when (filter) {
+                    NotificationFilter.ALL -> "Toutes vos notifications sont à jour"
+                    NotificationFilter.UNREAD -> "Aucune notification non lue"
+                    NotificationFilter.ACTIVITY -> "Aucune activité récente"
+                    NotificationFilter.MESSAGES -> "Aucun message récent"
+                },
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = HubWhite
