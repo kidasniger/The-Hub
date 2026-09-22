@@ -79,6 +79,11 @@ class AppUpdateDownloadManager(
         expectedVersion: String,
         expectedSizeInBytes: Long
     ): File? {
+        if (!UpdateSecurity.isSafeApkFileName(fileName, expectedVersion)) {
+            Log.w(TAG, "Rejected invalid cached APK file name.")
+            return null
+        }
+
         val downloadDir =
             context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return null
         val file = File(downloadDir, fileName)
@@ -129,6 +134,14 @@ class AppUpdateDownloadManager(
         versionName: String,
         expectedSizeInBytes: Long = 0L
     ): Long {
+        if (!UpdateSecurity.isValidUpdate(apkUrl, fileName, versionName)) {
+            Log.e(TAG, "Rejected untrusted APK update request.")
+            _status.value = DownloadStatus.Failed(
+                "La source de mise à jour n'est pas fiable."
+            )
+            return -1L
+        }
+
         if (restoreCachedDownload(
                 AppUpdateInfo(
                     latestVersion = versionName,
