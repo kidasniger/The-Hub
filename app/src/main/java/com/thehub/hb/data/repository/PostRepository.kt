@@ -43,6 +43,17 @@ class PostRepository(
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
+    private suspend fun getBlockedUserIds(uid: String?): Set<String> {
+        if (uid.isNullOrBlank()) return emptySet()
+        return try {
+            firestore.collection("users").document(uid)
+                .collection("blockedUsers").get().await()
+                .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
     /**
      * Resolves currently bookmarked post IDs by merging remote Firestore bookmarks
      * with local DataStore cache to ensure immediate and persistent bookmark indicator state across refreshes.
@@ -200,7 +211,7 @@ class PostRepository(
                 else -> null
             }
             val hasMore =
-                snapshot.documents.size == fetchLimit ||
+                snapshot.documents.size.toLong() == fetchLimit ||
                     visibleDocuments.size > pageDocuments.size
 
             Result.success(
@@ -285,7 +296,13 @@ class PostRepository(
                     }
                     trySend(hydrated)
                 } catch (e: Exception) {
-                    val fallback = docs.map { Post.fromSnapshot(it, uid) }
+                    val blockedIds = getBlockedUserIds(uid)
+                    val fallback = docs
+                        .filter { doc ->
+                            val authorId = doc.getString("authorId").orEmpty()
+                            authorId.isBlank() || authorId !in blockedIds
+                        }
+                        .map { Post.fromSnapshot(it, uid) }
                     trySend(fallback)
                 }
             }
