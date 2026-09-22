@@ -199,7 +199,9 @@ class PostRepository(
                 snapshot.documents.isNotEmpty() -> snapshot.documents.last()
                 else -> null
             }
-            val hasMore = snapshot.documents.size == fetchLimit
+            val hasMore =
+                snapshot.documents.size == fetchLimit ||
+                    visibleDocuments.size > pageDocuments.size
 
             Result.success(
                 FeedPage(
