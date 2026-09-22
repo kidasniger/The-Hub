@@ -20,7 +20,13 @@ object HubDeepLink {
             .filter { it.isNotBlank() }
 
         val target = segments.firstOrNull()?.lowercase() ?: return null
-        val id = segments.getOrNull(1)?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8.name()) }
+        val id = segments.getOrNull(1)?.let {
+            try {
+                java.net.URLDecoder.decode(it, Charsets.UTF_8.name())
+            } catch (_: IllegalArgumentException) {
+                return null
+            }
+        }
 
         return when (target) {
             "feed" -> Screen.Feed.route

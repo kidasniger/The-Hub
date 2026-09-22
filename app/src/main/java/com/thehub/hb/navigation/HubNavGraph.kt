@@ -668,8 +668,10 @@ fun HubNavGraph(
                 onNavigateToFollowing = { uid ->
                     navController.navigate(Screen.FollowingList.createRoute(uid))
                 },
-                onNavigateToChat = { uid ->
-                    navController.navigate(Screen.Messenger.route)
+                onNavigateToChat = { conversationId ->
+                    navController.navigate(Screen.Chat.createRoute(conversationId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToBookmarks = {
                     navController.navigate(Screen.Bookmarks.route)
