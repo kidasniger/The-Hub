@@ -14,13 +14,34 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+enum class NotificationFilter {
+    ALL,
+    UNREAD,
+    ACTIVITY,
+    MESSAGES
+}
+
+fun filterNotifications(
+    items: List<NotificationItem>,
+    filter: NotificationFilter
+): List<NotificationItem> = when (filter) {
+    NotificationFilter.ALL -> items
+    NotificationFilter.UNREAD -> items.filter { !it.isRead }
+    NotificationFilter.ACTIVITY -> items.filter { it.type != NotificationItem.TYPE_MESSAGE }
+    NotificationFilter.MESSAGES -> items.filter { it.type == NotificationItem.TYPE_MESSAGE }
+}
+
 data class NotificationsUiState(
     val notifications: List<NotificationItem> = emptyList(),
     val groupedNotifications: Map<String, List<NotificationItem>> = emptyMap(),
     val unreadCount: Int = 0,
+    val selectedFilter: NotificationFilter = NotificationFilter.ALL,
     val isLoading: Boolean = true,
     val errorMessage: String? = null
-)
+) {
+    val visibleNotifications: List<NotificationItem>
+        get() = filterNotifications(notifications, selectedFilter)
+}
 
 class NotificationsViewModel(
     private val notificationRepository: NotificationRepository
@@ -41,13 +62,16 @@ class NotificationsViewModel(
             notificationRepository.getNotifications().collectLatest { items ->
                 val actorIds = items.map { it.actorId }
                 com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(actorIds)
-                val grouped = groupNotifications(items)
+                val selected = _uiState.value.selectedFilter
+                val visible = filterNotifications(items, selected)
+                val grouped = groupNotifications(visible)
                 val unread = items.count { !it.isRead }
                 _uiState.update {
                     it.copy(
                         notifications = items,
                         groupedNotifications = grouped,
                         unreadCount = unread,
+                        selectedFilter = selected,
                         isLoading = false
                     )
                 }
@@ -66,6 +90,16 @@ class NotificationsViewModel(
     fun onMarkAllAsRead() {
         viewModelScope.launch {
             notificationRepository.markAllAsRead()
+        }
+    }
+
+    fun setFilter(filter: NotificationFilter) {
+        _uiState.update { state ->
+            val visible = filterNotifications(state.notifications, filter)
+            state.copy(
+                selectedFilter = filter,
+                groupedNotifications = groupNotifications(visible)
+            )
         }
     }
 
