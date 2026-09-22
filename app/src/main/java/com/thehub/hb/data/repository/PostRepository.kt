@@ -1026,29 +1026,33 @@ class PostRepository(
                 .get()
                 .await()
 
-            val likers = snapshot.documents.map { doc ->
-                val userId = doc.id
-                val likedAt = doc.getTimestamp("likedAt") ?: Timestamp.now()
-                var username = "thehub_user"
-                var displayName: String? = null
-                var photoUrl: String? = null
+            val likers = coroutineScope {
+                snapshot.documents.map { doc ->
+                    async {
+                        val userId = doc.id
+                        val likedAt = doc.getTimestamp("likedAt") ?: Timestamp.now()
+                        var username = "thehub_user"
+                        var displayName: String? = null
+                        var photoUrl: String? = null
 
-                try {
-                    val userDoc = firestore.collection("users").document(userId).get().await()
-                    if (userDoc.exists()) {
-                        username = userDoc.getString("username") ?: username
-                        displayName = userDoc.getString("displayName")
-                        photoUrl = userDoc.getString("photoUrl")
+                        try {
+                            val userDoc = firestore.collection("users").document(userId).get().await()
+                            if (userDoc.exists()) {
+                                username = userDoc.getString("username") ?: username
+                                displayName = userDoc.getString("displayName")
+                                photoUrl = userDoc.getString("photoUrl")
+                            }
+                        } catch (_: Exception) {}
+
+                        LikerUser(
+                            uid = userId,
+                            username = username,
+                            displayName = displayName,
+                            photoUrl = photoUrl,
+                            likedAt = likedAt
+                        )
                     }
-                } catch (_: Exception) {}
-
-                LikerUser(
-                    uid = userId,
-                    username = username,
-                    displayName = displayName,
-                    photoUrl = photoUrl,
-                    likedAt = likedAt
-                )
+                }.awaitAll()
             }
 
             Result.success(likers)
@@ -1238,39 +1242,44 @@ class PostRepository(
                 dataStoreManager?.setLocalBookmarkedIds(targetPostIds.toSet())
             }
 
-            val posts = mutableListOf<Post>()
-            for (postId in targetPostIds) {
-                try {
-                    val postDoc = firestore.collection("posts").document(postId).get().await()
-                    if (postDoc.exists()) {
-                        val post = Post.fromSnapshot(postDoc, uid)
-
-                        var isLiked = false
+            val posts = coroutineScope {
+                targetPostIds.map { postId ->
+                    async {
                         try {
-                            val likeDoc = firestore.collection("posts").document(postId)
-                                .collection("likes").document(uid).get().await()
-                            isLiked = likeDoc.exists()
-                        } catch (_: Exception) {}
+                            val postDoc = firestore.collection("posts").document(postId).get().await()
+                            if (!postDoc.exists()) {
+                                null
+                            } else {
+                                val post = Post.fromSnapshot(postDoc, uid)
 
-                        var original: Post? = null
-                        if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
-                            try {
-                                val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
-                                if (origDoc.exists()) {
-                                    original = Post.fromSnapshot(origDoc, uid)
+                                var isLiked = false
+                                try {
+                                    val likeDoc = firestore.collection("posts").document(postId)
+                                        .collection("likes").document(uid).get().await()
+                                    isLiked = likeDoc.exists()
+                                } catch (_: Exception) {}
+
+                                var original: Post? = null
+                                if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+                                    try {
+                                        val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
+                                        if (origDoc.exists()) {
+                                            original = Post.fromSnapshot(origDoc, uid)
+                                        }
+                                    } catch (_: Exception) {}
                                 }
-                            } catch (_: Exception) {}
-                        }
 
-                        posts.add(
-                            post.copy(
-                                isLikedByCurrentUser = isLiked,
-                                isBookmarkedByCurrentUser = true,
-                                originalPost = original
-                            )
-                        )
+                                post.copy(
+                                    isLikedByCurrentUser = isLiked,
+                                    isBookmarkedByCurrentUser = true,
+                                    originalPost = original
+                                )
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
-                } catch (_: Exception) {}
+                }.awaitAll().filterNotNull()
             }
             Result.success(posts)
         } catch (e: Exception) {

@@ -43,4 +43,9 @@ class HubDeepLinkUnitTest {
     fun invalidDeepLink_returnsNull() {
         assertNull(HubDeepLink.toRoute("https://example.com/post/post-123"))
     }
+
+    @Test
+    fun malformedEncodedId_returnsNull() {
+        assertNull(HubDeepLink.toRoute("thehub://post/%ZZ"))
+    }
 }
