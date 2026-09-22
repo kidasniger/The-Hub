@@ -9,8 +9,6 @@ import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -30,17 +28,20 @@ internal fun rankSuggestedUsers(
 ): List<User> {
     if (limit <= 0) return emptyList()
 
+    val comparator = compareByDescending<User> { it.followersCount }
+        .thenByDescending { it.postsCount }
+        .thenByDescending { it.createdAt }
+        .thenBy { it.usernameLower }
+
     return candidates.asSequence()
         .filter { it.uid.isNotBlank() }
         .filter { it.uid != currentUserId }
         .filter { it.uid !in excludedIds }
-        .distinctBy { it.uid }
-        .sortedWith(
-            compareByDescending<User> { it.followersCount }
-                .thenByDescending { it.postsCount }
-                .thenByDescending { it.createdAt }
-                .thenBy { it.usernameLower }
-        )
+        .groupBy { it.uid }
+        .values
+        .asSequence()
+        .mapNotNull { group -> group.maxWithOrNull(comparator) }
+        .sortedWith(comparator)
         .take(limit)
         .toList()
 }
@@ -99,22 +100,10 @@ class SearchRepository(
                     .get().await()
             }
 
-            val (followingIds, blockedIds, popularSnapshot, recentSnapshot) = awaitAll(
-                followingDeferred,
-                blockedDeferred,
-                popularDeferred,
-                recentDeferred
-            ).let { values ->
-                @Suppress("UNCHECKED_CAST")
-                val following = values[0] as Set<String>
-                @Suppress("UNCHECKED_CAST")
-                val blocked = values[1] as Set<String>
-                @Suppress("UNCHECKED_CAST")
-                val popular = values[2] as com.google.firebase.firestore.QuerySnapshot
-                @Suppress("UNCHECKED_CAST")
-                val recent = values[3] as com.google.firebase.firestore.QuerySnapshot
-                DiscoverySources(following, blocked, popular, recent)
-            }
+            val followingIds = followingDeferred.await()
+            val blockedIds = blockedDeferred.await()
+            val popularSnapshot = popularDeferred.await()
+            val recentSnapshot = recentDeferred.await()
 
             val candidates = (popularSnapshot.documents + recentSnapshot.documents).mapNotNull { document ->
                 try {
