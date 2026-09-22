@@ -690,14 +690,23 @@ class UserRepository(
                 .get()
                 .await()
 
-            val users = mutableListOf<User>()
-            for (doc in snapshot.documents) {
-                val followerId = doc.id
-                val userDoc = firestore.collection("users").document(followerId).get().await()
-                if (userDoc.exists()) {
-                    users.add(User.fromMap(userDoc.data ?: emptyMap()))
+            val users = snapshot.documents.map { doc ->
+                async {
+                    val followerId = doc.id
+                    try {
+                        val userDoc = firestore.collection("users").document(followerId).get().await()
+                        if (!userDoc.exists()) {
+                            null
+                        } else {
+                            val parsed = User.fromMap(userDoc.data ?: emptyMap())
+                            parsed.copy(uid = parsed.uid.ifBlank { followerId })
+                        }
+                    } catch (e: Exception) {
+                        Log.w("UserRepository", "Could not fetch follower " + followerId + ": " + e.message)
+                        null
+                    }
                 }
-            }
+            }.awaitAll().filterNotNull()
             Result.success(users)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error getting followers for $uid: ${e.message}", e)
@@ -717,14 +726,23 @@ class UserRepository(
                 .get()
                 .await()
 
-            val users = mutableListOf<User>()
-            for (doc in snapshot.documents) {
-                val followingId = doc.id
-                val userDoc = firestore.collection("users").document(followingId).get().await()
-                if (userDoc.exists()) {
-                    users.add(User.fromMap(userDoc.data ?: emptyMap()))
+            val users = snapshot.documents.map { doc ->
+                async {
+                    val followingId = doc.id
+                    try {
+                        val userDoc = firestore.collection("users").document(followingId).get().await()
+                        if (!userDoc.exists()) {
+                            null
+                        } else {
+                            val parsed = User.fromMap(userDoc.data ?: emptyMap())
+                            parsed.copy(uid = parsed.uid.ifBlank { followingId })
+                        }
+                    } catch (e: Exception) {
+                        Log.w("UserRepository", "Could not fetch followed user " + followingId + ": " + e.message)
+                        null
+                    }
                 }
-            }
+            }.awaitAll().filterNotNull()
             Result.success(users)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error getting following for $uid: ${e.message}", e)
@@ -790,24 +808,23 @@ class UserRepository(
                 .get()
                 .await()
 
-            val blockedList = mutableListOf<BlockedUser>()
-            for (doc in snapshot.documents) {
-                val blockedUid = doc.id
-                val blockedAt = doc.getTimestamp("blockedAt") ?: Timestamp.now()
-                var username = "thehub_user"
-                var displayName: String? = null
-                var photoUrl: String? = null
+            val blockedList = snapshot.documents.map { doc ->
+                async {
+                    val blockedUid = doc.id
+                    val blockedAt = doc.getTimestamp("blockedAt") ?: Timestamp.now()
+                    var username = "thehub_user"
+                    var displayName: String? = null
+                    var photoUrl: String? = null
 
-                try {
-                    val userDoc = firestore.collection("users").document(blockedUid).get().await()
-                    if (userDoc.exists()) {
-                        username = userDoc.getString("username") ?: username
-                        displayName = userDoc.getString("displayName")
-                        photoUrl = userDoc.getString("photoUrl")
-                    }
-                } catch (_: Exception) {}
+                    try {
+                        val userDoc = firestore.collection("users").document(blockedUid).get().await()
+                        if (userDoc.exists()) {
+                            username = userDoc.getString("username") ?: username
+                            displayName = userDoc.getString("displayName")
+                            photoUrl = userDoc.getString("photoUrl")
+                        }
+                    } catch (_: Exception) {}
 
-                blockedList.add(
                     BlockedUser(
                         uid = blockedUid,
                         username = username,
@@ -815,8 +832,8 @@ class UserRepository(
                         photoUrl = photoUrl,
                         blockedAt = blockedAt
                     )
-                )
-            }
+                }
+            }.awaitAll()
 
             Result.success(blockedList)
         } catch (e: Exception) {
