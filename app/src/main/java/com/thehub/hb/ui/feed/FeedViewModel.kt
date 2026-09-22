@@ -102,12 +102,14 @@ class FeedViewModel(
                     lastVisible = null
                 )
 
-                result.onSuccess { (posts, lastVisible) ->
+                result.onSuccess { page ->
+                    val posts = page.posts
+                    val lastVisible = page.lastVisible
                     val authorIds = posts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
                     com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
 
                     lastFeedVisible = lastVisible
-                    hasMoreFeedPages = posts.size.toLong() == PAGE_SIZE && lastVisible != null
+                    hasMoreFeedPages = page.hasMore && lastVisible != null
 
                     if (posts.isEmpty()) {
                         _uiState.value = FeedUiState.Empty
@@ -176,12 +178,14 @@ class FeedViewModel(
                     lastVisible = cursor
                 )
 
-                result.onSuccess { (newPosts, newLastVisible) ->
+                result.onSuccess { page ->
+                    val newPosts = page.posts
+                    val newLastVisible = page.lastVisible
                     val authorIds = newPosts.flatMap { listOfNotNull(it.authorId, it.originalPost?.authorId) }
                     com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(authorIds)
 
                     lastFeedVisible = newLastVisible
-                    hasMoreFeedPages = newPosts.size.toLong() == PAGE_SIZE && newLastVisible != null
+                    hasMoreFeedPages = page.hasMore && newLastVisible != null
 
                     val latestState = _uiState.value
                     if (latestState is FeedUiState.Success) {
