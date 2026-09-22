@@ -345,32 +345,51 @@ class PostRepository(
      */
     suspend fun getPost(postId: String): Result<Post> = withContext(Dispatchers.IO) {
         try {
+            val currentUid = currentUserId
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
+
             val doc = firestore.collection("posts").document(postId).get().await()
             if (!doc.exists()) {
                 return@withContext Result.failure(Exception("Publication introuvable"))
             }
-            val currentUid = currentUserId
-            val post = Post.fromSnapshot(doc, currentUid)
 
+            val authorId = doc.getString("authorId").orEmpty()
+            if (authorId.isNotBlank() && authorId in blockedIds) {
+                return@withContext Result.failure(Exception("Publication indisponible"))
+            }
+
+            val post = Post.fromSnapshot(doc, currentUid)
             var isLiked = false
             var isBookmarked = false
+
             if (currentUid != null) {
                 try {
-                    val likeDoc = firestore.collection("posts").document(postId)
-                        .collection("likes").document(currentUid).get().await()
-                    isLiked = likeDoc.exists()
+                    isLiked = firestore.collection("posts").document(postId)
+                        .collection("likes").document(currentUid).get().await().exists()
                 } catch (_: Exception) {}
 
-                val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
-                isBookmarked = bookmarkedIds.contains(postId)
+                isBookmarked = getEffectiveBookmarkedIds(currentUid).contains(postId)
             }
 
             var original: Post? = null
-            if (post.isRepost && !post.originalPostId.isNullOrBlank()) {
+            if (post.isRepost && !post.originalPostId.isNullOrBlank() &&
+                post.originalPostId !in blockedIds
+            ) {
                 try {
-                    val origDoc = firestore.collection("posts").document(post.originalPostId).get().await()
-                    if (origDoc.exists()) {
-                        original = Post.fromSnapshot(origDoc, currentUid)
+                    val originalDoc = firestore.collection("posts")
+                        .document(post.originalPostId).get().await()
+                    if (originalDoc.exists()) {
+                        original = Post.fromSnapshot(originalDoc, currentUid)
                     }
                 } catch (_: Exception) {}
             }
@@ -1335,7 +1354,22 @@ class PostRepository(
                 .get()
                 .await()
 
-            val allRecentPosts = snapshot.documents.map { Post.fromSnapshot(it, currentUid) }
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
+
+            val allRecentPosts = snapshot.documents
+                .map { Post.fromSnapshot(it, currentUid) }
+                .filter { it.authorId.isBlank() || it.authorId !in blockedIds }
+
             // Filter within 7 days, fallback to all recent if none in window
             val inWindowPosts = allRecentPosts.filter {
                 it.createdAt.toDate().time >= sevenDaysAgoMillis
@@ -1422,10 +1456,24 @@ class PostRepository(
                 .await()
 
             val bookmarkedIds = getEffectiveBookmarkedIds(currentUid)
+            val blockedIds = if (currentUid.isNullOrBlank()) {
+                emptySet()
+            } else {
+                try {
+                    firestore.collection("users").document(currentUid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
 
             val candidatePosts = snapshot.documents.mapNotNull { doc ->
                 try {
                     val post = Post.fromSnapshot(doc, currentUid)
+                    if (post.authorId.isNotBlank() && post.authorId in blockedIds) {
+                        return@mapNotNull null
+                    }
                     val hasTag = post.hashtags.any { it.equals(cleanTag, ignoreCase = true) }
                     val textMatches = post.text.contains("#$cleanTag", ignoreCase = true)
                     post.takeIf { hasTag || textMatches }
