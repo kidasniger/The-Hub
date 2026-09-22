@@ -10,6 +10,7 @@ import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.NotificationRepository
 import com.thehub.hb.data.repository.PostRepository
 import com.thehub.hb.data.repository.SearchRepository
+import com.thehub.hb.data.repository.SystemControlRepository
 import com.thehub.hb.data.repository.UpdateRepository
 import com.thehub.hb.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -26,6 +27,7 @@ interface AppContainer {
     val userRepository: UserRepository
     val updateRepository: UpdateRepository
     val updateDownloadManager: AppUpdateDownloadManager
+    val systemControlRepository: SystemControlRepository
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {

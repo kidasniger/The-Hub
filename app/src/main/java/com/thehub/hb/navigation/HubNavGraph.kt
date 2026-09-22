@@ -1,6 +1,8 @@
 package com.thehub.hb.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -83,6 +85,8 @@ fun HubNavGraph(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val authRoutingScope = rememberCoroutineScope()
+    val systemControls by appContainer.systemControlRepository.controls.collectAsState()
+    var isCurrentUserAdmin by remember { mutableStateOf(false) }
 
     fun routeAfterAuthentication() {
         authRoutingScope.launch {
@@ -109,6 +113,15 @@ fun HubNavGraph(
         if (currentUser?.uid != null) {
             appContainer.adminRepository.ensureBootstrapAdmin()
             onRequestNotificationPermission()
+        }
+    }
+    LaunchedEffect(currentUser?.uid) {
+        if (currentUser?.uid != null) {
+            appContainer.systemControlRepository.refresh()
+            isCurrentUserAdmin = appContainer.adminRepository.isCurrentUserAdmin()
+        } else {
+            appContainer.systemControlRepository.reset()
+            isCurrentUserAdmin = false
         }
     }
     // Global in-app update bottom sheet
@@ -304,6 +317,8 @@ fun HubNavGraph(
                 notificationsViewModel = notificationsViewModel,
                 profileViewModel = profileViewModel,
                 authRepository = authRepository,
+                systemControls = systemControls,
+                bypassMaintenance = isCurrentUserAdmin,
                 onPostClick = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
                 },
