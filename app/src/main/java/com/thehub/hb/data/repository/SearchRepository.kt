@@ -132,18 +132,33 @@ class SearchRepository(
 
         try {
             val endQ = q + "\uf8ff"
-            val prefixSnapshot = firestore.collection("users")
-                .orderBy("usernameLower")
-                .startAt(q)
-                .endAt(endQ)
-                .limit(20)
-                .get()
-                .await()
+            val prefixDeferred = async {
+                firestore.collection("users")
+                    .orderBy("usernameLower")
+                    .startAt(q)
+                    .endAt(endQ)
+                    .limit(20)
+                    .get()
+                    .await()
+            }
+            val blockedDeferred = async {
+                val uid = currentUserId ?: return@async emptySet<String>()
+                try {
+                    firestore.collection("users").document(uid)
+                        .collection("blockedUsers").get().await()
+                        .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                } catch (_: Exception) {
+                    emptySet()
+                }
+            }
+            val prefixSnapshot = prefixDeferred.await()
+            val blockedIds = blockedDeferred.await()
 
             val results = mutableListOf<User>()
             for (doc in prefixSnapshot.documents) {
                 try {
                     val map = doc.data ?: continue
+                    if (doc.id in blockedIds || map["isDeleted"] as? Boolean == true) continue
                     results.add(User.fromMap(map))
                 } catch (e: Exception) {
                     Log.w("SearchRepository", "Error parsing user doc: ${e.message}")
@@ -160,6 +175,7 @@ class SearchRepository(
 
                     for (doc in fallbackSnapshot.documents) {
                         val map = doc.data ?: continue
+                        if (doc.id in blockedIds || map["isDeleted"] as? Boolean == true) continue
                         val user = User.fromMap(map)
                         val matchesUsername = user.username.contains(q, ignoreCase = true)
                         val matchesDisplay = user.displayName?.contains(q, ignoreCase = true) == true
@@ -199,17 +215,23 @@ class SearchRepository(
             val currentUid = currentUserId
             val rawTag = q.removePrefix("#").lowercase().trim()
 
-            // Fetch user's bookmarks to hydrate bookmark status (remote + local)
-            val localBookmarks = dataStoreManager.getLocalBookmarkedIds()
-            val remoteBookmarks = if (currentUid != null) {
-                try {
-                    firestore.collection("users").document(currentUid)
-                        .collection("bookmarks").get().await()
-                        .documents.map { it.id }.toSet()
-                } catch (_: Exception) {
+            // Fetch remote and local bookmark state concurrently.
+            val localDeferred = async { dataStoreManager.getLocalBookmarkedIds() }
+            val remoteDeferred = async {
+                if (currentUid == null) {
                     emptySet()
+                } else {
+                    try {
+                        firestore.collection("users").document(currentUid)
+                            .collection("bookmarks").get().await()
+                            .documents.map { it.id }.toSet()
+                    } catch (_: Exception) {
+                        emptySet()
+                    }
                 }
-            } else emptySet()
+            }
+            val localBookmarks = localDeferred.await()
+            val remoteBookmarks = remoteDeferred.await()
             val bookmarkedIds = remoteBookmarks + localBookmarks
 
             val matchingPosts = snapshot.documents.mapNotNull { doc ->
@@ -224,21 +246,25 @@ class SearchRepository(
                 }
             }
 
-            // Hydrate like and bookmark status
-            val hydrated = matchingPosts.map { post ->
-                var isLiked = false
-                if (currentUid != null) {
-                    try {
-                        val likeDoc = firestore.collection("posts").document(post.id)
-                            .collection("likes").document(currentUid)
-                            .get().await()
-                        isLiked = likeDoc.exists()
-                    } catch (_: Exception) {}
-                }
-                post.copy(
-                    isLikedByCurrentUser = isLiked,
-                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
-                )
+            // Hydrate like and bookmark status concurrently for matching posts.
+            val hydrated = coroutineScope {
+                matchingPosts.map { post ->
+                    async {
+                        var isLiked = false
+                        if (currentUid != null) {
+                            try {
+                                val likeDoc = firestore.collection("posts").document(post.id)
+                                    .collection("likes").document(currentUid)
+                                    .get().await()
+                                isLiked = likeDoc.exists()
+                            } catch (_: Exception) {}
+                        }
+                        post.copy(
+                            isLikedByCurrentUser = isLiked,
+                            isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
+                        )
+                    }
+                }.awaitAll()
             }
 
             Result.success(hydrated)
