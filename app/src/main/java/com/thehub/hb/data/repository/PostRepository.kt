@@ -237,7 +237,14 @@ class PostRepository(
             launch(Dispatchers.IO) {
                 val uid = currentUserId
                 try {
-                    val basePosts = docs.map { doc -> Post.fromSnapshot(doc, uid) }
+                    val blockedIds = getBlockedUserIds(uid)
+                    val basePosts = docs
+                        .filter { doc ->
+                            val authorId = doc.getString("authorId").orEmpty()
+                            authorId.isBlank() || authorId !in blockedIds
+                        }
+                        .map { doc -> Post.fromSnapshot(doc, uid) }
+
                     // Immediate emission for instantaneous UI responsiveness
                     trySend(basePosts)
 
@@ -300,6 +307,13 @@ class PostRepository(
 
                 launch(Dispatchers.IO) {
                     try {
+                        val blockedIds = getBlockedUserIds(currentUid)
+                        val authorId = snapshot.getString("authorId").orEmpty()
+                        if (authorId.isNotBlank() && authorId in blockedIds) {
+                            trySend(null)
+                            return@launch
+                        }
+
                         val post = Post.fromSnapshot(snapshot, currentUid)
                         var isLiked = false
                         var isBookmarked = false
