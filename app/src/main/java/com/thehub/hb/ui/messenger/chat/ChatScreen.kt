@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -48,6 +49,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +87,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.RelativeTime
+import com.thehub.hb.utils.extractHubPostId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -96,6 +99,7 @@ fun ChatScreen(
     onBack: () -> Unit,
     onChatInfoClick: (String) -> Unit,
     onImageClick: (String) -> Unit,
+    onPostClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -106,6 +110,7 @@ fun ChatScreen(
     val inputBringIntoViewRequester = remember { BringIntoViewRequester() }
     var inputFieldFocused by remember { mutableStateOf(false) }
     var initialScrollDone by remember(viewModel.conversationId) { mutableStateOf(false) }
+    var messagePendingDeletion by remember { mutableStateOf<Message?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -328,8 +333,9 @@ fun ChatScreen(
                             onReact = { viewModel.react(message.id, it) },
                             onReply = { viewModel.startReply(message) },
                             onEdit = { viewModel.startEdit(message) },
-                            onDelete = { viewModel.deleteMessage(message.id) },
-                            onRetry = { viewModel.retryMessage(message) }
+                            onDelete = { messagePendingDeletion = message },
+                            onRetry = { viewModel.retryMessage(message) },
+                            onPostClick = onPostClick
                         )
                     }
                 }
@@ -511,6 +517,33 @@ fun ChatScreen(
                 .align(Alignment.BottomCenter)
                 .imePadding()
         )
+
+        messagePendingDeletion?.let { message ->
+            AlertDialog(
+                onDismissRequest = { messagePendingDeletion = null },
+                title = { Text("Supprimer le message") },
+                text = {
+                    Text(
+                        "Ce message sera remplacé par « Message supprimé ». Cette action ne peut pas être annulée."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteMessage(message.id)
+                            messagePendingDeletion = null
+                        }
+                    ) {
+                        Text("Supprimer")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { messagePendingDeletion = null }) {
+                        Text("Annuler")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -529,7 +562,8 @@ private fun MessageBubble(
     onReply: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onPostClick: (String) -> Unit
 ) {
     var menuExpanded by remember(message.id) { mutableStateOf(false) }
 
@@ -607,6 +641,13 @@ private fun MessageBubble(
                             text = message.text,
                             modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
                         )
+                        extractHubPostId(message.text)?.let { sharedPostId ->
+                            SharedPostLinkCard(
+                                postId = sharedPostId,
+                                isCurrentUser = isCurrentUser,
+                                onPostClick = onPostClick
+                            )
+                        }
                     }
                 }
             }
@@ -738,3 +779,39 @@ private fun MessageBubble(
     }
 }
 
+
+
+@Composable
+private fun SharedPostLinkCard(
+    postId: String,
+    isCurrentUser: Boolean,
+    onPostClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isCurrentUser) HubBlack.copy(alpha = 0.06f) else HubSurfaceElevated)
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "📌 Publication The Hub",
+            color = if (isCurrentUser) HubBlack else HubWhite,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Cette publication a été partagée dans cette conversation.",
+            color = if (isCurrentUser) HubBlack.copy(alpha = 0.7f) else HubMuted,
+            fontSize = 12.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(
+            onClick = { onPostClick(postId) }
+        ) {
+            Text("Ouvrir la publication")
+        }
+    }
+}

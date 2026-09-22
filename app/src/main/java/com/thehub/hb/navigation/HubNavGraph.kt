@@ -602,6 +602,9 @@ fun HubNavGraph(
                 },
                 onImageClick = { imageUrl ->
                     navController.navigate(Screen.ImageViewer.createRoute(imageUrl))
+                },
+                onPostClick = { postId ->
+                    navController.navigate(Screen.PostDetail.createRoute(postId))
                 }
             )
         }
