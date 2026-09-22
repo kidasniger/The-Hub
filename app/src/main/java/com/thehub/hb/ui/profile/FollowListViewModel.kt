@@ -64,16 +64,23 @@ class FollowListViewModel(
             val users = result.getOrDefault(emptyList())
             com.thehub.hb.data.repository.UserCacheRepository.getInstance().observeUsers(users.map { it.uid })
 
-            // Initialize follow status map for current user
+            // Resolve follow status in parallel so large follower/following lists
+            // do not wait on one Firestore read at a time.
             val currentUid = userRepository.currentUserId
-            val followMap = mutableMapOf<String, Boolean>()
-            if (currentUid != null) {
-                for (u in users) {
-                    if (u.uid != currentUid) {
-                        val isFollowing = userRepository.checkIsFollowing(u.uid).getOrDefault(false)
-                        followMap[u.uid] = isFollowing
-                    }
+            val followMap = if (currentUid != null) {
+                coroutineScope {
+                    users
+                        .filter { it.uid != currentUid }
+                        .map { user ->
+                            async {
+                                user.uid to userRepository.checkIsFollowing(user.uid).getOrDefault(false)
+                            }
+                        }
+                        .awaitAll()
+                        .toMap()
                 }
+            } else {
+                emptyMap()
             }
 
             _uiState.update {
