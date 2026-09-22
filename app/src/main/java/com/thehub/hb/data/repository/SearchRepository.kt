@@ -215,6 +215,20 @@ class SearchRepository(
             val currentUid = currentUserId
             val rawTag = q.removePrefix("#").lowercase().trim()
 
+            val blockedIds = async {
+                if (currentUid == null) {
+                    emptySet()
+                } else {
+                    try {
+                        firestore.collection("users").document(currentUid)
+                            .collection("blockedUsers").get().await()
+                            .documents.map { it.id }.filter { it.isNotBlank() }.toSet()
+                    } catch (_: Exception) {
+                        emptySet()
+                    }
+                }
+            }
+
             // Fetch remote and local bookmark state concurrently.
             val localDeferred = async { dataStoreManager.getLocalBookmarkedIds() }
             val remoteDeferred = async {
@@ -232,11 +246,15 @@ class SearchRepository(
             }
             val localBookmarks = localDeferred.await()
             val remoteBookmarks = remoteDeferred.await()
+            val effectiveBlockedIds = blockedIds.await()
             val bookmarkedIds = remoteBookmarks + localBookmarks
 
             val matchingPosts = snapshot.documents.mapNotNull { doc ->
                 try {
                     val post = Post.fromSnapshot(doc, currentUid)
+                    if (post.authorId.isNotBlank() && post.authorId in effectiveBlockedIds) {
+                        return@mapNotNull null
+                    }
                     val matchText = post.text.contains(q, ignoreCase = true)
                     val matchAuthor = post.authorUsername.contains(q, ignoreCase = true)
                     val matchHashtag = post.hashtags.any { it.equals(rawTag, ignoreCase = true) }
