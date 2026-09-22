@@ -9,6 +9,7 @@ import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -224,22 +225,25 @@ class SearchRepository(
                 }
             }
 
-            // Hydrate like and bookmark status
+            // Hydrate like state in parallel so search latency does not grow
+            // linearly with the number of matched posts.
             val hydrated = matchingPosts.map { post ->
-                var isLiked = false
-                if (currentUid != null) {
-                    try {
-                        val likeDoc = firestore.collection("posts").document(post.id)
-                            .collection("likes").document(currentUid)
-                            .get().await()
-                        isLiked = likeDoc.exists()
-                    } catch (_: Exception) {}
+                async {
+                    var isLiked = false
+                    if (currentUid != null) {
+                        try {
+                            val likeDoc = firestore.collection("posts").document(post.id)
+                                .collection("likes").document(currentUid)
+                                .get().await()
+                            isLiked = likeDoc.exists()
+                        } catch (_: Exception) {}
+                    }
+                    post.copy(
+                        isLikedByCurrentUser = isLiked,
+                        isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
+                    )
                 }
-                post.copy(
-                    isLikedByCurrentUser = isLiked,
-                    isBookmarkedByCurrentUser = bookmarkedIds.contains(post.id)
-                )
-            }
+            }.awaitAll()
 
             Result.success(hydrated)
         } catch (e: Exception) {
