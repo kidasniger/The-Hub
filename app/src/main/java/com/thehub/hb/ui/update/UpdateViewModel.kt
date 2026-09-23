@@ -85,7 +85,8 @@ class UpdateViewModel(
             apkUrl = updateInfo.apkDownloadUrl,
             fileName = updateInfo.apkFileName,
             versionName = updateInfo.latestVersion,
-            expectedSizeInBytes = updateInfo.apkSizeInBytes
+            expectedSizeInBytes = updateInfo.apkSizeInBytes,
+            expectedSha256 = updateInfo.apkSha256
         )
     }
 
