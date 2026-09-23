@@ -124,7 +124,9 @@ data class HubStrings(
     val emailPlaceholder: String,
     val passwordPlaceholder: String,
     val loginButton: String,
-    val signUpButton: String
+    val signUpButton: String,
+    val offlineTitle: String,
+    val offlineMessage: String
 )
 
 val FrenchHubStrings = HubStrings(
