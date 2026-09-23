@@ -118,8 +118,8 @@ fun HubNavGraph(
         )
     )
 
-    LaunchedEffect(currentUser?.uid) {
-        if (currentUser?.uid != null) {
+    LaunchedEffect(currentUser?.uid, isOnline) {
+        if (currentUser?.uid != null && isOnline) {
             appContainer.adminRepository.ensureBootstrapAdmin()
             onRequestNotificationPermission()
         }
