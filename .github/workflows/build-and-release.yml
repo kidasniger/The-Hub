@@ -347,7 +347,8 @@ jobs:
 
 
           cp "$APK_FILE" "release-artifacts/TheHub-${TAG}.apk"
-          sha256sum release-artifacts/*
+          sha256sum "release-artifacts/TheHub-${TAG}.apk" | cut -d' ' -f1 > "release-artifacts/TheHub-${TAG}.apk.sha256"
+          echo "Published APK SHA-256: $(cat "release-artifacts/TheHub-${TAG}.apk.sha256")"
 
       - name: Create Git Tag
         run: |
@@ -367,6 +368,7 @@ jobs:
           name: "The Hub ${{ env.TAG }}"
           files: |
             release-artifacts/*.apk
+            release-artifacts/*.sha256
           generate_release_notes: true
           draft: false
           prerelease: false
@@ -382,6 +384,7 @@ jobs:
           test "$RELEASE_TAG" = "$TAG"
           test "$RELEASE_NAME" = "The Hub $TAG"
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk"
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk.sha256"
           echo "GitHub Release verified: $RELEASE_NAME"
       - name: Send App Update Notifications
         env:

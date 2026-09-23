@@ -74,11 +74,13 @@ class AppUpdateDownloadManager(
     private var progressJob: Job? = null
     private var downloadCompleteReceiver: BroadcastReceiver? = null
     private var targetApkFile: File? = null
+    private var expectedSha256ForCurrentDownload: String = ""
 
     fun getExistingDownloadedApk(
         fileName: String,
         expectedVersion: String,
-        expectedSizeInBytes: Long
+        expectedSizeInBytes: Long,
+        expectedSha256: String = ""
     ): File? {
         if (!UpdateSecurity.isSafeApkFileName(fileName, expectedVersion)) {
             Log.w(TAG, "Rejected invalid cached APK file name.")
@@ -94,7 +96,8 @@ class AppUpdateDownloadManager(
         if (!isApkValid(
                 apkFile = file,
                 expectedVersion = expectedVersion,
-                expectedSizeInBytes = expectedSizeInBytes
+                expectedSizeInBytes = expectedSizeInBytes,
+                expectedSha256 = expectedSha256
             )
         ) {
             try {
@@ -112,7 +115,8 @@ class AppUpdateDownloadManager(
         val cachedFile = getExistingDownloadedApk(
             fileName = updateInfo.apkFileName,
             expectedVersion = updateInfo.latestVersion,
-            expectedSizeInBytes = updateInfo.apkSizeInBytes
+            expectedSizeInBytes = updateInfo.apkSizeInBytes,
+            expectedSha256 = updateInfo.apkSha256
         ) ?: return false
 
         progressJob?.cancel()
@@ -133,8 +137,10 @@ class AppUpdateDownloadManager(
         apkUrl: String,
         fileName: String,
         versionName: String,
-        expectedSizeInBytes: Long = 0L
+        expectedSizeInBytes: Long = 0L,
+        expectedSha256: String = ""
     ): Long {
+        expectedSha256ForCurrentDownload = UpdateSecurity.normalizeSha256(expectedSha256)
         if (!UpdateSecurity.isValidUpdate(apkUrl, fileName, versionName)) {
             Log.e(TAG, "Rejected untrusted APK update request.")
             _status.value = DownloadStatus.Failed(
@@ -151,7 +157,8 @@ class AppUpdateDownloadManager(
                     releaseNotes = "",
                     apkDownloadUrl = apkUrl,
                     apkFileName = fileName,
-                    apkSizeInBytes = expectedSizeInBytes
+                    apkSizeInBytes = expectedSizeInBytes,
+                    apkSha256 = expectedSha256
                 )
             )
         ) {
@@ -364,7 +371,8 @@ class AppUpdateDownloadManager(
         if (validFile != null && isApkValid(
                 apkFile = validFile,
                 expectedVersion = expectedVersion,
-                expectedSizeInBytes = expectedSizeInBytes
+                expectedSizeInBytes = expectedSizeInBytes,
+                expectedSha256 = expectedSha256ForCurrentDownload
             )
         ) {
             currentDownloadId = -1L
@@ -388,7 +396,8 @@ class AppUpdateDownloadManager(
     private fun isApkValid(
         apkFile: File,
         expectedVersion: String,
-        expectedSizeInBytes: Long
+        expectedSizeInBytes: Long,
+        expectedSha256: String = ""
     ): Boolean {
         if (!apkFile.isFile || apkFile.length() <= 0L) {
             return false
@@ -396,6 +405,30 @@ class AppUpdateDownloadManager(
 
         if (expectedSizeInBytes > 0L && apkFile.length() != expectedSizeInBytes) {
             return false
+        }
+
+        val normalizedSha256 = UpdateSecurity.normalizeSha256(expectedSha256)
+        if (normalizedSha256.isNotBlank()) {
+            val actualSha256 = runCatching {
+                MessageDigest.getInstance("SHA-256").let { digest ->
+                    apkFile.inputStream().use { input ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            digest.update(buffer, 0, count)
+                        }
+                    }
+                    digest.digest().joinToString("") { byte -> "%02x".format(java.util.Locale.ROOT, byte) }
+                }
+            }.getOrElse {
+                Log.w(TAG, "Could not calculate APK SHA-256.", it)
+                return false
+            }
+            if (!actualSha256.equals(normalizedSha256, ignoreCase = true)) {
+                Log.w(TAG, "APK SHA-256 mismatch.")
+                return false
+            }
         }
 
         val packageInfo = try {

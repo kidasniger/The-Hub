@@ -76,6 +76,15 @@ La P8 sécurise le parcours utilisateur lorsque l'accès Internet est indisponib
 - test unitaire de la politique de conservation de session hors connexion.
 
 
+## 📦 P9 — Distribution APK résiliente
+
+La P9 renforce le téléchargement et la vérification des mises à jour :
+
+- récupération de l'empreinte SHA-256 officielle de l'APK publiée sur GitHub ;
+- vérification du checksum de l'APK avant de proposer l'installation ;
+- un fichier `.sha256` est publié avec chaque nouvelle release APK pour contrôler l'intégrité d'un téléchargement réseau ;
+- un téléchargement rejeté reste explicitement réessayable depuis l'interface de mise à jour.
+
 ---
 
 ### 🔑 Signature de production

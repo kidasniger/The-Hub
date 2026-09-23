@@ -8,6 +8,7 @@ object UpdateSecurity {
     private const val TRUSTED_RELEASE_PREFIX = "/kidasniger/The-Hub/releases/download/"
     private val VERSION_REGEX = Regex("^v?\\d+\\.\\d+\\.\\d+$")
     private val APK_NAME_REGEX = Regex("^TheHub-v?\\d+\\.\\d+\\.\\d+\\.apk$")
+    private val SHA256_REGEX = Regex("^[0-9a-fA-F]{64}$")
 
     fun isSupportedVersion(raw: String): Boolean = VERSION_REGEX.matches(raw.trim())
 
@@ -15,6 +16,17 @@ object UpdateSecurity {
         .removePrefix("v")
         .removePrefix("V")
         .substringBefore("-")
+
+    fun isValidSha256(raw: String): Boolean =
+        SHA256_REGEX.matches(raw.trim())
+
+    fun normalizeSha256(raw: String): String {
+        val value = raw.trim()
+            .removePrefix("sha256:")
+            .removePrefix("SHA256:")
+            .lowercase()
+        return value.takeIf(::isValidSha256).orEmpty()
+    }
 
     fun isTrustedApkUrl(rawUrl: String): Boolean {
         val url = rawUrl.trim()

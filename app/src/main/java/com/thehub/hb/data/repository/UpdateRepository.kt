@@ -36,6 +36,7 @@ class UpdateRepository(
             val apkUrl = policy.getString("apkUrl").orEmpty()
             val releaseNotes = policy.getString("releaseNotes").orEmpty()
             val versionName = policy.getString("versionName").orEmpty()
+            val apkSha256 = UpdateSecurity.normalizeSha256(policy.getString("apkSha256").orEmpty())
             val force = policy.getBoolean("forceUpdate") == true
             val currentCode = BuildConfig.VERSION_CODE.toLong()
             val fileName = if (versionName.isNotBlank()) "TheHub-$versionName.apk" else ""
@@ -57,6 +58,7 @@ class UpdateRepository(
                         apkDownloadUrl = apkUrl,
                         apkFileName = fileName,
                         apkSizeInBytes = 0L,
+                        apkSha256 = apkSha256,
                         isUpdateAvailable = true
                     )
                 )
