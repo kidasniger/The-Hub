@@ -51,6 +51,20 @@ git push origin main
 3. Lancez le workflow et renseignez éventuellement un tag explicite comme `v1.0.75`.
 > Le tag explicite doit être strictement supérieur au dernier release.
 
+## 🛡️ P7 — Préparation production finale
+
+La P7 ajoute les derniers garde-fous avant distribution :
+
+- indication réactive de l'absence de connexion Internet dans l'interface principale ;
+- détection réseau basée sur une connexion réellement validée ;
+- lint Android exécuté dans la CI des Pull Requests et dans le pipeline de release ;
+- vérification que l'APK release publié n'est pas marqué débogable ;
+- test unitaire dédié à la détection de connectivité.
+
+La signature de production et la publication APK-only restent inchangées.
+
+---
+
 ### 🔑 Configuration facultative de signature (Keystore)
 
 Par défaut, l'APK est généré et signé afin d'être immédiatement installable sur n'importe quel smartphone Android.
