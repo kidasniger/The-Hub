@@ -37,7 +37,15 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Android Lint
-        run: ./gradlew lintDebug --no-configuration-cache
+        run: |
+          set +e
+          ./gradlew lintDebug --no-configuration-cache
+          status=$?
+          if [ -f app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt ]; then
+            echo "===== LINT FINDINGS ====="
+            grep -E "^[^:]+:[0-9]+:[0-9]+: Error:|^.* Error:" app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt || true
+          fi
+          exit $status
 
       - name: Run debug unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
