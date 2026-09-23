@@ -97,6 +97,11 @@ android {
   }
 
   testOptions { unitTests { isIncludeAndroidResources = true } }
+
+  lint {
+    baseline = file("lint-baseline.xml")
+  }
+
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
