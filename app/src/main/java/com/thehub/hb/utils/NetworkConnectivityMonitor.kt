@@ -5,8 +5,10 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -25,6 +27,8 @@ object NetworkStatus {
 }
 
 class NetworkConnectivityMonitor(context: Context) {
+    private val refreshRequests =
+        kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
@@ -60,11 +64,22 @@ class NetworkConnectivityMonitor(context: Context) {
             trySend(false)
         }
 
+        val refreshJob = launch {
+            refreshRequests.collect {
+                trySend(currentStatus())
+            }
+        }
+
         awaitClose {
+            refreshJob.cancel()
             try {
                 connectivityManager.unregisterNetworkCallback(callback)
             } catch (_: Exception) {
             }
         }
     }.distinctUntilChanged().conflate()
+
+    fun refresh() {
+        refreshRequests.tryEmit(Unit)
+    }
 }
