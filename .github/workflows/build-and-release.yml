@@ -283,6 +283,9 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Run Android Lint
+        run: ./gradlew lintRelease --no-configuration-cache
+
       - name: Run Unit Tests
         run: ./gradlew test
 
@@ -313,6 +316,11 @@ jobs:
           grep -F "versionCode='$VERSION_CODE'" apk-badging.txt
           grep -F "versionName='$VERSION_NAME'" apk-badging.txt
           echo "APK version verified: $VERSION_NAME (versionCode $VERSION_CODE)"
+          if grep -q "application-debuggable" apk-badging.txt; then
+            echo "ERROR: Release APK is marked debuggable."
+            exit 1
+          fi
+          echo "APK release debug flag verified: disabled"
 
           EXPECTED_CERT_SHA1="F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
           EXPECTED_CERT_SHA1_NORMALIZED="$(printf '%s' "$EXPECTED_CERT_SHA1" | tr -d ':' | tr '[:upper:]' '[:lower:]')"

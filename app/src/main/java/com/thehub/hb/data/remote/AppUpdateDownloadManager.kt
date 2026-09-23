@@ -240,16 +240,12 @@ class AppUpdateDownloadManager(
         downloadCompleteReceiver = receiver
 
         val intentFilter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(
-                context,
-                receiver,
-                intentFilter,
-                ContextCompat.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            context.registerReceiver(receiver, intentFilter)
-        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            intentFilter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     private fun unregisterCompletionReceiver() {

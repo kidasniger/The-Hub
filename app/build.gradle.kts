@@ -87,6 +87,7 @@ android {
   }
 
   compileOptions {
+    isCoreLibraryDesugaringEnabled = true
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
@@ -97,6 +98,8 @@ android {
   }
 
   testOptions { unitTests { isIncludeAndroidResources = true } }
+
+
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
@@ -156,6 +159,7 @@ secrets {
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
 
 dependencies {
+  coreLibraryDesugaring(libs.desugar.jdk.libs)
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   implementation(libs.androidx.activity.compose)

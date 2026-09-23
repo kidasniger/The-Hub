@@ -13,7 +13,7 @@ Le workflow GitHub Actions est configuré dans [`.github/workflows/build-and-rel
 1. **Compilation Android** :
    - JDK 17 & SDK Android.
    - Tests Gradle.
-   - Build Release APK/AAB.
+   - Build Release APK signé.
    - Vérification de la version réellement embarquée dans l'APK.
 
 2. **Version unique et monotone** :
@@ -30,7 +30,7 @@ Le workflow GitHub Actions est configuré dans [`.github/workflows/build-and-rel
 
 4. **GitHub Release** :
    - La GitHub Release utilise exactement le même tag.
-   - Les fichiers APK/AAB utilisent la même version.
+   - L'asset publié est un APK signé et utilise exactement la même version.
    - La version APK est vérifiée avec `aapt` avant publication.
 
 ---
@@ -51,11 +51,20 @@ git push origin main
 3. Lancez le workflow et renseignez éventuellement un tag explicite comme `v1.0.75`.
 > Le tag explicite doit être strictement supérieur au dernier release.
 
-### 🔑 Configuration facultative de signature (Keystore)
+## 🛡️ P7 — Préparation production finale
 
-Par défaut, l'APK est généré et signé afin d'être immédiatement installable sur n'importe quel smartphone Android.
+La P7 ajoute les derniers garde-fous avant distribution :
 
-Si vous possédez votre propre Keystore de production, vous pouvez ajouter les **GitHub Secrets** suivants dans les paramètres de votre dépôt (*Settings > Secrets and variables > Actions*) :
-- `KEYSTORE_BASE64` : Votre fichier `.jks` encodé en base64 (`base64 -w 0 mon-keystore.jks`)
-- `STORE_PASSWORD` : Mot de passe du keystore
-- `KEY_PASSWORD` : Mot de passe de la clé
+- indication réactive de l'absence de connexion Internet dans l'interface principale ;
+- détection réseau basée sur une connexion réellement validée ;
+- lint Android exécuté dans la CI des Pull Requests et dans le pipeline de release ;
+- vérification que l'APK release publié n'est pas marqué débogable ;
+- test unitaire dédié à la détection de connectivité.
+
+La signature de production et la publication APK-only restent inchangées.
+
+---
+
+### 🔑 Signature de production
+
+Les releases de production utilisent la signature de production conservée dans les **GitHub Secrets** (*Settings > Secrets and variables > Actions*). Le pipeline vérifie la présence du keystore, ses identifiants et la continuité du certificat avant de publier l'APK.
