@@ -29,6 +29,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.AppLogo
+import com.thehub.hb.utils.SessionValidationPolicy
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubBackground
@@ -75,7 +76,8 @@ fun SplashScreen(
                     }
                 }
             } catch (e: Exception) {
-                if (isOnline && !isTransientNetworkFailure(e)) {
+                val isTransient = isTransientNetworkFailure(e)
+                if (SessionValidationPolicy.shouldClearSession(isOnline, isTransient)) {
                     authRepository.signOut()
                     dataStoreManager.clearAll()
                 }
