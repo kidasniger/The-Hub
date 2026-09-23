@@ -126,7 +126,8 @@ data class HubStrings(
     val loginButton: String,
     val signUpButton: String,
     val offlineTitle: String,
-    val offlineMessage: String
+    val offlineMessage: String,
+    val offlineRetry: String
 )
 
 val FrenchHubStrings = HubStrings(
@@ -242,7 +243,8 @@ val FrenchHubStrings = HubStrings(
     loginButton = "Se connecter",
     signUpButton = "S'inscrire",
     offlineTitle = "Connexion Internet indisponible",
-    offlineMessage = "Certaines actions sont temporairement indisponibles. Le retour de la connexion sera détecté automatiquement."
+    offlineMessage = "The Hub a besoin d'une connexion Internet pour fonctionner. La reconnexion est surveillée automatiquement.",
+    offlineRetry = "Réessayer la connexion"
 )
 
 val LocalHubStrings = staticCompositionLocalOf<HubStrings> { FrenchHubStrings }
