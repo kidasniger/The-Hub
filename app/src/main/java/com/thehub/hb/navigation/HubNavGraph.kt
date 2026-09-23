@@ -111,13 +111,6 @@ fun HubNavGraph(
         }
     }
 
-    val updateViewModel: UpdateViewModel = viewModel(
-        factory = UpdateViewModel.Factory(
-            updateRepository = appContainer.updateRepository,
-            downloadManager = appContainer.updateDownloadManager
-        )
-    )
-
     LaunchedEffect(currentUser?.uid, isOnline) {
         if (currentUser?.uid != null && isOnline) {
             appContainer.adminRepository.ensureBootstrapAdmin()
@@ -139,6 +132,13 @@ fun HubNavGraph(
         )
         return
     }
+
+    val updateViewModel: UpdateViewModel = viewModel(
+        factory = UpdateViewModel.Factory(
+            updateRepository = appContainer.updateRepository,
+            downloadManager = appContainer.updateDownloadManager
+        )
+    )
 
     // Global in-app update bottom sheet
     UpdateBottomSheet(viewModel = updateViewModel)
