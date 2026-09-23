@@ -147,6 +147,7 @@ data class AdminAccountRow(
     val active: Boolean
 )
 
+// Validation marker: final admin v4 current-main check.
 class AdminRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
