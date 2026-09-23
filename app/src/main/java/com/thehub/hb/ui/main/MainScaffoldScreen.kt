@@ -77,6 +77,7 @@ import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.utils.NetworkConnectivityMonitor
 import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.NetworkOfflineScreen
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.createpost.CreatePostScreen
@@ -164,8 +165,15 @@ fun MainScaffoldScreen(
     val networkConnectivityMonitor = remember(context.applicationContext) {
         NetworkConnectivityMonitor(context.applicationContext)
     }
-    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = true)
+    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = false)
 
+
+    if (!isOnline) {
+        NetworkOfflineScreen(
+            onRetry = { networkConnectivityMonitor.refresh() }
+        )
+        return
+    }
 
     if (maintenanceActive) {
         SystemMaintenanceNotice(message = systemControls.emergency.message)
@@ -225,10 +233,6 @@ fun MainScaffoldScreen(
                 .fillMaxSize()
                 .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
-            if (!isOnline) {
-                NetworkOfflineBanner()
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -362,35 +366,6 @@ fun MainScaffoldScreen(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun NetworkOfflineBanner() {
-    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(HubSurfaceElevated)
-            .border(1.dp, HubOutline)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .testTag("network_offline_banner"),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = strings.offlineTitle,
-                color = HubWhite,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = strings.offlineMessage,
-                color = HubMuted,
-                fontSize = 11.sp,
-                lineHeight = 15.sp
-            )
         }
     }
 }

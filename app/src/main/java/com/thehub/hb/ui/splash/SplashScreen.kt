@@ -25,9 +25,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.AppLogo
+import com.thehub.hb.utils.SessionValidationPolicy
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubBackground
@@ -44,9 +46,11 @@ fun SplashScreen(
     dataStoreManager: DataStoreManager,
     onNavigateToFeed: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
-    onNavigateToWelcome: () -> Unit
+    onNavigateToWelcome: () -> Unit,
+    isOnline: Boolean = true
 ) {
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isOnline) {
+        if (!isOnline) return@LaunchedEffect
         val startTime = System.currentTimeMillis()
         val currentUser = authRepository.currentFirebaseUser
         var isSessionValid = false
@@ -72,8 +76,11 @@ fun SplashScreen(
                     }
                 }
             } catch (e: Exception) {
-                authRepository.signOut()
-                dataStoreManager.clearAll()
+                val isTransient = isTransientNetworkFailure(e)
+                if (SessionValidationPolicy.shouldClearSession(isOnline, isTransient)) {
+                    authRepository.signOut()
+                    dataStoreManager.clearAll()
+                }
             }
         }
 
@@ -81,6 +88,8 @@ fun SplashScreen(
         if (elapsed < MIN_SPLASH_DURATION_MS) {
             delay(MIN_SPLASH_DURATION_MS - elapsed)
         }
+
+        if (!isOnline) return@LaunchedEffect
 
         if (isSessionValid) {
             onNavigateToFeed()
@@ -169,3 +178,20 @@ fun SplashScreen(
         }
     }
 }
+
+private fun isTransientNetworkFailure(error: Exception): Boolean {
+    if (error is FirebaseFirestoreException) {
+        return error.code == FirebaseFirestoreException.Code.UNAVAILABLE ||
+            error.code == FirebaseFirestoreException.Code.DEADLINE_EXCEEDED
+    }
+
+    var current: Throwable? = error
+    repeat(3) {
+        if (current is java.io.IOException) return true
+        if (current?.message?.contains("network", ignoreCase = true) == true) return true
+        if (current?.message?.contains("offline", ignoreCase = true) == true) return true
+        current = current?.cause
+    }
+    return false
+}
+

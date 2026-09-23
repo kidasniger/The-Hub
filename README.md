@@ -63,6 +63,19 @@ La P7 ajoute les derniers garde-fous avant distribution :
 
 La signature de production et la publication APK-only restent inchangées.
 
+## 📴 P8 — Résilience hors connexion
+
+La P8 sécurise le parcours utilisateur lorsque l'accès Internet est indisponible :
+
+- affichage d'un écran hors connexion dédié au lieu d'afficher les écrans dépendants de Firebase ;
+- détection basée sur un réseau Internet réellement validé ;
+- bouton de reconnexion qui force une nouvelle vérification immédiate ;
+- surveillance automatique du retour de la connexion ;
+- conservation de la session Firebase lors d'une erreur réseau temporaire au démarrage ;
+- protection des mises à jour de présence contre les erreurs réseau non gérées ;
+- test unitaire de la politique de conservation de session hors connexion.
+
+
 ---
 
 ### 🔑 Signature de production

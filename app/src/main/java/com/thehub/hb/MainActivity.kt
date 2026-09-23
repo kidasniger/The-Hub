@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         presenceScope.launch {
             if (messageRepository.currentUserId != null) {
-                messageRepository.setPresence(true)
+                runCatching { messageRepository.setPresence(true) }
             }
         }
     }
@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         presenceScope.launch {
             if (messageRepository.currentUserId != null) {
-                messageRepository.setPresence(false)
+                runCatching { messageRepository.setPresence(false) }
             }
         }
         super.onStop()

@@ -17,8 +17,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.ui.platform.LocalContext
 import com.thehub.hb.di.AppContainer
 import com.thehub.hb.ui.bookmarks.BookmarksScreen
+import com.thehub.hb.ui.components.NetworkOfflineScreen
 import com.thehub.hb.ui.bookmarks.BookmarksViewModel
 import com.thehub.hb.ui.comments.CommentsScreen
 import com.thehub.hb.ui.comments.CommentsViewModel
@@ -65,6 +67,7 @@ import com.thehub.hb.ui.terms.TermsScreen
 import com.thehub.hb.ui.update.UpdateBottomSheet
 import com.thehub.hb.ui.update.UpdateViewModel
 import com.thehub.hb.ui.welcome.WelcomeScreen
+import com.thehub.hb.utils.NetworkConnectivityMonitor
 import kotlinx.coroutines.launch
 
 @Composable
@@ -88,6 +91,12 @@ fun HubNavGraph(
     val systemControls by appContainer.systemControlRepository.controls.collectAsState()
     val isCurrentUserAdmin = remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val networkConnectivityMonitor = remember(context.applicationContext) {
+        NetworkConnectivityMonitor(context.applicationContext)
+    }
+    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = false)
+
     fun routeAfterAuthentication() {
         authRoutingScope.launch {
             val destination = if (appContainer.adminRepository.isCurrentUserAdmin()) {
@@ -102,21 +111,14 @@ fun HubNavGraph(
         }
     }
 
-    val updateViewModel: UpdateViewModel = viewModel(
-        factory = UpdateViewModel.Factory(
-            updateRepository = appContainer.updateRepository,
-            downloadManager = appContainer.updateDownloadManager
-        )
-    )
-
-    LaunchedEffect(currentUser?.uid) {
-        if (currentUser?.uid != null) {
+    LaunchedEffect(currentUser?.uid, isOnline) {
+        if (currentUser?.uid != null && isOnline) {
             appContainer.adminRepository.ensureBootstrapAdmin()
             onRequestNotificationPermission()
         }
     }
     LaunchedEffect(currentUser?.uid) {
-        if (currentUser?.uid != null) {
+        if (currentUser?.uid != null && isOnline) {
             appContainer.systemControlRepository.refresh()
             isCurrentUserAdmin.value = appContainer.adminRepository.isCurrentUserAdmin()
         } else {
@@ -124,11 +126,25 @@ fun HubNavGraph(
             isCurrentUserAdmin.value = false
         }
     }
+    if (!isOnline) {
+        NetworkOfflineScreen(
+            onRetry = { networkConnectivityMonitor.refresh() }
+        )
+        return
+    }
+
+    val updateViewModel: UpdateViewModel = viewModel(
+        factory = UpdateViewModel.Factory(
+            updateRepository = appContainer.updateRepository,
+            downloadManager = appContainer.updateDownloadManager
+        )
+    )
+
     // Global in-app update bottom sheet
     UpdateBottomSheet(viewModel = updateViewModel)
 
-    LaunchedEffect(openUpdateDialogRequest) {
-        if (openUpdateDialogRequest) {
+    LaunchedEffect(openUpdateDialogRequest, isOnline) {
+        if (openUpdateDialogRequest && isOnline) {
             updateViewModel.openUpdateDialog()
             onUpdateDialogRequestConsumed()
         }
@@ -154,6 +170,7 @@ fun HubNavGraph(
         composable(Screen.Splash.route) {
             SplashScreen(
                 authRepository = authRepository,
+                isOnline = isOnline,
                 dataStoreManager = dataStoreManager,
                 onNavigateToFeed = { routeAfterAuthentication() },
                 onNavigateToOnboarding = {
