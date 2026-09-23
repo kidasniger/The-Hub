@@ -13,7 +13,7 @@ Le workflow GitHub Actions est configuré dans [`.github/workflows/build-and-rel
 1. **Compilation Android** :
    - JDK 17 & SDK Android.
    - Tests Gradle.
-   - Build Release APK/AAB.
+   - Build Release APK signé.
    - Vérification de la version réellement embarquée dans l'APK.
 
 2. **Version unique et monotone** :
@@ -30,7 +30,7 @@ Le workflow GitHub Actions est configuré dans [`.github/workflows/build-and-rel
 
 4. **GitHub Release** :
    - La GitHub Release utilise exactement le même tag.
-   - Les fichiers APK/AAB utilisent la même version.
+   - L'asset publié est un APK signé et utilise exactement la même version.
    - La version APK est vérifiée avec `aapt` avant publication.
 
 ---
@@ -65,11 +65,6 @@ La signature de production et la publication APK-only restent inchangées.
 
 ---
 
-### 🔑 Configuration facultative de signature (Keystore)
+### 🔑 Signature de production
 
-Par défaut, l'APK est généré et signé afin d'être immédiatement installable sur n'importe quel smartphone Android.
-
-Si vous possédez votre propre Keystore de production, vous pouvez ajouter les **GitHub Secrets** suivants dans les paramètres de votre dépôt (*Settings > Secrets and variables > Actions*) :
-- `KEYSTORE_BASE64` : Votre fichier `.jks` encodé en base64 (`base64 -w 0 mon-keystore.jks`)
-- `STORE_PASSWORD` : Mot de passe du keystore
-- `KEY_PASSWORD` : Mot de passe de la clé
+Les releases de production utilisent la signature de production conservée dans les **GitHub Secrets** (*Settings > Secrets and variables > Actions*). Le pipeline vérifie la présence du keystore, ses identifiants et la continuité du certificat avant de publier l'APK.
