@@ -12,9 +12,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 object NetworkStatus {
     fun hasInternet(capabilities: NetworkCapabilities?): Boolean {
-        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        return hasInternet(
+            hasInternetCapability = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true,
+            isValidated = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        )
     }
+
+    internal fun hasInternet(
+        hasInternetCapability: Boolean,
+        isValidated: Boolean
+    ): Boolean = hasInternetCapability && isValidated
 }
 
 class NetworkConnectivityMonitor(context: Context) {
