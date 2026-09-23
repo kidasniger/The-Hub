@@ -75,6 +75,7 @@ import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.SystemControls
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.data.repository.MessageRepository
+import com.thehub.hb.utils.NetworkConnectivityMonitor
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.UserAvatar
@@ -160,6 +161,10 @@ fun MainScaffoldScreen(
     val postsEnabled = systemControls.postsEnabled()
     val messagingEnabled = systemControls.messagingEnabled()
     val maintenanceActive = systemControls.emergency.maintenance && !bypassMaintenance
+    val networkConnectivityMonitor = remember(context.applicationContext) {
+        NetworkConnectivityMonitor(context.applicationContext)
+    }
+    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = true)
 
 
     if (maintenanceActive) {
@@ -215,12 +220,21 @@ fun MainScaffoldScreen(
             )
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
-            when (MainTab.entries[selectedTab]) {
+            if (!isOnline) {
+                NetworkOfflineBanner()
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                when (MainTab.entries[selectedTab]) {
                 MainTab.FEED -> {
                     FeedScreen(
                         viewModel = feedViewModel,
@@ -338,15 +352,45 @@ fun MainScaffoldScreen(
                 }
             }
 
-            postToShare?.let { post ->
-                SharePostBottomSheet(
-                    post = post,
-                    onDismiss = { postToShare = null },
-                    onRepost = { p ->
-                        feedViewModel.repost(p)
-                    }
-                )
+                postToShare?.let { post ->
+                    SharePostBottomSheet(
+                        post = post,
+                        onDismiss = { postToShare = null },
+                        onRepost = { p ->
+                            feedViewModel.repost(p)
+                        }
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun NetworkOfflineBanner() {
+    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HubSurfaceElevated)
+            .border(1.dp, HubOutline)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .testTag("network_offline_banner"),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = strings.offlineTitle,
+                color = HubWhite,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = strings.offlineMessage,
+                color = HubMuted,
+                fontSize = 11.sp,
+                lineHeight = 15.sp
+            )
         }
     }
 }
