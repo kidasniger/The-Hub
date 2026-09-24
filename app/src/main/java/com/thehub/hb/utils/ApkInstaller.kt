@@ -13,6 +13,8 @@ import java.io.File
 object ApkInstaller {
 
     private const val TAG = "ApkInstaller"
+    private const val PREFS = "apk_installer"
+    private const val PENDING_APK_PATH = "pending_apk_path"
 
     /**
      * Checks if the app currently has permission to install unknown apps (Android 8.0+).
@@ -28,7 +30,14 @@ object ApkInstaller {
     /**
      * Opens system settings to allow this app to install unknown apps.
      */
-    fun openInstallPermissionSettings(context: Context) {
+    fun openInstallPermissionSettings(context: Context, apkFile: File? = null) {
+        if (apkFile != null && isAllowedApkFile(context, apkFile)) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PENDING_APK_PATH, apkFile.absolutePath)
+                .apply()
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                 data = Uri.parse("package:${context.packageName}")
@@ -36,6 +45,26 @@ object ApkInstaller {
             }
             context.startActivity(intent)
         }
+    }
+
+    /** Retries a pending APK installation after the user enables unknown-app installs. */
+    fun resumePendingInstall(context: Context): Boolean {
+        if (!canRequestPackageInstalls(context)) return false
+
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val pendingPath = prefs.getString(PENDING_APK_PATH, null) ?: return false
+        val pendingFile = File(pendingPath)
+
+        if (!isAllowedApkFile(context, pendingFile)) {
+            prefs.edit().remove(PENDING_APK_PATH).apply()
+            return false
+        }
+
+        val success = installApk(context, pendingFile)
+        if (success) {
+            prefs.edit().remove(PENDING_APK_PATH).apply()
+        }
+        return success
     }
 
     /**
@@ -57,10 +86,15 @@ object ApkInstaller {
             val authority = "${context.packageName}.fileprovider"
             val contentUri: Uri = FileProvider.getUriForFile(context, authority, apkFile)
 
-            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+            val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            if (installIntent.resolveActivity(context.packageManager) == null) {
+                Log.e(TAG, "No Android package installer is available for APK installation.")
+                return false
             }
 
             context.startActivity(installIntent)

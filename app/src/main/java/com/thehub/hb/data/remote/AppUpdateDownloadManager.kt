@@ -1,20 +1,17 @@
 package com.thehub.hb.data.remote
 
 import android.Manifest
-import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.database.Cursor
-import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.util.Log
 import java.security.MessageDigest
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -30,7 +27,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
+import java.io.IOException
 
 sealed interface DownloadStatus {
     object Idle : DownloadStatus
@@ -53,11 +53,20 @@ class AppUpdateDownloadManager(
         private const val UPDATE_NOTIFICATION_ID = 4108
         private const val NOTIFICATION_PREFS = "app_update_notification"
         private const val LAST_NOTIFIED_VERSION = "last_notified_version"
+        private const val MAX_DOWNLOAD_ATTEMPTS = 3
+        private const val RETRY_DELAY_MS = 1200L
+        private const val PROGRESS_UPDATE_BYTES = 64 * 1024L
     }
 
-    private val downloadManager =
-        context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .callTimeout(3, TimeUnit.MINUTES)
+        .retryOnConnectionFailure(true)
+        .build()
+
     private val notificationPrefs = context.getSharedPreferences(
         NOTIFICATION_PREFS,
         Context.MODE_PRIVATE
@@ -71,10 +80,9 @@ class AppUpdateDownloadManager(
     val status: StateFlow<DownloadStatus> = _status.asStateFlow()
 
     private var currentDownloadId: Long = -1L
-    private var progressJob: Job? = null
-    private var downloadCompleteReceiver: BroadcastReceiver? = null
+    private var activeDownloadJob: Job? = null
+    private var activeTemporaryFile: File? = null
     private var targetApkFile: File? = null
-    private var expectedSha256ForCurrentDownload: String = ""
 
     fun getExistingDownloadedApk(
         fileName: String,
@@ -93,18 +101,16 @@ class AppUpdateDownloadManager(
 
         if (!file.isFile) return null
 
-        if (!isApkValid(
-                apkFile = file,
-                expectedVersion = expectedVersion,
-                expectedSizeInBytes = expectedSizeInBytes,
-                expectedSha256 = expectedSha256
-            )
-        ) {
-            try {
-                file.delete()
-            } catch (_: Exception) {
-                Log.w(TAG, "Could not delete invalid cached APK: ${file.absolutePath}")
-            }
+        val validationError = validateApk(
+            apkFile = file,
+            expectedVersion = expectedVersion,
+            expectedSizeInBytes = expectedSizeInBytes,
+            expectedSha256 = expectedSha256
+        )
+
+        if (validationError != null) {
+            Log.w(TAG, "Cached APK rejected: $validationError")
+            runCatching { file.delete() }
             return null
         }
 
@@ -119,20 +125,25 @@ class AppUpdateDownloadManager(
             expectedSha256 = updateInfo.apkSha256
         ) ?: return false
 
-        progressJob?.cancel()
-        unregisterCompletionReceiver()
+        activeDownloadJob?.cancel()
+        activeDownloadJob = null
         currentDownloadId = -1L
         targetApkFile = cachedFile
         _status.value = DownloadStatus.Completed(
             file = cachedFile,
             downloadId = CACHED_DOWNLOAD_ID
         )
-        notifyUpdateReadyIfNeeded(
-            versionName = updateInfo.latestVersion
-        )
+        notifyUpdateReadyIfNeeded(updateInfo.latestVersion)
         return true
     }
 
+    /**
+     * Downloads the release APK directly with OkHttp.
+     *
+     * The APK is first written to a temporary file. Only after byte-count,
+     * SHA-256, package/version and production-certificate validation succeeds
+     * is it moved to the final APK filename. Failed downloads are retried.
+     */
     fun startDownload(
         apkUrl: String,
         fileName: String,
@@ -140,11 +151,19 @@ class AppUpdateDownloadManager(
         expectedSizeInBytes: Long = 0L,
         expectedSha256: String = ""
     ): Long {
-        expectedSha256ForCurrentDownload = UpdateSecurity.normalizeSha256(expectedSha256)
+        val normalizedSha256 = UpdateSecurity.normalizeSha256(expectedSha256)
+
         if (!UpdateSecurity.isValidUpdate(apkUrl, fileName, versionName)) {
             Log.e(TAG, "Rejected untrusted APK update request.")
             _status.value = DownloadStatus.Failed(
-                "La source de mise à jour n'est pas fiable."
+                "La source de mise à jour est non fiable."
+            )
+            return -1L
+        }
+
+        if (normalizedSha256.isBlank() && expectedSizeInBytes <= 0L) {
+            _status.value = DownloadStatus.Failed(
+                "Les informations d’intégrité de la mise à jour sont incomplètes."
             )
             return -1L
         }
@@ -158,7 +177,7 @@ class AppUpdateDownloadManager(
                     apkDownloadUrl = apkUrl,
                     apkFileName = fileName,
                     apkSizeInBytes = expectedSizeInBytes,
-                    apkSha256 = expectedSha256
+                    apkSha256 = normalizedSha256
                 )
             )
         ) {
@@ -167,244 +186,229 @@ class AppUpdateDownloadManager(
 
         cancelDownload()
 
-        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        if (downloadDir != null) {
-            val file = File(downloadDir, fileName)
-            if (file.exists()) {
-                file.delete()
-            }
-            targetApkFile = file
-        }
+        val downloadDir =
+            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                ?: run {
+                    _status.value = DownloadStatus.Failed(
+                        "Dossier de téléchargement introuvable."
+                    )
+                    return -1L
+                }
 
-        val uri = Uri.parse(apkUrl)
-        val request = DownloadManager.Request(uri).apply {
-            setTitle("The Hub $versionName")
-            setDescription("Téléchargement de la mise à jour...")
-            // DownloadManager handles progress; the app posts its own final
-            // notification so its click can reopen the update BottomSheet.
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-            setMimeType("application/vnd.android.package-archive")
-            setAllowedOverMetered(true)
-            setAllowedOverRoaming(true)
-            setDestinationInExternalFilesDir(
-                context,
-                Environment.DIRECTORY_DOWNLOADS,
-                fileName
-            )
-        }
+        val finalFile = File(downloadDir, fileName)
+        val downloadId = System.currentTimeMillis().coerceAtLeast(1L)
+        val temporaryFile = File(downloadDir, ".$fileName.$downloadId.download")
 
-        val downloadId = try {
-            downloadManager.enqueue(request)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to enqueue download", e)
-            _status.value = DownloadStatus.Failed(
-                "Impossible de lancer le téléchargement: ${e.localizedMessage}"
-            )
-            return -1L
-        }
+        runCatching { temporaryFile.delete() }
+        runCatching { finalFile.delete() }
 
+        targetApkFile = finalFile
+        activeTemporaryFile = temporaryFile
         currentDownloadId = downloadId
-        _status.value = DownloadStatus.Downloading(0, 0, 0)
+        _status.value = DownloadStatus.Downloading(
+            progressPercent = 0,
+            bytesDownloaded = 0,
+            totalBytes = expectedSizeInBytes
+        )
 
-        registerCompletionReceiver(
-            downloadId = downloadId,
-            fileName = fileName,
-            expectedVersion = versionName,
-            expectedSizeInBytes = expectedSizeInBytes
-        )
-        startProgressPolling(
-            downloadId = downloadId,
-            fileName = fileName,
-            expectedVersion = versionName,
-            expectedSizeInBytes = expectedSizeInBytes
-        )
+        activeDownloadJob = coroutineScope.launch {
+            var lastError = "Échec du téléchargement."
+            try {
+                for (attempt in 1..MAX_DOWNLOAD_ATTEMPTS) {
+                    if (!isActive) throw CancellationException()
+
+                    try {
+                        downloadAndValidate(
+                            apkUrl = apkUrl,
+                            temporaryFile = temporaryFile,
+                            finalFile = finalFile,
+                            versionName = versionName,
+                            expectedSizeInBytes = expectedSizeInBytes,
+                            expectedSha256 = normalizedSha256
+                        )
+
+                        currentDownloadId = -1L
+                        targetApkFile = finalFile
+                        _status.value = DownloadStatus.Completed(
+                            file = finalFile,
+                            downloadId = downloadId
+                        )
+                        notifyUpdateReadyIfNeeded(versionName)
+                        return@launch
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        lastError = e.message ?: "Échec du téléchargement."
+                        Log.w(
+                            TAG,
+                            "Update download attempt $attempt/$MAX_DOWNLOAD_ATTEMPTS failed: $lastError",
+                            e
+                        )
+                        runCatching { temporaryFile.delete() }
+                        if (attempt < MAX_DOWNLOAD_ATTEMPTS) {
+                            delay(RETRY_DELAY_MS)
+                            _status.value = DownloadStatus.Downloading(
+                                progressPercent = 0,
+                                bytesDownloaded = 0,
+                                totalBytes = expectedSizeInBytes
+                            )
+                        }
+                    }
+                }
+
+                currentDownloadId = -1L
+                targetApkFile = null
+                _status.value = DownloadStatus.Failed(
+                    "Téléchargement vérifié impossible après $MAX_DOWNLOAD_ATTEMPTS tentatives : $lastError"
+                )
+            } catch (e: CancellationException) {
+                runCatching { temporaryFile.delete() }
+                if (currentDownloadId == downloadId) {
+                    currentDownloadId = -1L
+                    targetApkFile = null
+                    activeTemporaryFile = null
+                }
+                throw e
+            } finally {
+                if (currentDownloadId == -1L || currentDownloadId == downloadId) {
+                    activeDownloadJob = null
+                    activeTemporaryFile = null
+                }
+            }
+        }
 
         return downloadId
     }
 
-    private fun registerCompletionReceiver(
-        downloadId: Long,
-        fileName: String,
-        expectedVersion: String,
-        expectedSizeInBytes: Long
+    private fun downloadAndValidate(
+        apkUrl: String,
+        temporaryFile: File,
+        finalFile: File,
+        versionName: String,
+        expectedSizeInBytes: Long,
+        expectedSha256: String
     ) {
-        unregisterCompletionReceiver()
+        val request = Request.Builder()
+            .url(apkUrl)
+            .header("Accept", "application/vnd.android.package-archive")
+            .header("Accept-Encoding", "identity")
+            .header("Cache-Control", "no-cache")
+            .header("Pragma", "no-cache")
+            .header("User-Agent", "TheHub-Android-App")
+            .build()
 
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context?, intent: Intent?) {
-                val id =
-                    intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: -1L
-                if (id == downloadId) {
-                    checkDownloadSuccess(
-                        downloadId = downloadId,
-                        fileName = fileName,
-                        expectedVersion = expectedVersion,
-                        expectedSizeInBytes = expectedSizeInBytes
-                    )
-                }
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IOException("Serveur de mise à jour HTTP ${response.code}.")
             }
-        }
-        downloadCompleteReceiver = receiver
 
-        val intentFilter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        ContextCompat.registerReceiver(
-            context,
-            receiver,
-            intentFilter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-    }
-
-    private fun unregisterCompletionReceiver() {
-        downloadCompleteReceiver?.let {
-            try {
-                context.unregisterReceiver(it)
-            } catch (_: Exception) {
+            val body = response.body ?: throw IOException("Réponse de mise à jour vide.")
+            val responseLength = body.contentLength()
+            val totalBytes = when {
+                expectedSizeInBytes > 0L -> expectedSizeInBytes
+                responseLength > 0L -> responseLength
+                else -> 0L
             }
-            downloadCompleteReceiver = null
-        }
-    }
 
-    private fun startProgressPolling(
-        downloadId: Long,
-        fileName: String,
-        expectedVersion: String,
-        expectedSizeInBytes: Long
-    ) {
-        progressJob?.cancel()
-        progressJob = coroutineScope.launch {
-            while (isActive) {
-                val query = DownloadManager.Query().setFilterById(downloadId)
-                var cursor: Cursor? = null
-                try {
-                    cursor = downloadManager.query(query)
-                    if (cursor != null && cursor.moveToFirst()) {
-                        val statusIndex =
-                            cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                        val bytesDownloadedIndex =
-                            cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-                        val bytesTotalIndex =
-                            cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+            if (
+                expectedSizeInBytes > 0L &&
+                responseLength > 0L &&
+                responseLength != expectedSizeInBytes
+            ) {
+                throw IOException(
+                    "Taille HTTP reçue $responseLength octets, attendu $expectedSizeInBytes."
+                )
+            }
 
-                        val statusCode =
-                            if (statusIndex >= 0) cursor.getInt(statusIndex) else -1
-                        val bytesDownloaded =
-                            if (bytesDownloadedIndex >= 0) cursor.getLong(bytesDownloadedIndex) else 0L
-                        val bytesTotal =
-                            if (bytesTotalIndex >= 0) cursor.getLong(bytesTotalIndex) else 0L
+            val digest = MessageDigest.getInstance("SHA-256")
+            var bytesWritten = 0L
+            var lastProgressBytes = 0L
 
-                        when (statusCode) {
-                            DownloadManager.STATUS_RUNNING,
-                            DownloadManager.STATUS_PENDING -> {
-                                val percent = if (bytesTotal > 0) {
-                                    ((bytesDownloaded * 100) / bytesTotal)
-                                        .toInt()
-                                        .coerceIn(0, 100)
-                                } else {
-                                    0
-                                }
-                                _status.value = DownloadStatus.Downloading(
-                                    progressPercent = percent,
-                                    bytesDownloaded = bytesDownloaded,
-                                    totalBytes = bytesTotal
-                                )
+            temporaryFile.parentFile?.mkdirs()
+
+            body.byteStream().use { input ->
+                temporaryFile.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        digest.update(buffer, 0, count)
+                        bytesWritten += count
+
+                        if (
+                            bytesWritten - lastProgressBytes >= PROGRESS_UPDATE_BYTES ||
+                            (totalBytes > 0L && bytesWritten >= totalBytes)
+                        ) {
+                            val percent = if (totalBytes > 0L) {
+                                ((bytesWritten * 100L) / totalBytes)
+                                    .toInt()
+                                    .coerceIn(0, 100)
+                            } else {
+                                0
                             }
-
-                            DownloadManager.STATUS_SUCCESSFUL -> {
-                                checkDownloadSuccess(
-                                    downloadId = downloadId,
-                                    fileName = fileName,
-                                    expectedVersion = expectedVersion,
-                                    expectedSizeInBytes = expectedSizeInBytes
-                                )
-                                break
-                            }
-
-                            DownloadManager.STATUS_FAILED -> {
-                                val reasonIndex =
-                                    cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
-                                val reasonCode =
-                                    if (reasonIndex >= 0) cursor.getInt(reasonIndex) else -1
-                                _status.value = DownloadStatus.Failed(
-                                    "Échec du téléchargement (code $reasonCode)"
-                                )
-                                break
-                            }
+                            _status.value = DownloadStatus.Downloading(
+                                progressPercent = percent,
+                                bytesDownloaded = bytesWritten,
+                                totalBytes = totalBytes
+                            )
+                            lastProgressBytes = bytesWritten
                         }
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error querying download progress", e)
-                } finally {
-                    cursor?.close()
+                    output.flush()
                 }
-                delay(500)
             }
-        }
-    }
 
-    private fun checkDownloadSuccess(
-        downloadId: Long,
-        fileName: String,
-        expectedVersion: String,
-        expectedSizeInBytes: Long
-    ) {
-        progressJob?.cancel()
-        unregisterCompletionReceiver()
-
-        val downloadDir =
-            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: run {
-                currentDownloadId = -1L
-                _status.value = DownloadStatus.Failed(
-                    "Dossier de téléchargement introuvable."
+            if (expectedSizeInBytes > 0L && bytesWritten != expectedSizeInBytes) {
+                throw IOException(
+                    "Téléchargement incomplet : $bytesWritten octets sur $expectedSizeInBytes."
                 )
-                return
             }
-        val file = File(downloadDir, fileName)
 
-        val validFile = when {
-            file.isFile -> file
-            targetApkFile?.isFile == true -> targetApkFile
-            else -> null
+            val actualSha256 = digest.digest().joinToString("") { byte ->
+                "%02x".format(Locale.ROOT, byte)
+            }
+
+            if (
+                expectedSha256.isNotBlank() &&
+                !actualSha256.equals(expectedSha256, ignoreCase = true)
+            ) {
+                throw IOException("Empreinte SHA-256 reçue différente de celle publiée.")
+            }
+
+            val validationError = validateApk(
+                apkFile = temporaryFile,
+                expectedVersion = versionName,
+                expectedSizeInBytes = expectedSizeInBytes,
+                expectedSha256 = expectedSha256
+            )
+            if (validationError != null) {
+                throw IOException(validationError)
+            }
         }
 
-        if (validFile != null && isApkValid(
-                apkFile = validFile,
-                expectedVersion = expectedVersion,
-                expectedSizeInBytes = expectedSizeInBytes,
-                expectedSha256 = expectedSha256ForCurrentDownload
-            )
-        ) {
-            currentDownloadId = -1L
-            targetApkFile = validFile
-            _status.value = DownloadStatus.Completed(validFile, downloadId)
-            notifyUpdateReadyIfNeeded(expectedVersion)
-        } else {
-            if (validFile?.exists() == true) {
-                try {
-                    validFile.delete()
-                } catch (_: Exception) {
-                }
-            }
-            currentDownloadId = -1L
-            _status.value = DownloadStatus.Failed(
-                "Le fichier APK téléchargé est incomplet ou ne correspond pas à la version $expectedVersion."
-            )
+        if (!temporaryFile.isFile || temporaryFile.length() <= 0L) {
+            throw IOException("Le fichier APK temporaire est vide.")
+        }
+
+        if (!temporaryFile.renameTo(finalFile)) {
+            temporaryFile.copyTo(finalFile, overwrite = true)
+            runCatching { temporaryFile.delete() }
         }
     }
 
-    private fun isApkValid(
+    private fun validateApk(
         apkFile: File,
         expectedVersion: String,
         expectedSizeInBytes: Long,
-        expectedSha256: String = ""
-    ): Boolean {
+        expectedSha256: String
+    ): String? {
         if (!apkFile.isFile || apkFile.length() <= 0L) {
-            return false
+            return "Le fichier APK est absent ou vide."
         }
 
         if (expectedSizeInBytes > 0L && apkFile.length() != expectedSizeInBytes) {
-            return false
+            return "Taille APK incorrecte : ${apkFile.length()} au lieu de $expectedSizeInBytes octets."
         }
 
         val normalizedSha256 = UpdateSecurity.normalizeSha256(expectedSha256)
@@ -419,15 +423,16 @@ class AppUpdateDownloadManager(
                             digest.update(buffer, 0, count)
                         }
                     }
-                    digest.digest().joinToString("") { byte -> "%02x".format(java.util.Locale.ROOT, byte) }
+                    digest.digest().joinToString("") { byte ->
+                        "%02x".format(Locale.ROOT, byte)
+                    }
                 }
             }.getOrElse {
-                Log.w(TAG, "Could not calculate APK SHA-256.", it)
-                return false
+                return "Impossible de calculer l’empreinte SHA-256 de l’APK."
             }
+
             if (!actualSha256.equals(normalizedSha256, ignoreCase = true)) {
-                Log.w(TAG, "APK SHA-256 mismatch.")
-                return false
+                return "L’empreinte SHA-256 de l’APK ne correspond pas à la version publiée."
             }
         }
 
@@ -437,12 +442,22 @@ class AppUpdateDownloadManager(
         } catch (e: Exception) {
             Log.w(TAG, "Could not inspect APK: ${apkFile.absolutePath}", e)
             null
-        } ?: return false
+        } ?: return "Impossible de lire les métadonnées de l’APK."
 
         val actualVersion = packageInfo.versionName?.trim().orEmpty()
-        return packageInfo.packageName == context.packageName &&
-            normalizeVersion(actualVersion) == normalizeVersion(expectedVersion) &&
-            hasExpectedProductionCertificate(packageInfo)
+        if (packageInfo.packageName != context.packageName) {
+            return "L’APK téléchargé n’est pas une version de The Hub."
+        }
+
+        if (normalizeVersion(actualVersion) != normalizeVersion(expectedVersion)) {
+            return "L’APK téléchargé est en version $actualVersion au lieu de $expectedVersion."
+        }
+
+        if (!hasExpectedProductionCertificate(packageInfo)) {
+            return "La signature de production de l’APK est différente de celle attendue."
+        }
+
+        return null
     }
 
     private fun hasExpectedProductionCertificate(
@@ -454,11 +469,12 @@ class AppUpdateDownloadManager(
             @Suppress("DEPRECATION")
             packageInfo.signatures?.toList().orEmpty()
         }
+
         if (signatures.isEmpty()) return false
 
         return signatures.any { signature ->
             val digest = MessageDigest.getInstance("SHA-1").digest(signature.toByteArray())
-            digest.joinToString(":") { byte -> "%02X".format(java.util.Locale.ROOT, byte) } ==
+            digest.joinToString(":") { byte -> "%02X".format(Locale.ROOT, byte) } ==
                 "F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
         }
     }
@@ -487,7 +503,8 @@ class AppUpdateDownloadManager(
     private fun notifyUpdateReadyIfNeeded(versionName: String) {
         if (versionName.isBlank()) return
 
-        val alreadyNotified = notificationPrefs.getString(LAST_NOTIFIED_VERSION, null) == versionName
+        val alreadyNotified =
+            notificationPrefs.getString(LAST_NOTIFIED_VERSION, null) == versionName
         if (alreadyNotified) return
 
         if (
@@ -520,7 +537,7 @@ class AppUpdateDownloadManager(
         )
             .setSmallIcon(R.drawable.ic_hub_logo)
             .setContentTitle("Mise à jour prête")
-            .setContentText("Appuyez pour ouvrir l'installation de la nouvelle version")
+            .setContentText("Appuyez pour ouvrir l’installation de la nouvelle version")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -540,15 +557,13 @@ class AppUpdateDownloadManager(
     }
 
     fun cancelDownload() {
-        progressJob?.cancel()
-        unregisterCompletionReceiver()
-        if (currentDownloadId != -1L) {
-            try {
-                downloadManager.remove(currentDownloadId)
-            } catch (_: Exception) {
-            }
-            currentDownloadId = -1L
-        }
+        activeDownloadJob?.cancel()
+        activeDownloadJob = null
+        currentDownloadId = -1L
+
+        runCatching { activeTemporaryFile?.delete() }
+        activeTemporaryFile = null
+        targetApkFile = null
         _status.value = DownloadStatus.Idle
     }
 
@@ -556,7 +571,6 @@ class AppUpdateDownloadManager(
         _status.value = DownloadStatus.Idle
     }
 }
-
 fun formatFileSize(bytes: Long): String {
     if (bytes <= 0) return "0 o"
     val kb = bytes / 1024.0
