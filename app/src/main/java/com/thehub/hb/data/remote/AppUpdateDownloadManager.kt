@@ -81,6 +81,7 @@ class AppUpdateDownloadManager(
 
     private var currentDownloadId: Long = -1L
     private var activeDownloadJob: Job? = null
+    private var activeTemporaryFile: File? = null
     private var targetApkFile: File? = null
 
     fun getExistingDownloadedApk(
@@ -195,13 +196,14 @@ class AppUpdateDownloadManager(
                 }
 
         val finalFile = File(downloadDir, fileName)
-        val temporaryFile = File(downloadDir, ".$fileName.download")
+        val downloadId = System.currentTimeMillis().coerceAtLeast(1L)
+        val temporaryFile = File(downloadDir, ".$fileName.$downloadId.download")
 
         runCatching { temporaryFile.delete() }
         runCatching { finalFile.delete() }
 
         targetApkFile = finalFile
-        val downloadId = System.currentTimeMillis().coerceAtLeast(1L)
+        activeTemporaryFile = temporaryFile
         currentDownloadId = downloadId
         _status.value = DownloadStatus.Downloading(
             progressPercent = 0,
@@ -261,11 +263,17 @@ class AppUpdateDownloadManager(
                 )
             } catch (e: CancellationException) {
                 runCatching { temporaryFile.delete() }
-                currentDownloadId = -1L
-                targetApkFile = null
+                if (currentDownloadId == downloadId) {
+                    currentDownloadId = -1L
+                    targetApkFile = null
+                    activeTemporaryFile = null
+                }
                 throw e
             } finally {
-                activeDownloadJob = null
+                if (currentDownloadId == -1L || currentDownloadId == downloadId) {
+                    activeDownloadJob = null
+                    activeTemporaryFile = null
+                }
             }
         }
 
@@ -553,12 +561,8 @@ class AppUpdateDownloadManager(
         activeDownloadJob = null
         currentDownloadId = -1L
 
-        targetApkFile?.let { finalFile ->
-            finalFile.parentFile?.let { parent ->
-                runCatching { File(parent, ".${finalFile.name}.download").delete() }
-            }
-        }
-
+        runCatching { activeTemporaryFile?.delete() }
+        activeTemporaryFile = null
         targetApkFile = null
         _status.value = DownloadStatus.Idle
     }
