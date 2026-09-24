@@ -439,7 +439,12 @@ class AppUpdateDownloadManager(
 
         val packageInfo = try {
             @Suppress("DEPRECATION")
-            context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0)
+            val archiveInfoFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                PackageManager.GET_SIGNATURES
+            }
+            context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, archiveInfoFlags)
         } catch (e: Exception) {
             Log.w(TAG, "Could not inspect APK: ${apkFile.absolutePath}", e)
             null
