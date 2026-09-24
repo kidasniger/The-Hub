@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import com.thehub.hb.MainActivity
 import com.thehub.hb.R
 import com.thehub.hb.data.model.AppUpdateInfo
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
