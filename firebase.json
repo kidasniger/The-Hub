@@ -14,11 +14,23 @@
       "**/node_modules/**"
     ],
     "trailingSlash": false,
-    "rewrites": [
+    "headers": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/downloads/update.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store, max-age=0" }
+        ]
+      },
+      {
+        "source": "/downloads/TheHub-latest.apk",
+        "headers": [
+          { "key": "Content-Disposition", "value": "attachment; filename=\"TheHub.apk\"" },
+          { "key": "Cache-Control", "value": "public, max-age=300" }
+        ]
       }
+    ],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
     ]
   }
 }
