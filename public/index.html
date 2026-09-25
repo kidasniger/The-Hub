@@ -3,26 +3,200 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="The Hub — réseau social.">
+  <meta name="theme-color" content="#09090b">
+  <meta name="description" content="Aperçu d'une publication The Hub.">
   <meta property="og:site_name" content="The Hub">
-  <meta property="og:title" content="The Hub">
-  <meta property="og:description" content="Découvrez The Hub.">
-  <meta property="og:type" content="website">
-  <title>The Hub</title>
+  <meta property="og:title" content="Publication The Hub">
+  <meta property="og:description" content="Découvrez cette publication sur The Hub.">
+  <meta property="og:type" content="article">
+  <title>Publication The Hub</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    body { margin:0; min-height:100vh; display:grid; place-items:center; background:#0b0b0d; color:#fff; }
-    main { width:min(92vw,520px); box-sizing:border-box; padding:32px; text-align:center; border:1px solid #2b2b31; border-radius:24px; background:#15151a; }
-    h1 { margin:0 0 12px; font-size:30px; }
-    p { margin:8px 0; color:#b7b7c0; line-height:1.5; }
-    a { display:inline-block; margin-top:20px; padding:13px 20px; border-radius:14px; background:#fff; color:#111; text-decoration:none; font-weight:800; }
+    :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,rgba(255,255,255,.08),transparent 42%),#09090b;color:#fff}
+    header{width:min(100%,760px);margin:0 auto;padding:22px 18px 8px;display:flex;align-items:center;gap:10px;font-size:22px;font-weight:800}
+    .logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#fff;color:#111;font-size:19px}
+    main{width:min(94vw,640px);margin:22px auto 44px}
+    .card{overflow:hidden;border:1px solid #29292f;border-radius:24px;background:#151519;box-shadow:0 24px 80px rgba(0,0,0,.38)}
+    .author{display:flex;align-items:center;gap:12px;padding:20px 20px 14px}
+    .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#29292f}
+    .avatar-fallback{display:grid;place-items:center;font-weight:800}
+    .username{font-weight:800;font-size:16px}
+    .date{margin-top:4px;color:#878790;font-size:13px}
+    .content{padding:6px 20px 20px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.58;font-size:17px}
+    .media{display:block;width:100%;max-height:640px;object-fit:cover;background:#09090b}
+    .video{max-height:640px}
+    .stats{display:flex;flex-wrap:wrap;gap:18px;padding:15px 20px;color:#a7a7b0;border-top:1px solid #29292f;font-size:14px}
+    .actions{padding:18px 20px 22px;display:grid;gap:10px}
+    a.button{display:block;text-align:center;padding:14px 18px;border-radius:15px;text-decoration:none;font-weight:800}
+    .open{background:#fff;color:#111}
+    .install{border:1px solid #36363d;color:#e4e4e8;background:#1c1c21}
+    .message{text-align:center;padding:46px 24px}
+    .message h1{margin:0 0 10px;font-size:27px}
+    .message p{margin:0;color:#a6a6af;line-height:1.55}
+    .loader{padding:20px}
+    .skeleton{border-radius:12px;background:linear-gradient(90deg,#1f1f24,#29292f,#1f1f24);background-size:200% 100%;animation:sh 1.15s infinite}
+    .s1{height:52px;width:55%;margin-bottom:18px}.s2{height:18px;width:90%;margin-bottom:10px}.s3{height:18px;width:76%;margin-bottom:20px}.s4{height:320px}
+    @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    footer{text-align:center;color:#686871;font-size:12px;margin-top:16px}
+    code{word-break:break-all;color:#cfcfd7}
   </style>
 </head>
 <body>
-  <main>
-    <h1>◉ The Hub</h1>
-    <p>Le lien de publication n'a pas été fourni. Ouvrez The Hub pour découvrir les publications partagées.</p>
-    <a href="https://github.com/kidasniger/The-Hub/releases/latest">Installer / mettre à jour The Hub</a>
+  <header><span class="logo">H</span><span>The Hub</span></header>
+  <main id="app">
+    <section class="card loader" aria-label="Chargement">
+      <div class="skeleton s1"></div>
+      <div class="skeleton s2"></div>
+      <div class="skeleton s3"></div>
+      <div class="skeleton s4"></div>
+    </section>
   </main>
+  <script>
+    const PROJECT_ID = "the-hub-f95f4";
+    const FIRESTORE_BASE = "https://firestore.googleapis.com/v1";
+    const app = document.getElementById("app");
+
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function firestoreValue(value) {
+      if (!value || typeof value !== "object") return null;
+      if ("stringValue" in value) return value.stringValue;
+      if ("integerValue" in value) return Number(value.integerValue);
+      if ("doubleValue" in value) return Number(value.doubleValue);
+      if ("booleanValue" in value) return value.booleanValue;
+      if ("timestampValue" in value) return value.timestampValue;
+      if ("nullValue" in value) return null;
+      return null;
+    }
+
+    function field(fields, name, fallback) {
+      const value = firestoreValue(fields && fields[name]);
+      return value == null ? fallback : value;
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
+    }
+
+    function postIdFromPath() {
+      const parts = location.pathname.split("/").filter(Boolean);
+      if (parts[0] !== "post" || !parts[1]) return "";
+      try { return decodeURIComponent(parts[1]); } catch (_) { return ""; }
+    }
+
+    function showMessage(title, message) {
+      app.innerHTML =
+        '<section class="card message">' +
+          '<h1>' + esc(title) + '</h1>' +
+          '<p>' + esc(message) + '</p>' +
+          '<div class="actions">' +
+            '<a class="button open" href="https://the-hub-f95f4.web.app/">Retour à The Hub</a>' +
+            '<a class="button install" href="https://github.com/kidasniger/The-Hub/releases/latest">Installer / mettre à jour The Hub</a>' +
+          '</div>' +
+        '</section>';
+    }
+
+    function renderPost(data, postId) {
+      const fields = data.fields || {};
+      const username = String(field(fields, "authorUsername", "thehub_user"));
+      const authorPhoto = String(field(fields, "authorPhotoUrl", ""));
+      const text = String(field(fields, "text", ""));
+      const imageUrl = String(field(fields, "imageUrl", ""));
+      const videoUrl = String(field(fields, "videoUrl", ""));
+      const createdAt = String(field(fields, "createdAt", ""));
+      const likes = Number(field(fields, "likesCount", 0)) || 0;
+      const comments = Number(field(fields, "commentsCount", 0)) || 0;
+      const reposts = Number(field(fields, "repostsCount", 0)) || 0;
+      const hidden = field(fields, "isHidden", false) === true;
+      const deleted = field(fields, "isDeletedByAdmin", false) === true;
+
+      if (hidden || deleted) {
+        showMessage("Publication indisponible", "Cette publication n'est plus disponible publiquement.");
+        return;
+      }
+
+      const avatar = authorPhoto
+        ? '<img class="avatar" src="' + esc(authorPhoto) + '" alt="">'
+        : '<div class="avatar avatar-fallback">' + esc(username.trim().charAt(0).toUpperCase() || "T") + '</div>';
+
+      let media = "";
+      if (/^https?:\/\//i.test(imageUrl)) {
+        media = '<img class="media" src="' + esc(imageUrl) + '" alt="Image de la publication" loading="eager">';
+      } else if (/^https?:\/\//i.test(videoUrl)) {
+        media = '<video class="media video" src="' + esc(videoUrl) + '" controls playsinline preload="metadata"></video>';
+      }
+
+      const appLink = "thehub://post/" + encodeURIComponent(postId);
+      const description = text.replace(/\s+/g, " ").trim().slice(0, 180) || "Publication partagée sur The Hub";
+      document.title = username + " · The Hub";
+      document.querySelector('meta[name="description"]').setAttribute("content", description);
+
+      app.innerHTML =
+        '<article class="card">' +
+          '<div class="author">' + avatar +
+            '<div><div class="username">' + esc(username) + '</div>' +
+            '<div class="date">' + esc(formatDate(createdAt)) + '</div></div>' +
+          '</div>' +
+          (text ? '<div class="content">' + esc(text) + '</div>' : '') +
+          media +
+          '<div class="stats">' +
+            '<span>❤️ ' + likes + ' J’aime</span>' +
+            '<span>💬 ' + comments + ' commentaires</span>' +
+            '<span>🔁 ' + reposts + ' republications</span>' +
+          '</div>' +
+          '<div class="actions">' +
+            '<a class="button open" href="' + appLink + '">Ouvrir dans The Hub</a>' +
+            '<a class="button install" href="https://github.com/kidasniger/The-Hub/releases/latest">Installer The Hub</a>' +
+          '</div>' +
+        '</article>' +
+        '<footer>Publication <code>' + esc(postId) + '</code> · The Hub</footer>';
+    }
+
+    async function loadPost(postId) {
+      const url = FIRESTORE_BASE +
+        "/projects/" + encodeURIComponent(PROJECT_ID) +
+        "/databases/(default)/documents/posts/" + encodeURIComponent(postId);
+
+      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" });
+      const body = await response.json().catch(function(){ return {}; });
+
+      if (response.status === 404) {
+        showMessage("Publication introuvable", "Cette publication n'existe plus ou le lien est incorrect.");
+        return;
+      }
+
+      if (!response.ok) {
+        const code = body && body.error && (body.error.status || body.error.message);
+        console.error("The Hub public preview error:", code || response.status);
+        showMessage(
+          "Aperçu indisponible",
+          code === "PERMISSION_DENIED"
+            ? "La lecture publique n'est pas encore activée pour cette publication."
+            : "Impossible de charger cette publication pour le moment."
+        );
+        return;
+      }
+
+      renderPost(body, postId);
+    }
+
+    const postId = postIdFromPath();
+    if (!postId || postId.length > 256) {
+      showMessage("Lien invalide", "Cette page attend un lien de publication The Hub au format /post/<id>.");
+    } else {
+      loadPost(postId).catch(function(error) {
+        console.error(error);
+        showMessage("Aperçu indisponible", "Vérifiez votre connexion Internet puis réessayez.");
+      });
+    }
+  </script>
 </body>
 </html>
