@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.thehub.hb",
+      "sha256_cert_fingerprints": [
+        "F5:CD:8C:88:C4:C8:5F:D5:91:84:21:57:06:DA:52:C6:2C:57:D0:37"
+      ]
+    }
+  }
+]

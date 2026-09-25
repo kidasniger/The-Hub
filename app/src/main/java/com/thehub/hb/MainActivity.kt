@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.Modifier
 import com.thehub.hb.data.repository.MessageRepository
+import com.thehub.hb.navigation.HubDeepLink
 import com.thehub.hb.navigation.HubNavGraph
 import com.thehub.hb.ui.theme.AppThemeMode
 import com.thehub.hb.ui.theme.FrenchHubStrings
@@ -130,8 +131,8 @@ class MainActivity : ComponentActivity() {
     private fun consumeNotificationIntent(intent: Intent?) {
         val deepLink = intent?.getStringExtra(EXTRA_NOTIFICATION_DEEP_LINK)
             ?: intent?.data
-                ?.takeIf { it.scheme == "thehub" }
                 ?.toString()
+                ?.takeIf { HubDeepLink.toRoute(it) != null }
 
         if (!deepLink.isNullOrBlank()) {
             if (deepLink == "thehub://update") {

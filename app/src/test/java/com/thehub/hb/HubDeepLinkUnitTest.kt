@@ -48,4 +48,12 @@ class HubDeepLinkUnitTest {
     fun malformedEncodedId_returnsNull() {
         assertNull(HubDeepLink.toRoute("thehub://post/%ZZ"))
     }
+    @Test
+    fun publicHttpsPostLink_resolvesToPostDetail() {
+        assertEquals(
+            "post_detail/post-123",
+            HubDeepLink.toRoute("https://the-hub-f95f4.web.app/post/post-123")
+        )
+    }
+
 }
