@@ -6,7 +6,6 @@ import com.thehub.hb.data.model.UpdateCheckResult
 import com.thehub.hb.data.remote.GitHubUpdateService
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
-import com.thehub.hb.data.remote.UpdateSecurity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,18 +35,13 @@ class UpdateRepository(
             val apkUrl = policy.getString("apkUrl").orEmpty()
             val releaseNotes = policy.getString("releaseNotes").orEmpty()
             val versionName = policy.getString("versionName").orEmpty()
-            val apkSha256 = UpdateSecurity.normalizeSha256(policy.getString("apkSha256").orEmpty())
             val force = policy.getBoolean("forceUpdate") == true
             val currentCode = BuildConfig.VERSION_CODE.toLong()
-            val fileName = if (versionName.isNotBlank()) "TheHub-$versionName.apk" else ""
-            val isTrustedPolicyUpdate = UpdateSecurity.isValidUpdate(
-                apkUrl = apkUrl,
-                fileName = fileName,
-                versionName = versionName
+            val mustUpdate = apkUrl.isNotBlank() && (
+                currentCode < minimumCode ||
+                    (force && targetCode > currentCode) ||
+                    (!versionName.isNullOrBlank() && targetCode > currentCode)
             )
-            val mustUpdate = isTrustedPolicyUpdate &&
-                targetCode > currentCode &&
-                (currentCode < minimumCode || force || versionName.isNotBlank())
             if (mustUpdate && versionName.isNotBlank()) {
                 UpdateCheckResult.UpdateAvailable(
                     AppUpdateInfo(
@@ -56,9 +50,8 @@ class UpdateRepository(
                         releaseTitle = "Mise à jour The Hub",
                         releaseNotes = releaseNotes.ifBlank { "Une nouvelle version est disponible." },
                         apkDownloadUrl = apkUrl,
-                        apkFileName = fileName,
+                        apkFileName = "TheHub-$versionName.apk",
                         apkSizeInBytes = 0L,
-                        apkSha256 = apkSha256,
                         isUpdateAvailable = true
                     )
                 )
