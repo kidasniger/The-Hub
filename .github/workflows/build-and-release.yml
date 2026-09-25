@@ -386,56 +386,16 @@ jobs:
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk"
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "TheHub-$TAG.apk.sha256"
           echo "GitHub Release verified: $RELEASE_NAME"
-      - name: Prepare & Deploy Website Download
+      - name: Deploy The Hub Website
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "ERROR: FIREBASE_SERVICE_ACCOUNT is required to deploy the website download."
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT is required to deploy the website."
             exit 1
           fi
-
-          RELEASE_JSON="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body,publishedAt,name,url)"
-          export RELEASE_JSON
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-
-          release = json.loads(os.environ["RELEASE_JSON"])
-          tag = os.environ["TAG"]
-          apk = Path(f"release-artifacts/TheHub-{tag}.apk")
-          sha = Path(f"release-artifacts/TheHub-{tag}.apk.sha256").read_text(encoding="utf-8").strip()
-          size = apk.stat().st_size
-          body = str(release.get("body") or "")
-          notes = []
-          for line in body.splitlines():
-              line = line.strip()
-              if line.startswith("- ") or line.startswith("* "):
-                  value = line[2:].strip()
-                  if value:
-                      notes.append(value)
-
-          out = Path("public/downloads")
-          out.mkdir(parents=True, exist_ok=True)
-          (out / "TheHub-latest.apk").write_bytes(apk.read_bytes())
-          (out / "update.json").write_text(json.dumps({
-              "name": "The Hub",
-              "version": os.environ["VERSION_NAME"],
-              "versionCode": int(os.environ["VERSION_CODE"]),
-              "tag": tag,
-              "publishedAt": release.get("publishedAt"),
-              "apkUrl": "/downloads/TheHub-latest.apk?v=" + os.environ["VERSION_NAME"],
-              "sizeBytes": size,
-              "sizeLabel": f"{size / 1000000:.1f} MB",
-              "sha256": sha,
-              "releaseNotes": notes[:12],
-              "releaseTitle": release.get("name") or f"The Hub {tag}",
-              "releaseUrl": release.get("url") or ""
-          }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-          PY
 
           CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
@@ -443,7 +403,9 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS="$CREDENTIALS_FILE"
 
           npx --yes firebase-tools@latest deploy --only hosting --project the-hub-f95f4 --non-interactive
+
           rm -f "$CREDENTIALS_FILE"
+
       - name: Send App Update Notifications
         continue-on-error: true
         env:
