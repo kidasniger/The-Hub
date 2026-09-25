@@ -62,7 +62,6 @@ class GitHubUpdateService(
             var apkDownloadUrl = ""
             var apkFileName = ""
             var apkSize = 0L
-            var apkSha256 = ""
 
             val assetsArray = json.optJSONArray("assets")
             if (assetsArray != null) {
@@ -72,16 +71,12 @@ class GitHubUpdateService(
                     val contentType = asset.optString("content_type", "")
                     val downloadUrl = asset.optString("browser_download_url", "")
 
-                    if (
-                        (name.endsWith(".apk", ignoreCase = true) ||
-                            contentType == "application/vnd.android.package-archive") &&
-                        UpdateSecurity.isTrustedApkUrl(downloadUrl) &&
-                        UpdateSecurity.isSafeApkFileName(name, tagName)
+                    if (name.endsWith(".apk", ignoreCase = true) ||
+                        contentType == "application/vnd.android.package-archive"
                     ) {
                         apkDownloadUrl = downloadUrl
                         apkFileName = name
                         apkSize = asset.optLong("size", 0L)
-                        apkSha256 = UpdateSecurity.normalizeSha256(asset.optString("digest", ""))
                         break
                     }
                 }
@@ -89,14 +84,7 @@ class GitHubUpdateService(
 
             val isNewer = isVersionGreater(remoteVersion = tagName, currentVersion = currentVersion)
 
-            if (
-                isNewer &&
-                UpdateSecurity.isValidUpdate(
-                    apkUrl = apkDownloadUrl,
-                    fileName = apkFileName,
-                    versionName = tagName
-                )
-            ) {
+            if (isNewer && apkDownloadUrl.isNotBlank()) {
                 val updateInfo = AppUpdateInfo(
                     latestVersion = tagName,
                     currentVersion = currentVersion,
@@ -105,7 +93,6 @@ class GitHubUpdateService(
                     apkDownloadUrl = apkDownloadUrl,
                     apkFileName = apkFileName.ifBlank { "TheHub-$tagName.apk" },
                     apkSizeInBytes = apkSize,
-                    apkSha256 = apkSha256,
                     publishedAt = publishedAt,
                     isUpdateAvailable = true
                 )
