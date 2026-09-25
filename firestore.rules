@@ -585,7 +585,10 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() || (
+        resource.data.get('isHidden', false) == false
+        && resource.data.get('isDeletedByAdmin', false) == false
+      );
 
       function commentsCountMutationIsAtomic() {
         let opPath = /databases/$(database)/documents/posts/$(postId)/counterOps/$(request.auth.uid);
