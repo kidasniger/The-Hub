@@ -1,7 +1,7 @@
 ---
 name: "The Hub"
 slug: "the-hub"
-version: "1.0.170"
+version: "1.0.173"
 status: "Stable"
 category: "Réseau social"
 author: "kidasniger"
@@ -21,7 +21,7 @@ github: "https://github.com/kidasniger/The-Hub"
 demo: "https://the-hub-f95f4.web.app/"
 website: "À renseigner"
 documentation: "À renseigner"
-download: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.170/TheHub-v1.0.170.apk"
+download: "https://the-hub-f95f4.web.app/"
 icon: "https://raw.githubusercontent.com/kidasniger/The-Hub/main/assets/dreamhub-logo-anime.svg"
 cover: "À renseigner"
 ---
@@ -69,7 +69,7 @@ La page d'aperçu prend en charge :
 
 La page d’aperçu lit directement le document de la publication via l’API REST Firestore. Les règles Firestore autorisent uniquement la lecture publique des publications non masquées et non supprimées par l’administration. Les écritures et les autres données restent protégées par les règles existantes.
 
-Cette architecture n’utilise pas Cloud Functions pour l’aperçu et reste compatible avec le plan Firebase Spark.
+Cette architecture n’utilise pas Cloud Functions pour l’aperçu et reste compatible avec le plan Firebase Spark. Le fichier APK reste distribué depuis la release officielle, car Firebase Hosting Spark interdit l’hébergement des fichiers `.apk`.
 
 # Technologies
 
@@ -99,11 +99,11 @@ Cette architecture n’utilise pas Cloud Functions pour l’aperçu et reste com
 
 ## Android
 
-- URL: "https://github.com/kidasniger/The-Hub/releases/download/v1.0.170/TheHub-v1.0.170.apk"
-- Version: "1.0.170"
+- URL: "https://the-hub-f95f4.web.app/"
+- Version: "1.0.173"
 - Architecture: "À renseigner"
 - Taille: "22.2 MB"
-- SHA-256: "4f6820d5aa8f267a15d75b82531f82285a00384c33e339468f1e331880d7578f"
+- SHA-256: "73acd1dbd7c0576172bf1082833f14a230a6d96961de1511990df3f6a62b08e8"
 
 ## Windows
 
