@@ -12,7 +12,7 @@ class HubPostShareUnitTest {
     @Test
     fun buildPostShareLink_usesTheHubScheme() {
         assertEquals(
-            "thehub://post/post-123",
+            "https://the-hub-f95f4.web.app/post/post-123",
             buildHubPostShareLink("post-123")
         )
     }
@@ -45,4 +45,20 @@ class HubPostShareUnitTest {
     fun extractHubPostId_returnsNullWhenMissing() {
         assertNull(extractHubPostId("message normal"))
     }
+    @Test
+    fun extractPublicHttpsLink_returnsPostId() {
+        assertEquals(
+            "post-123",
+            extractHubPostId("📌 Publication The Hub\nhttps://the-hub-f95f4.web.app/post/post-123")
+        )
+    }
+
+    @Test
+    fun extractLegacyTheHubLink_stillReturnsPostId() {
+        assertEquals(
+            "post-123",
+            extractHubPostId("thehub://post/post-123.")
+        )
+    }
+
 }
