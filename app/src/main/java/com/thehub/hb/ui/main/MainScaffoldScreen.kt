@@ -75,9 +75,7 @@ import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.SystemControls
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.data.repository.MessageRepository
-import com.thehub.hb.utils.NetworkConnectivityMonitor
 import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.NetworkOfflineScreen
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.createpost.CreatePostScreen
@@ -162,19 +160,6 @@ fun MainScaffoldScreen(
     val postsEnabled = systemControls.postsEnabled()
     val messagingEnabled = systemControls.messagingEnabled()
     val maintenanceActive = systemControls.emergency.maintenance && !bypassMaintenance
-    val networkConnectivityMonitor = remember(context.applicationContext) {
-        NetworkConnectivityMonitor(context.applicationContext)
-    }
-    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = false)
-
-
-    if (!isOnline) {
-        NetworkOfflineScreen(
-            onRetry = { networkConnectivityMonitor.refresh() }
-        )
-        return
-    }
-
     if (maintenanceActive) {
         SystemMaintenanceNotice(message = systemControls.emergency.message)
         return
