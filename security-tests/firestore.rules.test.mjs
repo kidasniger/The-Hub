@@ -103,6 +103,51 @@ async function seed(ctx) {
     repostsCount: 0,
     isRepost: false,
   });
+
+  await setDoc(doc(db, "posts/post-hidden"), {
+    authorId: "alice",
+    authorUsername: "alice",
+    text: "hidden",
+    createdAt: new Date(),
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    isRepost: false,
+    isHidden: true,
+  });
+
+  await setDoc(doc(db, "posts/post-deleted"), {
+    authorId: "alice",
+    authorUsername: "alice",
+    text: "deleted",
+    createdAt: new Date(),
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    isRepost: false,
+    isDeletedByAdmin: true,
+  });
+}
+
+async function testPublicPostPreviewReadSecurity() {
+  // Public publication documents are readable without authentication.
+  await assertSucceeds(getDoc(doc(anonDb, "posts/post-1")));
+
+  // Moderated/hidden publications stay inaccessible to anonymous visitors.
+  await assertFails(getDoc(doc(anonDb, "posts/post-hidden")));
+  await assertFails(getDoc(doc(anonDb, "posts/post-deleted")));
+
+  // Public read access is read-only; anonymous clients cannot write posts.
+  await assertFails(setDoc(doc(anonDb, "posts/anon-post"), {
+    authorId: "anon",
+    authorUsername: "anonymous",
+    text: "forbidden",
+    createdAt: new Date(),
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    isRepost: false,
+  }));
 }
 
 async function testDirectCounterTampering() {
@@ -1361,6 +1406,7 @@ try {
   anonDb = testEnv.unauthenticatedContext().firestore();
 
   await testEnv.withSecurityRulesDisabled(seed);
+  await testPublicPostPreviewReadSecurity();
   await testDirectCounterTampering();
   await testLikeCounterMustMatchLikeMutation();
   await testCommentCounterMustMatchCommentMutation();
