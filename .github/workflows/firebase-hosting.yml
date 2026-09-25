@@ -1,0 +1,64 @@
+name: Deploy The Hub Share Links
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "firebase.json"
+      - "public/**"
+      - ".github/workflows/firebase-hosting.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-hosting:
+    name: Deploy Firebase Hosting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Validate Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT is required."
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, sys
+          try:
+              data = json.loads(os.environ["FIREBASE_SERVICE_ACCOUNT"])
+          except json.JSONDecodeError as exc:
+              print("ERROR: invalid FIREBASE_SERVICE_ACCOUNT JSON:", exc)
+              sys.exit(1)
+          if data.get("type") != "service_account":
+              print("ERROR: FIREBASE_SERVICE_ACCOUNT must be a service-account JSON key.")
+              sys.exit(1)
+          if data.get("project_id") != "the-hub-f95f4":
+              print("ERROR: FIREBASE_SERVICE_ACCOUNT project_id must be the-hub-f95f4.")
+              sys.exit(1)
+          PY
+
+      - name: Deploy Firebase Hosting
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
+          chmod 600 "$CREDENTIALS_FILE"
+          export GOOGLE_APPLICATION_CREDENTIALS="$CREDENTIALS_FILE"
+          npx --yes firebase-tools@latest deploy --only hosting --project the-hub-f95f4 --non-interactive
+          rm -f "$CREDENTIALS_FILE"
