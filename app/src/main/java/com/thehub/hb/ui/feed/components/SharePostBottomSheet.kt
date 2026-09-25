@@ -62,6 +62,7 @@ import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.utils.buildHubPostShareLink
 import com.thehub.hb.utils.buildHubPostShareMessage
 import kotlinx.coroutines.launch
 
@@ -152,7 +153,7 @@ fun SharePostBottomSheet(
                     onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "thehub://post/" + post.id)
+                            putExtra(Intent.EXTRA_TEXT, buildHubPostShareLink(post.id))
                         }
                         try {
                             context.startActivity(Intent.createChooser(shareIntent, "Partager la publication"))
@@ -170,11 +171,12 @@ fun SharePostBottomSheet(
             ShareOptionItem(
                 icon = Icons.Outlined.ContentCopy,
                 title = "Copier le lien",
-                subtitle = "thehub://post/${post.id}",
+                subtitle = buildHubPostShareLink(post.id),
                 enabled = true,
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("Lien The Hub", "thehub://post/${post.id}")
+                    val link = buildHubPostShareLink(post.id)
+                    val clip = ClipData.newPlainText("Lien The Hub", link)
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "Lien copié dans le presse-papier !", Toast.LENGTH_SHORT).show()
                     onDismiss()
