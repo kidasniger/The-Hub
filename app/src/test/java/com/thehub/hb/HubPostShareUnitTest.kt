@@ -20,7 +20,7 @@ class HubPostShareUnitTest {
     @Test
     fun buildPostShareMessage_containsLink() {
         assertEquals(
-            "📌 Publication The Hub\nthehub://post/post-123",
+            "📌 Publication The Hub\nhttps://the-hub-f95f4.web.app/post/post-123",
             buildHubPostShareMessage("post-123")
         )
     }
