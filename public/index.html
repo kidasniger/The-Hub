@@ -4,78 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#09090b">
-  <meta name="description" content="The Hub — publications partagées et téléchargement direct de l'application.">
+  <meta name="description" content="The Hub — réseau social, publications partagées et téléchargement de l'application.">
   <meta property="og:site_name" content="The Hub">
   <meta property="og:title" content="The Hub">
-  <meta property="og:description" content="Découvrez The Hub et téléchargez directement la dernière version de l'application.">
+  <meta property="og:description" content="Découvrez une publication The Hub ou téléchargez la dernière version de l'application.">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/svg+xml" href="/assets/dreamhub-logo-anime.svg">
   <title>The Hub</title>
   <style>
-    :root{
-      color-scheme:dark;
-      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      background:#09090b;
-      color:#fff;
-    }
+    :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      min-height:100vh;
-      background:
-        radial-gradient(circle at 50% -14%,rgba(255,255,255,.10),transparent 38%),
-        radial-gradient(circle at 10% 35%,rgba(255,255,255,.035),transparent 28%),
-        #09090b;
-    }
-    header{
-      width:min(100%,820px);
-      margin:0 auto;
-      padding:20px 18px 8px;
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
-    .brand-logo{
-      width:44px;
-      height:44px;
-      border-radius:14px;
-      display:block;
-      object-fit:cover;
-      background:#fff;
-      padding:5px;
-      box-shadow:0 8px 30px rgba(255,255,255,.08);
-    }
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -14%,rgba(255,255,255,.1),transparent 38%),#09090b;color:#fff}
+    header{width:min(100%,820px);margin:0 auto;padding:20px 18px 8px;display:flex;align-items:center;gap:12px}
+    .brand-logo{width:44px;height:44px;border-radius:14px;display:block;object-fit:cover;background:#fff;padding:5px;box-shadow:0 8px 30px rgba(255,255,255,.08)}
     .brand{font-size:23px;font-weight:850;letter-spacing:-.02em}
     main{width:min(94vw,680px);margin:22px auto 52px}
-    .card{
-      overflow:hidden;
-      border:1px solid #2a2a30;
-      border-radius:26px;
-      background:rgba(21,21,25,.96);
-      box-shadow:0 28px 90px rgba(0,0,0,.42);
-    }
+    .card{overflow:hidden;border:1px solid #2a2a30;border-radius:26px;background:rgba(21,21,25,.97);box-shadow:0 28px 90px rgba(0,0,0,.42)}
     .hero{padding:28px 24px 24px;text-align:center}
-    .hero-logo{
-      width:86px;height:86px;border-radius:25px;object-fit:cover;background:#fff;padding:8px;
-      margin:0 auto 16px;display:block;
-      box-shadow:0 12px 36px rgba(255,255,255,.10);
-    }
+    .hero-logo{width:86px;height:86px;border-radius:25px;object-fit:cover;background:#fff;padding:8px;margin:0 auto 16px;display:block;box-shadow:0 12px 36px rgba(255,255,255,.1)}
     h1{margin:0 0 8px;font-size:32px;letter-spacing:-.035em}
     .hero p{margin:0;color:#a9a9b2;line-height:1.55}
-    .version{
-      display:inline-flex;align-items:center;gap:7px;
-      margin-top:16px;padding:8px 12px;border-radius:999px;
-      border:1px solid #35353c;background:#1a1a1f;color:#e8e8ed;font-size:13px;font-weight:750
-    }
-    .download-panel{margin-top:20px;padding:20px;border-top:1px solid #2a2a30}
+    .version{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:8px 12px;border-radius:999px;border:1px solid #35353c;background:#1a1a1f;color:#e8e8ed;font-size:13px;font-weight:750}
+    .download-panel{margin-top:22px;padding-top:20px;border-top:1px solid #2a2a30}
     .download-title{font-size:20px;font-weight:850}
     .download-meta{margin-top:6px;color:#92929b;font-size:14px}
-    .button{
-      border:0;display:flex;width:100%;justify-content:center;align-items:center;
-      padding:15px 18px;border-radius:16px;text-decoration:none;font:inherit;font-weight:850;
-      cursor:pointer;transition:transform .16s ease,opacity .16s ease
-    }
-    .button:active{transform:scale(.99)}
+    .button{border:0;display:flex;width:100%;justify-content:center;align-items:center;padding:15px 18px;border-radius:16px;text-decoration:none;font:inherit;font-weight:850;cursor:pointer}
     .primary{margin-top:16px;background:#fff;color:#111}
     .secondary{margin-top:10px;background:#1c1c22;border:1px solid #37373f;color:#eee}
     .notes{text-align:left;margin-top:18px}
@@ -101,28 +54,14 @@
     .message p{margin:0;color:#a6a6af;line-height:1.55}
     footer{text-align:center;color:#686871;font-size:12px;margin-top:16px}
     code{word-break:break-all;color:#cfcfd7}
-    .modal{
-      position:fixed;inset:0;background:rgba(0,0,0,.74);backdrop-filter:blur(8px);
-      display:none;align-items:center;justify-content:center;padding:20px;z-index:20
-    }
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.74);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
     .modal.open{display:flex}
-    .modal-card{
-      width:min(92vw,430px);padding:26px;border-radius:24px;border:1px solid #38383f;
-      background:#17171c;box-shadow:0 32px 90px rgba(0,0,0,.55);text-align:center
-    }
-    .timer{
-      width:96px;height:96px;border-radius:50%;margin:4px auto 18px;
-      display:grid;place-items:center;border:8px solid #34343b;position:relative
-    }
-    .timer::before{
-      content:"";position:absolute;inset:-8px;border-radius:50%;
-      border:8px solid transparent;border-top-color:#fff;transform:rotate(-45deg)
-    }
+    .modal-card{width:min(92vw,430px);padding:26px;border-radius:24px;border:1px solid #38383f;background:#17171c;box-shadow:0 32px 90px rgba(0,0,0,.55);text-align:center}
+    .timer{width:96px;height:96px;border-radius:50%;margin:4px auto 18px;display:grid;place-items:center;border:8px solid #34343b;position:relative}
+    .timer::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:8px solid transparent;border-top-color:#fff;transform:rotate(-45deg)}
     .seconds{font-size:30px;font-weight:900}
-    .modal h2{margin:0 0 7px}
-    .modal p{margin:0;color:#a6a6af;line-height:1.5}
+    .modal h2{margin:0 0 7px}.modal p{margin:0;color:#a6a6af;line-height:1.5}
     .cancel{margin-top:16px}
-    .hidden{display:none!important}
   </style>
 </head>
 <body>
@@ -144,21 +83,21 @@
     <div class="modal-card">
       <div class="timer"><span id="seconds" class="seconds">30</span></div>
       <h2 id="downloadTitle">Préparation du téléchargement</h2>
-      <p>Votre téléchargement va démarrer automatiquement dans <strong id="secondsText">30 s</strong>.</p>
+      <p>Le téléchargement de la dernière version va démarrer automatiquement dans <strong id="secondsText">30 s</strong>.</p>
       <button id="cancelDownload" class="button secondary cancel" type="button">Annuler</button>
     </div>
   </div>
 
   <script>
     const PROJECT_ID = "the-hub-f95f4";
+    const RELEASES_URL = "https://api.github.com/repos/kidasniger/The-Hub/releases/latest";
     const FIRESTORE_BASE = "https://firestore.googleapis.com/v1";
-    const UPDATE_URL = "/downloads/update.json";
     const app = document.getElementById("app");
     const modal = document.getElementById("downloadModal");
     const secondsEl = document.getElementById("seconds");
     const secondsText = document.getElementById("secondsText");
     const cancelBtn = document.getElementById("cancelDownload");
-    let latestUpdate = null;
+    let latestRelease = null;
     let timerId = null;
     let remaining = 30;
 
@@ -197,53 +136,93 @@
       try { return decodeURIComponent(parts[1]); } catch (_) { return ""; }
     }
 
-    async function loadUpdateInfo() {
-      const response = await fetch(UPDATE_URL + "?t=" + Date.now(), {
-        cache: "no-store",
-        headers: { Accept: "application/json" }
-      });
-      if (!response.ok) throw new Error("update.json " + response.status);
-      latestUpdate = await response.json();
-      return latestUpdate;
-    }
-
-    function releaseNotesMarkup(notes) {
-      const list = Array.isArray(notes) ? notes : [];
-      const items = list.filter(Boolean).slice(0, 12).map(note => "<li>" + esc(note) + "</li>").join("");
-      return items ? "<div class='notes'><h2>Nouveautés</h2><ul>" + items + "</ul></div>" : "";
-    }
-
-    function downloadPanel(update) {
-      if (!update || !update.version || !update.apkUrl) {
-        return "";
+    function releaseNotesMarkup(body) {
+      const notes = [];
+      for (const raw of String(body || "").split("\n")) {
+        const line = raw.trim();
+        if ((line.startsWith("- ") || line.startsWith("* ")) && !line.includes("**Full Changelog**")) {
+          const value = line.slice(2).trim();
+          if (value) notes.push(value);
+        }
       }
-      const size = update.sizeLabel || "";
-      const published = update.publishedAt ? formatDate(update.publishedAt) : "";
-      const meta = [size, published].filter(Boolean).join(" · ");
-      const link = esc(update.apkUrl + (update.apkUrl.includes("?") ? "&" : "?") + "cache=" + encodeURIComponent(update.version));
+      if (!notes.length) return "";
+      return "<div class='notes'><h2>Nouveautés</h2><ul>" +
+        notes.slice(0, 12).map(note => "<li>" + esc(note) + "</li>").join("") +
+        "</ul></div>";
+    }
+
+    async function loadLatestRelease() {
+      const response = await fetch(RELEASES_URL, {
+        headers: { Accept: "application/vnd.github+json" },
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error("GitHub releases " + response.status);
+      const release = await response.json();
+      const apk = Array.isArray(release.assets)
+        ? release.assets.find(asset => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(".apk"))
+        : null;
+      if (!release.tag_name || !apk || !apk.browser_download_url) {
+        throw new Error("Latest APK asset unavailable");
+      }
+      latestRelease = {
+        version: String(release.tag_name).replace(/^v/, ""),
+        tag: release.tag_name,
+        publishedAt: release.published_at || "",
+        body: release.body || "",
+        url: apk.browser_download_url,
+        sizeBytes: Number(apk.size) || 0,
+        sizeLabel: Number(apk.size) ? (Number(apk.size) / 1000000).toFixed(1) + " MB" : "",
+        sha256: ""
+      };
+
+      try {
+        const shaAsset = release.assets.find(asset =>
+          typeof asset.name === "string" &&
+          asset.name.endsWith(".apk.sha256")
+        );
+        if (shaAsset && shaAsset.browser_download_url) {
+          const shaResponse = await fetch(shaAsset.browser_download_url, { cache: "no-store" });
+          if (shaResponse.ok) {
+            const shaText = (await shaResponse.text()).trim();
+            const match = shaText.match(/[a-f0-9]{64}/i);
+            latestRelease.sha256 = match ? match[0] : "";
+          }
+        }
+      } catch (_) {
+        // SHA-256 is informational; downloading the release remains available.
+      }
+
+      return latestRelease;
+    }
+
+    function downloadPanel(release) {
+      if (!release) return "";
+      const meta = [
+        release.sizeLabel,
+        release.publishedAt ? formatDate(release.publishedAt) : ""
+      ].filter(Boolean).join(" · ");
 
       return `
         <section class="download-panel">
           <div class="download-title">Télécharger The Hub</div>
-          <div class="download-meta">Dernière version : <strong>v${esc(update.version)}</strong>${meta ? " · " + esc(meta) : ""}</div>
-          <button class="button primary" type="button" data-download-url="${link}">⬇️ Télécharger l’APK</button>
-          ${releaseNotesMarkup(update.releaseNotes)}
-          ${update.sha256 ? "<div class='integrity'>SHA-256 : <code>" + esc(update.sha256) + "</code></div>" : ""}
+          <div class="download-meta">Dernière version : <strong>v${esc(release.version)}</strong>${meta ? " · " + esc(meta) : ""}</div>
+          <button class="button primary" type="button" data-download>⬇️ Télécharger l’APK</button>
+          ${releaseNotesMarkup(release.body)}
+          ${release.sha256 ? "<div class='integrity'>SHA-256 : <code>" + esc(release.sha256) + "</code></div>" : ""}
         </section>`;
     }
 
-    function showHome(update) {
+    function showHome(release) {
       document.title = "The Hub · Télécharger";
       app.innerHTML = `
         <section class="card hero">
           <img class="hero-logo" src="/assets/dreamhub-logo-anime.svg" alt="Logo The Hub">
           <h1>The Hub</h1>
-          <p>La dernière version de l’application est disponible directement depuis ce site.</p>
-          ${update ? "<div class='version'>● v" + esc(update.version) + " disponible</div>" : ""}
-          ${downloadPanel(update)}
-          <a class="button secondary" href="https://the-hub-f95f4.web.app/">Accueil The Hub</a>
+          <p>La dernière version de l’application est récupérée automatiquement depuis la release officielle.</p>
+          ${release ? "<div class='version'>● v" + esc(release.version) + " disponible</div>" : ""}
+          ${release ? downloadPanel(release) : "<div class='download-panel'><div class='download-title'>Téléchargement indisponible</div><div class='download-meta'>Impossible de récupérer la dernière release pour le moment.</div></div>"}
         </section>
-        <footer>Téléchargement hébergé directement sur le site The Hub.</footer>`;
+        <footer>Le site The Hub vérifie automatiquement la dernière version disponible.</footer>`;
       bindDownloadButtons();
     }
 
@@ -252,12 +231,12 @@
         <section class="card message">
           <h2>${esc(title)}</h2>
           <p>${esc(message)}</p>
-          ${latestUpdate ? downloadPanel(latestUpdate) : ""}
+          ${latestRelease ? downloadPanel(latestRelease) : ""}
         </section>`;
       bindDownloadButtons();
     }
 
-    function renderPost(data, postId, update) {
+    function renderPost(data, postId, release) {
       const fields = data.fields || {};
       const username = String(field(fields, "authorUsername", "thehub_user"));
       const authorPhoto = String(field(fields, "authorPhotoUrl", ""));
@@ -292,6 +271,15 @@
         "content",
         text.replace(/\s+/g, " ").trim().slice(0, 180) || "Publication partagée sur The Hub"
       );
+      if (authorPhoto && /^https?:\/\//i.test(authorPhoto)) {
+        let og = document.querySelector('meta[property="og:image"]');
+        if (!og) {
+          og = document.createElement("meta");
+          og.setAttribute("property", "og:image");
+          document.head.appendChild(og);
+        }
+        og.setAttribute("content", authorPhoto);
+      }
 
       const appLink = "thehub://post/" + encodeURIComponent(postId);
 
@@ -314,13 +302,13 @@
           <div class="post-actions">
             <a class="button primary" href="${appLink}">Ouvrir dans The Hub</a>
           </div>
-          ${downloadPanel(update)}
+          ${release ? downloadPanel(release) : ""}
         </article>
         <footer>Publication <code>${esc(postId)}</code> · The Hub</footer>`;
       bindDownloadButtons();
     }
 
-    async function loadPost(postId, update) {
+    async function loadPost(postId, release) {
       const url = FIRESTORE_BASE +
         "/projects/" + encodeURIComponent(PROJECT_ID) +
         "/databases/(default)/documents/posts/" + encodeURIComponent(postId);
@@ -347,12 +335,12 @@
         );
         return;
       }
-      renderPost(body, postId, update);
+      renderPost(body, postId, release);
     }
 
     function startDownload() {
-      if (!latestUpdate || !latestUpdate.apkUrl) {
-        alert("Le téléchargement n’est pas encore disponible.");
+      if (!latestRelease || !latestRelease.url) {
+        alert("Le téléchargement n’est pas disponible pour le moment.");
         return;
       }
 
@@ -366,11 +354,10 @@
         remaining -= 1;
         secondsEl.textContent = String(Math.max(remaining, 0));
         secondsText.textContent = Math.max(remaining, 0) + " s";
-
         if (remaining <= 0) {
           clearInterval(timerId);
           modal.classList.remove("open");
-          window.location.href = latestUpdate.apkUrl;
+          window.location.href = latestRelease.url;
         }
       }, 1000);
     }
@@ -383,10 +370,8 @@
     }
 
     function bindDownloadButtons() {
-      document.querySelectorAll("[data-download-url]").forEach(function(button) {
-        button.addEventListener("click", function() {
-          startDownload();
-        });
+      document.querySelectorAll("[data-download]").forEach(function(button) {
+        button.addEventListener("click", startDownload);
       });
     }
 
@@ -397,20 +382,20 @@
 
     (async function() {
       const postId = postIdFromPath();
-
       try {
-        const update = await loadUpdateInfo();
+        const releasePromise = loadLatestRelease();
+        const release = await releasePromise;
         if (!postId) {
-          showHome(update);
+          showHome(release);
           return;
         }
-        await loadPost(postId, update);
+        await loadPost(postId, release);
       } catch (error) {
-        console.error(error);
+        console.error("The Hub site error:", error);
         if (!postId) {
           showHome(null);
         } else {
-          showMessage("Aperçu indisponible", "Vérifiez votre connexion Internet puis réessayez.");
+          showMessage("Aperçu indisponible", "Impossible de récupérer les informations de la publication ou de la dernière version.");
         }
       }
     })();
