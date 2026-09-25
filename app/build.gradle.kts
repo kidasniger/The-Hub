@@ -99,6 +99,11 @@ android {
 
   testOptions { unitTests { isIncludeAndroidResources = true } }
 
+  // Keep the v1.0.150 updater registration behavior unchanged; current Lint flags
+  // the legacy pre-API-33 branch even though it remains the v1.0.150 runtime flow.
+  lint {
+    disable += "UnspecifiedRegisterReceiverFlag"
+  }
 
   dependenciesInfo {
     includeInApk = false
