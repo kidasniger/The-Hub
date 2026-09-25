@@ -143,8 +143,8 @@ fun HubNavGraph(
     // Global in-app update bottom sheet
     UpdateBottomSheet(viewModel = updateViewModel)
 
-    LaunchedEffect(openUpdateDialogRequest, isOnline) {
-        if (openUpdateDialogRequest && isOnline) {
+    LaunchedEffect(openUpdateDialogRequest) {
+        if (openUpdateDialogRequest) {
             updateViewModel.openUpdateDialog()
             onUpdateDialogRequestConsumed()
         }

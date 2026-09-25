@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Only updater APKs in the app-specific Download directory are exposed. -->
+    <!-- For sharing downloaded update APKs from getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) -->
     <external-files-path
         name="update_apks"
         path="Download/" />
+    <!-- Fallback for internal cache or files directory if needed -->
+    <external-path
+        name="external_files"
+        path="." />
 </paths>

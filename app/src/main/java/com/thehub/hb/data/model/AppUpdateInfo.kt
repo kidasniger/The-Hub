@@ -11,7 +11,6 @@ data class AppUpdateInfo(
     val apkDownloadUrl: String,
     val apkFileName: String,
     val apkSizeInBytes: Long,
-    val apkSha256: String = "",
     val publishedAt: String = "",
     val isUpdateAvailable: Boolean = false
 )
