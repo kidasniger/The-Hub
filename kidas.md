@@ -16,7 +16,6 @@ technologies:
   - "Room"
   - "Firebase"
   - "Firebase Hosting"
-  - "Firebase Cloud Functions"
 featured: false
 github: "https://github.com/kidasniger/The-Hub"
 demo: "https://the-hub-f95f4.web.app/"
@@ -68,9 +67,9 @@ La page d'aperçu prend en charge :
 - Bouton « Ouvrir dans The Hub »
 - Bouton d'installation de The Hub
 
-La fonction serveur `postPreview` est intégrée au code du projet afin de lire les données via Firebase Admin sans rendre la collection Firestore `posts` publiquement lisible. Les publications masquées ou supprimées par l'administration ne sont pas exposées par l'aperçu.
+La page d’aperçu lit directement le document de la publication via l’API REST Firestore. Les règles Firestore autorisent uniquement la lecture publique des publications non masquées et non supprimées par l’administration. Les écritures et les autres données restent protégées par les règles existantes.
 
-État du déploiement : la validation du code Firebase Functions est réussie. Le déploiement de la fonction `postPreview` doit encore être finalisé côté Firebase/Google Cloud.
+Cette architecture n’utilise pas Cloud Functions pour l’aperçu et reste compatible avec le plan Firebase Spark.
 
 # Technologies
 
@@ -81,7 +80,6 @@ La fonction serveur `postPreview` est intégrée au code du projet afin de lire 
 - Room
 - Firebase
 - Firebase Hosting
-- Firebase Cloud Functions
 
 # Plateformes
 
@@ -157,7 +155,6 @@ La fonction serveur `postPreview` est intégrée au code du projet afin de lire 
 ## 1.0.170
 
 - Ajout de l'aperçu réel des publications partagées
-- Ajout de la fonction serveur `postPreview`
 - Ajout du routage Firebase Hosting `/post/**` vers l'aperçu de publication
 - Ajout des métadonnées Open Graph
 - Conservation du bouton d'ouverture directe dans The Hub
