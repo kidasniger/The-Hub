@@ -1,9 +1,13 @@
 name: Deploy The Hub Share Links
 
 on:
-  # Automatic Hosting deployment is performed by the release workflow after
-  # the newest APK and update.json have been prepared. Manual deployment
-  # remains available for website-only recovery.
+  push:
+    branches:
+      - main
+    paths:
+      - "firebase.json"
+      - "public/**"
+      - ".github/workflows/firebase-hosting.yml"
   workflow_dispatch:
 
 permissions:
