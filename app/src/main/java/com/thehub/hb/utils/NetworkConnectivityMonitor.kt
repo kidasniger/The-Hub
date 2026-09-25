@@ -32,13 +32,14 @@ class NetworkConnectivityMonitor(context: Context) {
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    val isOnline: Flow<Boolean> = callbackFlow {
-        fun currentStatus(): Boolean {
-            val activeNetwork = connectivityManager.activeNetwork ?: return false
-            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-            return NetworkStatus.hasInternet(capabilities)
-        }
+    /**
+     * Gives Compose a real initial value instead of briefly assuming the device is offline
+     * while callbackFlow is starting its first collection.
+     */
+    val initialIsOnline: Boolean
+        get() = currentStatus()
 
+    val isOnline: Flow<Boolean> = callbackFlow {
         trySend(currentStatus())
 
         val callback = object : ConnectivityManager.NetworkCallback() {
@@ -81,5 +82,11 @@ class NetworkConnectivityMonitor(context: Context) {
 
     fun refresh() {
         refreshRequests.tryEmit(Unit)
+    }
+
+    private fun currentStatus(): Boolean {
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        return NetworkStatus.hasInternet(capabilities)
     }
 }

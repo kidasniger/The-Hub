@@ -20,7 +20,7 @@ import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
 import com.thehub.hb.di.AppContainer
 import com.thehub.hb.ui.bookmarks.BookmarksScreen
-import com.thehub.hb.ui.components.NetworkOfflineScreen
+import com.thehub.hb.ui.components.NetworkOfflineDialog
 import com.thehub.hb.ui.bookmarks.BookmarksViewModel
 import com.thehub.hb.ui.comments.CommentsScreen
 import com.thehub.hb.ui.comments.CommentsViewModel
@@ -95,7 +95,7 @@ fun HubNavGraph(
     val networkConnectivityMonitor = remember(context.applicationContext) {
         NetworkConnectivityMonitor(context.applicationContext)
     }
-    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = false)
+    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = networkConnectivityMonitor.initialIsOnline)
 
     fun routeAfterAuthentication() {
         authRoutingScope.launch {
@@ -127,10 +127,9 @@ fun HubNavGraph(
         }
     }
     if (!isOnline) {
-        NetworkOfflineScreen(
+        NetworkOfflineDialog(
             onRetry = { networkConnectivityMonitor.refresh() }
         )
-        return
     }
 
     val updateViewModel: UpdateViewModel = viewModel(
