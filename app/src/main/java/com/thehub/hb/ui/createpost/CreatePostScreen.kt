@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -219,7 +220,7 @@ fun CreatePostScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .heightIn(min = 180.dp)
                 ) {
                     if (uiState.text.isEmpty()) {
                         Text(
@@ -254,16 +255,16 @@ fun CreatePostScreen(
                     )
                 }
 
-                // Character Counter
+                // Informational character count; The Hub does not impose an application-defined post length cap.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     Text(
-                        text = "${uiState.charCount} / 500",
+                        text = "${uiState.charCount} caractères",
                         fontSize = 12.sp,
-                        color = if (uiState.charCount >= 480) HubError else HubMuted,
-                        fontWeight = if (uiState.charCount >= 480) FontWeight.Bold else FontWeight.Normal,
+                        color = HubMuted,
+                        fontWeight = FontWeight.Normal,
                         modifier = Modifier.testTag("create_post_char_counter")
                     )
                 }
