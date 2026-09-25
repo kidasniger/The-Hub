@@ -24,16 +24,13 @@ data class CreatePostUiState(
 ) {
     val canPublish: Boolean
         get() = if (isEditMode) {
-            text.isNotBlank() && !isLoading && text.length <= 500
+            text.isNotBlank() && !isLoading
         } else {
-            (text.isNotBlank() || selectedImageBytes != null || videoUrl != null) && !isLoading && text.length <= 500
+            (text.isNotBlank() || selectedImageBytes != null || videoUrl != null) && !isLoading
         }
 
     val charCount: Int
         get() = text.length
-
-    val isOverLimit: Boolean
-        get() = text.length > 500
 }
 
 class CreatePostViewModel(
@@ -79,14 +76,12 @@ class CreatePostViewModel(
     }
 
     fun updateText(newText: String) {
-        if (newText.length <= 500) {
-            val detectedVideoUrl = VideoLinkDetector.extractVideoUrl(newText)
-            _uiState.value = _uiState.value.copy(
-                text = newText,
-                videoUrl = detectedVideoUrl ?: _uiState.value.videoUrl,
-                errorMessage = null
-            )
-        }
+        val detectedVideoUrl = VideoLinkDetector.extractVideoUrl(newText)
+        _uiState.value = _uiState.value.copy(
+            text = newText,
+            videoUrl = detectedVideoUrl ?: _uiState.value.videoUrl,
+            errorMessage = null
+        )
     }
 
     fun setVideoUrl(url: String?) {
