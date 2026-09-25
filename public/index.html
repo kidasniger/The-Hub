@@ -4,46 +4,133 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#09090b">
-  <meta name="description" content="Aperçu d'une publication The Hub.">
+  <meta name="description" content="The Hub — publications partagées et téléchargement direct de l'application.">
   <meta property="og:site_name" content="The Hub">
-  <meta property="og:title" content="Publication The Hub">
-  <meta property="og:description" content="Découvrez cette publication sur The Hub.">
-  <meta property="og:type" content="article">
-  <title>Publication The Hub</title>
+  <meta property="og:title" content="The Hub">
+  <meta property="og:description" content="Découvrez The Hub et téléchargez directement la dernière version de l'application.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="/assets/dreamhub-logo-anime.svg">
+  <title>The Hub</title>
   <style>
-    :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    :root{
+      color-scheme:dark;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#09090b;
+      color:#fff;
+    }
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,rgba(255,255,255,.08),transparent 42%),#09090b;color:#fff}
-    header{width:min(100%,760px);margin:0 auto;padding:22px 18px 8px;display:flex;align-items:center;gap:10px;font-size:22px;font-weight:800}
-    .logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#fff;color:#111;font-size:19px}
-    main{width:min(94vw,640px);margin:22px auto 44px}
-    .card{overflow:hidden;border:1px solid #29292f;border-radius:24px;background:#151519;box-shadow:0 24px 80px rgba(0,0,0,.38)}
-    .author{display:flex;align-items:center;gap:12px;padding:20px 20px 14px}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 50% -14%,rgba(255,255,255,.10),transparent 38%),
+        radial-gradient(circle at 10% 35%,rgba(255,255,255,.035),transparent 28%),
+        #09090b;
+    }
+    header{
+      width:min(100%,820px);
+      margin:0 auto;
+      padding:20px 18px 8px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .brand-logo{
+      width:44px;
+      height:44px;
+      border-radius:14px;
+      display:block;
+      object-fit:cover;
+      background:#fff;
+      padding:5px;
+      box-shadow:0 8px 30px rgba(255,255,255,.08);
+    }
+    .brand{font-size:23px;font-weight:850;letter-spacing:-.02em}
+    main{width:min(94vw,680px);margin:22px auto 52px}
+    .card{
+      overflow:hidden;
+      border:1px solid #2a2a30;
+      border-radius:26px;
+      background:rgba(21,21,25,.96);
+      box-shadow:0 28px 90px rgba(0,0,0,.42);
+    }
+    .hero{padding:28px 24px 24px;text-align:center}
+    .hero-logo{
+      width:86px;height:86px;border-radius:25px;object-fit:cover;background:#fff;padding:8px;
+      margin:0 auto 16px;display:block;
+      box-shadow:0 12px 36px rgba(255,255,255,.10);
+    }
+    h1{margin:0 0 8px;font-size:32px;letter-spacing:-.035em}
+    .hero p{margin:0;color:#a9a9b2;line-height:1.55}
+    .version{
+      display:inline-flex;align-items:center;gap:7px;
+      margin-top:16px;padding:8px 12px;border-radius:999px;
+      border:1px solid #35353c;background:#1a1a1f;color:#e8e8ed;font-size:13px;font-weight:750
+    }
+    .download-panel{margin-top:20px;padding:20px;border-top:1px solid #2a2a30}
+    .download-title{font-size:20px;font-weight:850}
+    .download-meta{margin-top:6px;color:#92929b;font-size:14px}
+    .button{
+      border:0;display:flex;width:100%;justify-content:center;align-items:center;
+      padding:15px 18px;border-radius:16px;text-decoration:none;font:inherit;font-weight:850;
+      cursor:pointer;transition:transform .16s ease,opacity .16s ease
+    }
+    .button:active{transform:scale(.99)}
+    .primary{margin-top:16px;background:#fff;color:#111}
+    .secondary{margin-top:10px;background:#1c1c22;border:1px solid #37373f;color:#eee}
+    .notes{text-align:left;margin-top:18px}
+    .notes h2{font-size:15px;margin:0 0 9px}
+    .notes ul{margin:0;padding-left:20px;color:#b8b8c1;line-height:1.55}
+    .integrity{margin-top:14px;color:#777781;font-size:12px;line-height:1.45;word-break:break-all}
+    .post .author{display:flex;align-items:center;gap:12px;padding:20px 20px 14px}
     .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#29292f}
-    .avatar-fallback{display:grid;place-items:center;font-weight:800}
-    .username{font-weight:800;font-size:16px}
+    .avatar-fallback{display:grid;place-items:center;font-weight:850}
+    .username{font-weight:850;font-size:16px}
     .date{margin-top:4px;color:#878790;font-size:13px}
     .content{padding:6px 20px 20px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.58;font-size:17px}
     .media{display:block;width:100%;max-height:640px;object-fit:cover;background:#09090b}
     .video{max-height:640px}
     .stats{display:flex;flex-wrap:wrap;gap:18px;padding:15px 20px;color:#a7a7b0;border-top:1px solid #29292f;font-size:14px}
-    .actions{padding:18px 20px 22px;display:grid;gap:10px}
-    a.button{display:block;text-align:center;padding:14px 18px;border-radius:15px;text-decoration:none;font-weight:800}
-    .open{background:#fff;color:#111}
-    .install{border:1px solid #36363d;color:#e4e4e8;background:#1c1c21}
-    .message{text-align:center;padding:46px 24px}
-    .message h1{margin:0 0 10px;font-size:27px}
-    .message p{margin:0;color:#a6a6af;line-height:1.55}
+    .post-actions{padding:18px 20px 8px}
     .loader{padding:20px}
     .skeleton{border-radius:12px;background:linear-gradient(90deg,#1f1f24,#29292f,#1f1f24);background-size:200% 100%;animation:sh 1.15s infinite}
     .s1{height:52px;width:55%;margin-bottom:18px}.s2{height:18px;width:90%;margin-bottom:10px}.s3{height:18px;width:76%;margin-bottom:20px}.s4{height:320px}
     @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .message{text-align:center;padding:44px 24px}
+    .message h2{margin:0 0 10px;font-size:25px}
+    .message p{margin:0;color:#a6a6af;line-height:1.55}
     footer{text-align:center;color:#686871;font-size:12px;margin-top:16px}
     code{word-break:break-all;color:#cfcfd7}
+    .modal{
+      position:fixed;inset:0;background:rgba(0,0,0,.74);backdrop-filter:blur(8px);
+      display:none;align-items:center;justify-content:center;padding:20px;z-index:20
+    }
+    .modal.open{display:flex}
+    .modal-card{
+      width:min(92vw,430px);padding:26px;border-radius:24px;border:1px solid #38383f;
+      background:#17171c;box-shadow:0 32px 90px rgba(0,0,0,.55);text-align:center
+    }
+    .timer{
+      width:96px;height:96px;border-radius:50%;margin:4px auto 18px;
+      display:grid;place-items:center;border:8px solid #34343b;position:relative
+    }
+    .timer::before{
+      content:"";position:absolute;inset:-8px;border-radius:50%;
+      border:8px solid transparent;border-top-color:#fff;transform:rotate(-45deg)
+    }
+    .seconds{font-size:30px;font-weight:900}
+    .modal h2{margin:0 0 7px}
+    .modal p{margin:0;color:#a6a6af;line-height:1.5}
+    .cancel{margin-top:16px}
+    .hidden{display:none!important}
   </style>
 </head>
 <body>
-  <header><span class="logo">H</span><span>The Hub</span></header>
+  <header>
+    <img class="brand-logo" src="/assets/dreamhub-logo-anime.svg" alt="Logo The Hub">
+    <div class="brand">The Hub</div>
+  </header>
+
   <main id="app">
     <section class="card loader" aria-label="Chargement">
       <div class="skeleton s1"></div>
@@ -52,10 +139,28 @@
       <div class="skeleton s4"></div>
     </section>
   </main>
+
+  <div id="downloadModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="downloadTitle">
+    <div class="modal-card">
+      <div class="timer"><span id="seconds" class="seconds">30</span></div>
+      <h2 id="downloadTitle">Préparation du téléchargement</h2>
+      <p>Votre téléchargement va démarrer automatiquement dans <strong id="secondsText">30 s</strong>.</p>
+      <button id="cancelDownload" class="button secondary cancel" type="button">Annuler</button>
+    </div>
+  </div>
+
   <script>
     const PROJECT_ID = "the-hub-f95f4";
     const FIRESTORE_BASE = "https://firestore.googleapis.com/v1";
+    const UPDATE_URL = "/downloads/update.json";
     const app = document.getElementById("app");
+    const modal = document.getElementById("downloadModal");
+    const secondsEl = document.getElementById("seconds");
+    const secondsText = document.getElementById("secondsText");
+    const cancelBtn = document.getElementById("cancelDownload");
+    let latestUpdate = null;
+    let timerId = null;
+    let remaining = 30;
 
     function esc(value) {
       return String(value == null ? "" : value)
@@ -92,19 +197,67 @@
       try { return decodeURIComponent(parts[1]); } catch (_) { return ""; }
     }
 
-    function showMessage(title, message) {
-      app.innerHTML =
-        '<section class="card message">' +
-          '<h1>' + esc(title) + '</h1>' +
-          '<p>' + esc(message) + '</p>' +
-          '<div class="actions">' +
-            '<a class="button open" href="https://the-hub-f95f4.web.app/">Retour à The Hub</a>' +
-            '<a class="button install" href="https://github.com/kidasniger/The-Hub/releases/latest">Installer / mettre à jour The Hub</a>' +
-          '</div>' +
-        '</section>';
+    async function loadUpdateInfo() {
+      const response = await fetch(UPDATE_URL + "?t=" + Date.now(), {
+        cache: "no-store",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) throw new Error("update.json " + response.status);
+      latestUpdate = await response.json();
+      return latestUpdate;
     }
 
-    function renderPost(data, postId) {
+    function releaseNotesMarkup(notes) {
+      const list = Array.isArray(notes) ? notes : [];
+      const items = list.filter(Boolean).slice(0, 12).map(note => "<li>" + esc(note) + "</li>").join("");
+      return items ? "<div class='notes'><h2>Nouveautés</h2><ul>" + items + "</ul></div>" : "";
+    }
+
+    function downloadPanel(update) {
+      if (!update || !update.version || !update.apkUrl) {
+        return "";
+      }
+      const size = update.sizeLabel || "";
+      const published = update.publishedAt ? formatDate(update.publishedAt) : "";
+      const meta = [size, published].filter(Boolean).join(" · ");
+      const link = esc(update.apkUrl + (update.apkUrl.includes("?") ? "&" : "?") + "cache=" + encodeURIComponent(update.version));
+
+      return `
+        <section class="download-panel">
+          <div class="download-title">Télécharger The Hub</div>
+          <div class="download-meta">Dernière version : <strong>v${esc(update.version)}</strong>${meta ? " · " + esc(meta) : ""}</div>
+          <button class="button primary" type="button" data-download-url="${link}">⬇️ Télécharger l’APK</button>
+          ${releaseNotesMarkup(update.releaseNotes)}
+          ${update.sha256 ? "<div class='integrity'>SHA-256 : <code>" + esc(update.sha256) + "</code></div>" : ""}
+        </section>`;
+    }
+
+    function showHome(update) {
+      document.title = "The Hub · Télécharger";
+      app.innerHTML = `
+        <section class="card hero">
+          <img class="hero-logo" src="/assets/dreamhub-logo-anime.svg" alt="Logo The Hub">
+          <h1>The Hub</h1>
+          <p>La dernière version de l’application est disponible directement depuis ce site.</p>
+          ${update ? "<div class='version'>● v" + esc(update.version) + " disponible</div>" : ""}
+          ${downloadPanel(update)}
+          <a class="button secondary" href="https://the-hub-f95f4.web.app/">Accueil The Hub</a>
+        </section>
+        <footer>Téléchargement hébergé directement sur le site The Hub.</footer>`;
+      bindDownloadButtons();
+    }
+
+    function showMessage(title, message) {
+      app.innerHTML = `
+        <section class="card message">
+          <h2>${esc(title)}</h2>
+          <p>${esc(message)}</p>
+          ${latestUpdate ? downloadPanel(latestUpdate) : ""}
+        </section>`;
+      bindDownloadButtons();
+    }
+
+    function renderPost(data, postId, update) {
       const fields = data.fields || {};
       const username = String(field(fields, "authorUsername", "thehub_user"));
       const authorPhoto = String(field(fields, "authorPhotoUrl", ""));
@@ -119,11 +272,11 @@
       const deleted = field(fields, "isDeletedByAdmin", false) === true;
 
       if (hidden || deleted) {
-        showMessage("Publication indisponible", "Cette publication n'est plus disponible publiquement.");
+        showMessage("Publication indisponible", "Cette publication n’est plus disponible publiquement.");
         return;
       }
 
-      const avatar = authorPhoto
+      const avatar = authorPhoto && /^https?:\/\//i.test(authorPhoto)
         ? '<img class="avatar" src="' + esc(authorPhoto) + '" alt="">'
         : '<div class="avatar avatar-fallback">' + esc(username.trim().charAt(0).toUpperCase() || "T") + '</div>';
 
@@ -134,69 +287,133 @@
         media = '<video class="media video" src="' + esc(videoUrl) + '" controls playsinline preload="metadata"></video>';
       }
 
-      const appLink = "thehub://post/" + encodeURIComponent(postId);
-      const description = text.replace(/\s+/g, " ").trim().slice(0, 180) || "Publication partagée sur The Hub";
       document.title = username + " · The Hub";
-      document.querySelector('meta[name="description"]').setAttribute("content", description);
+      document.querySelector('meta[name="description"]').setAttribute(
+        "content",
+        text.replace(/\s+/g, " ").trim().slice(0, 180) || "Publication partagée sur The Hub"
+      );
 
-      app.innerHTML =
-        '<article class="card">' +
-          '<div class="author">' + avatar +
-            '<div><div class="username">' + esc(username) + '</div>' +
-            '<div class="date">' + esc(formatDate(createdAt)) + '</div></div>' +
-          '</div>' +
-          (text ? '<div class="content">' + esc(text) + '</div>' : '') +
-          media +
-          '<div class="stats">' +
-            '<span>❤️ ' + likes + ' J’aime</span>' +
-            '<span>💬 ' + comments + ' commentaires</span>' +
-            '<span>🔁 ' + reposts + ' republications</span>' +
-          '</div>' +
-          '<div class="actions">' +
-            '<a class="button open" href="' + appLink + '">Ouvrir dans The Hub</a>' +
-            '<a class="button install" href="https://github.com/kidasniger/The-Hub/releases/latest">Installer The Hub</a>' +
-          '</div>' +
-        '</article>' +
-        '<footer>Publication <code>' + esc(postId) + '</code> · The Hub</footer>';
+      const appLink = "thehub://post/" + encodeURIComponent(postId);
+
+      app.innerHTML = `
+        <article class="card post">
+          <div class="author">
+            ${avatar}
+            <div>
+              <div class="username">${esc(username)}</div>
+              <div class="date">${esc(formatDate(createdAt))}</div>
+            </div>
+          </div>
+          ${text ? "<div class='content'>" + esc(text) + "</div>" : ""}
+          ${media}
+          <div class="stats">
+            <span>❤️ ${likes} J’aime</span>
+            <span>💬 ${comments} commentaires</span>
+            <span>🔁 ${reposts} republications</span>
+          </div>
+          <div class="post-actions">
+            <a class="button primary" href="${appLink}">Ouvrir dans The Hub</a>
+          </div>
+          ${downloadPanel(update)}
+        </article>
+        <footer>Publication <code>${esc(postId)}</code> · The Hub</footer>`;
+      bindDownloadButtons();
     }
 
-    async function loadPost(postId) {
+    async function loadPost(postId, update) {
       const url = FIRESTORE_BASE +
         "/projects/" + encodeURIComponent(PROJECT_ID) +
         "/databases/(default)/documents/posts/" + encodeURIComponent(postId);
 
-      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" });
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store"
+      });
       const body = await response.json().catch(function(){ return {}; });
 
       if (response.status === 404) {
         showMessage("Publication introuvable", "Cette publication n'existe plus ou le lien est incorrect.");
         return;
       }
-
       if (!response.ok) {
         const code = body && body.error && (body.error.status || body.error.message);
         console.error("The Hub public preview error:", code || response.status);
         showMessage(
           "Aperçu indisponible",
           code === "PERMISSION_DENIED"
-            ? "La lecture publique n'est pas encore activée pour cette publication."
+            ? "La lecture publique de cette publication n'est pas disponible."
             : "Impossible de charger cette publication pour le moment."
         );
         return;
       }
-
-      renderPost(body, postId);
+      renderPost(body, postId, update);
     }
 
-    const postId = postIdFromPath();
-    if (!postId || postId.length > 256) {
-      showMessage("Lien invalide", "Cette page attend un lien de publication The Hub au format /post/<id>.");
-    } else {
-      loadPost(postId).catch(function(error) {
-        console.error(error);
-        showMessage("Aperçu indisponible", "Vérifiez votre connexion Internet puis réessayez.");
+    function startDownload() {
+      if (!latestUpdate || !latestUpdate.apkUrl) {
+        alert("Le téléchargement n’est pas encore disponible.");
+        return;
+      }
+
+      clearInterval(timerId);
+      remaining = 30;
+      secondsEl.textContent = String(remaining);
+      secondsText.textContent = remaining + " s";
+      modal.classList.add("open");
+
+      timerId = setInterval(function() {
+        remaining -= 1;
+        secondsEl.textContent = String(Math.max(remaining, 0));
+        secondsText.textContent = Math.max(remaining, 0) + " s";
+
+        if (remaining <= 0) {
+          clearInterval(timerId);
+          modal.classList.remove("open");
+          window.location.href = latestUpdate.apkUrl;
+        }
+      }, 1000);
+    }
+
+    function cancelDownload() {
+      clearInterval(timerId);
+      timerId = null;
+      remaining = 30;
+      modal.classList.remove("open");
+    }
+
+    function bindDownloadButtons() {
+      document.querySelectorAll("[data-download-url]").forEach(function(button) {
+        button.addEventListener("click", function() {
+          startDownload();
+        });
       });
     }
+
+    cancelBtn.addEventListener("click", cancelDownload);
+    modal.addEventListener("click", function(event) {
+      if (event.target === modal) cancelDownload();
+    });
+
+    (async function() {
+      const postId = postIdFromPath();
+
+      try {
+        const update = await loadUpdateInfo();
+        if (!postId) {
+          showHome(update);
+          return;
+        }
+        await loadPost(postId, update);
+      } catch (error) {
+        console.error(error);
+        if (!postId) {
+          showHome(null);
+        } else {
+          showMessage("Aperçu indisponible", "Vérifiez votre connexion Internet puis réessayez.");
+        }
+      }
+    })();
   </script>
 </body>
 </html>
