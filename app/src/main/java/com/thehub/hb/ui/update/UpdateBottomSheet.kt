@@ -471,7 +471,7 @@ fun UpdateContent(
                                     "Veuillez autoriser l'installation d'applications inconnues pour The Hub",
                                     Toast.LENGTH_LONG
                                 ).show()
-                                ApkInstaller.openInstallPermissionSettings(context, status.file)
+                                ApkInstaller.openInstallPermissionSettings(context)
                             } else {
                                 val success = ApkInstaller.installApk(context, status.file)
                                 if (!success) {
