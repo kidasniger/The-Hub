@@ -1,9 +1,8 @@
-const { onDocumentCreated } = require("firebase-functions/firestore");
+const { onRequest } = require("firebase-functions/https");
 const { setGlobalOptions } = require("firebase-functions");
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
+const { getFirestore } = require("firebase-admin/firestore");
 
 initializeApp();
 
@@ -13,275 +12,302 @@ setGlobalOptions({
 });
 
 const db = getFirestore();
-const messaging = getMessaging();
 
-const TYPES = new Set([
-  "like",
-  "comment",
-  "follow",
-  "message",
-  "like_comment",
-  "reply_comment",
-]);
-
-function buildNotificationContent(data) {
-  const actor =
-    data.actorDisplayName ||
-    data.actorUsername ||
-    "Quelqu'un";
-  switch (data.type) {
-    case "like":
-      return { title: "Nouveau j'aime", body: actor + " a aimé votre publication." };
-    case "comment":
-      return { title: "Nouveau commentaire", body: actor + " a commenté votre publication." };
-    case "follow":
-      return { title: "Nouvel abonné", body: actor + " vous suit maintenant." };
-    case "message":
-      return { title: "Nouveau message", body: actor + " vous a envoyé un message." };
-    case "like_comment":
-      return { title: "J'aime sur votre commentaire", body: actor + " a aimé votre commentaire." };
-    case "reply_comment":
-      return { title: "Réponse à votre commentaire", body: actor + " a répondu à votre commentaire." };
-    default:
-      return { title: "The Hub", body: "Vous avez une nouvelle notification." };
-  }
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-function buildDeepLink(data) {
-  const type = data.type;
-  if (type === "follow" && data.actorId) {
-    return "thehub://profile/" + encodeURIComponent(data.actorId);
-  }
-
-  if (type === "message" && data.conversationId) {
-    return "thehub://chat/" + encodeURIComponent(data.conversationId);
-  }
-
-  if (
-    (type === "comment" ||
-      type === "like_comment" ||
-      type === "reply_comment") &&
-    data.postId
-  ) {
-    return "thehub://comments/" + encodeURIComponent(data.postId);
-  }
-
-  if (data.postId) {
-    return "thehub://post/" + encodeURIComponent(data.postId);
-  }
-
-  return "thehub://feed";
-}
-
-function sanitizeData(data) {
-  const value = data == null ? "" : String(data);
-  return value.length > 3500 ? value.slice(0, 3500) : value;
-}
-
-async function deleteInvalidToken(tokenRef, token) {
+function safeHttpUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
   try {
-    await tokenRef.delete();
-    logger.info("Removed invalid FCM token", { token });
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function formatDate(value) {
+  try {
+    const date = typeof value?.toDate === "function" ? value.toDate() : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("fr-FR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Africa/Niamey",
+    }).format(date);
+  } catch (_) {
+    return "";
+  }
+}
+
+function postIdFromRequest(req) {
+  const path = String(req.path || "").split("/").filter(Boolean);
+  if (path[0] === "post" && path[1]) {
+    return decodeURIComponent(path[1]);
+  }
+  const queryId = typeof req.query.id === "string" ? req.query.id : "";
+  return queryId.trim();
+}
+
+function pageShell({ title, description, imageUrl, body }) {
+  const safeTitle = escapeHtml(title);
+  const safeDescription = escapeHtml(description);
+  const safeImage = safeHttpUrl(imageUrl);
+  const ogImage = safeImage
+    ? `<meta property="og:image" content="${escapeHtml(safeImage)}">`
+    : "";
+
+  return `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b0b0d">
+  <meta name="description" content="${safeDescription}">
+  <meta property="og:site_name" content="The Hub">
+  <meta property="og:title" content="${safeTitle}">
+  <meta property="og:description" content="${safeDescription}">
+  <meta property="og:type" content="article">
+  ${ogImage}
+  <title>${safeTitle} · The Hub</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(255,255,255,.08), transparent 42%),
+        #09090b;
+      color: #fff;
+    }
+    header {
+      width: min(100%, 760px);
+      margin: 0 auto;
+      padding: 24px 20px 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 22px;
+    }
+    .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      color: #111;
+      font-size: 19px;
+    }
+    main {
+      width: min(92vw, 620px);
+      margin: 26px auto 48px;
+    }
+    .card {
+      overflow: hidden;
+      border: 1px solid #29292f;
+      border-radius: 24px;
+      background: #151519;
+      box-shadow: 0 24px 80px rgba(0,0,0,.38);
+    }
+    .author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 20px 14px;
+    }
+    .avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #29292f;
+    }
+    .avatar-fallback {
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+    .username { font-weight: 750; }
+    .date { margin-top: 3px; color: #85858f; font-size: 13px; }
+    .content {
+      padding: 6px 20px 20px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.55;
+      font-size: 17px;
+    }
+    .media {
+      width: 100%;
+      max-height: 620px;
+      display: block;
+      object-fit: cover;
+      background: #09090b;
+    }
+    .video { max-height: 620px; }
+    .stats {
+      display: flex;
+      gap: 22px;
+      padding: 15px 20px;
+      color: #a4a4ad;
+      border-top: 1px solid #29292f;
+      font-size: 14px;
+    }
+    .actions {
+      padding: 18px 20px 22px;
+      display: grid;
+      gap: 10px;
+    }
+    .open {
+      display: block;
+      text-align: center;
+      padding: 14px 18px;
+      border-radius: 15px;
+      background: #fff;
+      color: #111;
+      text-decoration: none;
+      font-weight: 800;
+    }
+    .install {
+      display: block;
+      text-align: center;
+      padding: 12px 18px;
+      border-radius: 15px;
+      border: 1px solid #34343b;
+      color: #ddd;
+      text-decoration: none;
+      font-weight: 650;
+    }
+    footer {
+      text-align: center;
+      color: #686871;
+      font-size: 12px;
+      margin-top: 18px;
+    }
+    .error {
+      text-align: center;
+      padding: 42px 26px;
+    }
+    .error h1 { margin: 0 0 10px; }
+    .error p { color: #a4a4ad; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header><span class="logo">H</span><span>The Hub</span></header>
+  <main>${body}</main>
+</body>
+</html>`;
+}
+
+function errorPage(title, message) {
+  const body = `<section class="card error">
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
+    <div class="actions">
+      <a class="open" href="https://the-hub-f95f4.web.app/">Retour à The Hub</a>
+      <a class="install" href="https://github.com/kidasniger/The-Hub/releases/latest">Installer / mettre à jour The Hub</a>
+    </div>
+  </section>
+  <footer>Une publication The Hub partagée avec vous.</footer>`;
+  return pageShell({
+    title: `${title} · The Hub`,
+    description: message,
+    body,
+  });
+}
+
+function renderPost(post, postId) {
+  const username = post.authorUsername || "thehub_user";
+  const text = post.text || "";
+  const imageUrl = safeHttpUrl(post.imageUrl);
+  const videoUrl = safeHttpUrl(post.videoUrl);
+  const authorPhotoUrl = safeHttpUrl(post.authorPhotoUrl);
+  const date = formatDate(post.createdAt);
+  const appLink = "thehub://post/" + encodeURIComponent(postId);
+  const description = text.replace(/\s+/g, " ").trim().slice(0, 180) || "Publication partagée sur The Hub";
+  const initial = escapeHtml(username.trim().charAt(0).toUpperCase() || "T");
+
+  const avatar = authorPhotoUrl
+    ? `<img class="avatar" src="${escapeHtml(authorPhotoUrl)}" alt="">`
+    : `<div class="avatar avatar-fallback">${initial}</div>`;
+
+  let media = "";
+  if (imageUrl) {
+    media = `<img class="media" src="${escapeHtml(imageUrl)}" alt="Image de la publication" loading="eager">`;
+  } else if (videoUrl) {
+    media = `<video class="media video" src="${escapeHtml(videoUrl)}" controls playsinline preload="metadata"></video>`;
+  }
+
+  const body = `<article class="card">
+    <div class="author">
+      ${avatar}
+      <div>
+        <div class="username">${escapeHtml(username)}</div>
+        <div class="date">${escapeHtml(date)}</div>
+      </div>
+    </div>
+    ${text ? `<div class="content">${escapeHtml(text)}</div>` : ""}
+    ${media}
+    <div class="stats">
+      <span>❤️ ${Number(post.likesCount) || 0} J’aime</span>
+      <span>💬 ${Number(post.commentsCount) || 0} commentaires</span>
+      <span>🔁 ${Number(post.repostsCount) || 0} republications</span>
+    </div>
+    <div class="actions">
+      <a class="open" href="${appLink}">Ouvrir dans The Hub</a>
+      <a class="install" href="https://github.com/kidasniger/The-Hub/releases/latest">Installer The Hub</a>
+    </div>
+  </article>
+  <footer>Publication ${escapeHtml(postId)} · The Hub</footer>`;
+
+  return pageShell({
+    title: `${username} sur The Hub`,
+    description,
+    imageUrl,
+    body,
+  });
+}
+
+exports.postPreview = onRequest(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=60, s-maxage=300");
+  res.set("X-Content-Type-Options", "nosniff");
+
+  const postId = postIdFromRequest(req);
+  if (!postId || postId.length > 256) {
+    res.status(400).type("html").send(errorPage("Lien invalide", "Cette publication n'a pas pu être identifiée."));
+    return;
+  }
+
+  try {
+    const snapshot = await db.collection("posts").doc(postId).get();
+    if (!snapshot.exists) {
+      res.status(404).type("html").send(errorPage("Publication introuvable", "Cette publication n'existe plus ou le lien est incorrect."));
+      return;
+    }
+
+    const post = snapshot.data() || {};
+    if (post.isHidden === true || post.isDeletedByAdmin === true) {
+      res.status(404).type("html").send(errorPage("Publication indisponible", "Cette publication n'est plus disponible publiquement."));
+      return;
+    }
+
+    res.status(200).type("html").send(renderPost({ ...post, id: snapshot.id }, snapshot.id));
   } catch (error) {
-    logger.warn("Could not remove invalid FCM token", {
-      token,
+    logger.error("Public post preview failed", {
+      postId,
       error: error?.message || String(error),
     });
+    res.status(500).type("html").send(errorPage("Aperçu indisponible", "Impossible de charger cette publication pour le moment."));
   }
-}
-
-exports.reassignFcmTokenToOwner = require("firebase-functions/firestore").onDocumentWritten(
-  "users/{userId}/fcmTokens/{tokenId}",
-  async (event) => {
-    const after = event.data?.after;
-    if (!after || !after.exists) return null;
-
-    const token = after.get("token");
-    const userId = event.params.userId;
-
-    if (typeof token !== "string" || !token.trim() || !userId) {
-      return null;
-    }
-
-    try {
-      const matches = await db
-        .collectionGroup("fcmTokens")
-        .where("token", "==", token)
-        .get();
-
-      const batch = db.batch();
-      let removed = 0;
-
-      for (const doc of matches.docs) {
-        const pathParts = doc.ref.path.split("/");
-        const ownerIndex = pathParts.indexOf("users");
-        const ownerId = ownerIndex >= 0 ? pathParts[ownerIndex + 1] : null;
-
-        if (ownerId && ownerId !== userId) {
-          batch.delete(doc.ref);
-          removed += 1;
-        }
-      }
-
-      if (removed > 0) {
-        await batch.commit();
-        logger.info("Reassigned FCM token to current owner", {
-          userId,
-          removedDuplicateRegistrations: removed,
-        });
-      }
-    } catch (error) {
-      logger.error("FCM token ownership cleanup failed", {
-        userId,
-        error: error?.message || String(error),
-      });
-    }
-
-    return null;
-  }
-);
-
-exports.pushNotificationOnCreate = onDocumentCreated(
-  "notifications/{notificationId}",
-  async (event) => {
-    const snapshot = event.data;
-    if (!snapshot) return null;
-
-    const notification = snapshot.data() || {};
-    const recipientId = notification.recipientId;
-    const actorId = notification.actorId;
-    const type = notification.type;
-
-    if (
-      !recipientId ||
-      !actorId ||
-      actorId === recipientId ||
-      !TYPES.has(type)
-    ) {
-      return null;
-    }
-
-    const tokenSnapshot = await db
-      .collection("users")
-      .doc(recipientId)
-      .collection("fcmTokens")
-      .get();
-
-    if (tokenSnapshot.empty) {
-      logger.info("No FCM tokens for notification recipient", { recipientId });
-      return null;
-    }
-
-    let actorDisplayName = "";
-    if (notification.actorId) {
-      try {
-        const actorSnap = await db.collection("users").doc(notification.actorId).get();
-        actorDisplayName =
-          actorSnap.get("displayName") ||
-          actorSnap.get("name") ||
-          "";
-      } catch (error) {
-        logger.warn("Could not resolve actor displayName", {
-          actorId: notification.actorId,
-          error: error?.message || String(error),
-        });
-      }
-    }
-
-    if (!actorDisplayName) {
-      actorDisplayName = notification.actorDisplayName || "Quelqu'un";
-    }
-
-    const content = buildNotificationContent({
-      ...notification,
-      actorDisplayName,
-    });
-    const deepLink = buildDeepLink(notification);
-    const createdAtMs =
-      notification.createdAt && typeof notification.createdAt.toMillis === "function"
-        ? String(notification.createdAt.toMillis())
-        : "";
-
-    const data = {
-      notificationId: sanitizeData(snapshot.id),
-      recipientId: sanitizeData(recipientId),
-      createdAtMs: sanitizeData(createdAtMs),
-      type: sanitizeData(type),
-      title: sanitizeData(content.title),
-      body: sanitizeData(content.body),
-      actorId: sanitizeData(notification.actorId),
-      actorUsername: sanitizeData(notification.actorUsername || ""),
-      actorDisplayName: sanitizeData(actorDisplayName),
-      postId: sanitizeData(notification.postId || ""),
-      commentId: sanitizeData(notification.commentId || ""),
-      conversationId: sanitizeData(notification.conversationId || ""),
-      messageId: sanitizeData(notification.messageId || ""),
-      deepLink,
-    };
-
-    const tokenDocs = tokenSnapshot.docs;
-    const tokens = tokenDocs
-      .map((doc) => doc.get("token"))
-      .filter((token) => typeof token === "string" && token.length > 0);
-
-    if (tokens.length === 0) {
-      return null;
-    }
-
-    let successCount = 0;
-    let failureCount = 0;
-
-    for (let offset = 0; offset < tokens.length; offset += 500) {
-      const chunk = tokens.slice(offset, offset + 500);
-      const message = {
-        tokens: chunk,
-        data,
-        android: {
-          priority: "high",
-        },
-      };
-
-      const response = await messaging.sendEachForMulticast(message);
-      successCount += response.successCount;
-      failureCount += response.failureCount;
-
-      for (let index = 0; index < response.responses.length; index += 1) {
-        const sendResponse = response.responses[index];
-        if (sendResponse.success) continue;
-
-        const errorCode = sendResponse.error?.code || "";
-        if (
-          errorCode === "messaging/registration-token-not-registered" ||
-          errorCode === "messaging/invalid-registration-token"
-        ) {
-          const token = chunk[index];
-          const tokenDoc = tokenDocs.find(
-            (doc) => doc.get("token") === token
-          );
-          if (tokenDoc) {
-            await deleteInvalidToken(tokenDoc.ref, token);
-          }
-        }
-      }
-    }
-
-    await snapshot.ref.set(
-      {
-        pushSentAt: FieldValue.serverTimestamp(),
-        pushSuccessCount: successCount,
-        pushFailureCount: failureCount,
-      },
-      { merge: true }
-    );
-
-    logger.info("Push notification dispatched", {
-      notificationId: snapshot.id,
-      recipientId,
-      type,
-      successCount,
-      failureCount,
-    });
-
-    return null;
-  }
-);
+});

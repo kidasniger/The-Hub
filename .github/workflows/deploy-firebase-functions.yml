@@ -111,7 +111,7 @@ jobs:
               print("ERROR: missing deployed Firebase Functions: " + ", ".join(missing))
               sys.exit(1)
 
-          print("SUCCESS: pushNotificationOnCreate and FCM token ownership cleanup are deployed.")
+          print("SUCCESS: pushNotificationOnCreate, FCM token ownership cleanup, and postPreview are deployed.")
           PY
 
       - name: Remove Firebase credentials
