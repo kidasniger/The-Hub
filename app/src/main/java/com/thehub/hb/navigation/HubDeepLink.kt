@@ -28,7 +28,7 @@ object HubDeepLink {
         }
 
         val uri = try {
-            android.net.Uri.parse(normalized)
+            java.net.URI(normalized)
         } catch (_: Exception) {
             return null
         }
@@ -39,7 +39,10 @@ object HubDeepLink {
             return null
         }
 
-        val segments = uri.pathSegments.filter { it.isNotBlank() }
+        val segments = uri.rawPath.orEmpty()
+            .split('/')
+            .filter { it.isNotBlank() }
+
         val target = segments.firstOrNull()?.lowercase() ?: return null
         val id = decode(segments.getOrNull(1))
 
