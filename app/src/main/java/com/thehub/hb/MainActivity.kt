@@ -26,7 +26,6 @@ import com.thehub.hb.ui.theme.HubBackground
 import com.thehub.hb.ui.theme.HubTextPrimary
 import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.ui.theme.TheHubTheme
-import com.thehub.hb.utils.ApkInstaller
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,11 +49,6 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
-
-    override fun onResume() {
-        super.onResume()
-        ApkInstaller.resumePendingInstall(this)
-    }
 
     override fun onStart() {
         super.onStart()
