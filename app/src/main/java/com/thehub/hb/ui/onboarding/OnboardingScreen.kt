@@ -186,7 +186,7 @@ fun OnboardingScreen(
             ) { index ->
                 val page = pages[index]
                 val isCurrent = pagerState.currentPage == index
-                val alpha by animateFloatAsState(
+                val visualAlpha by animateFloatAsState(
                     targetValue = if (isCurrent) 1f else 0.55f,
                     animationSpec = tween(280),
                     label = "onboarding_alpha"
@@ -209,7 +209,7 @@ fun OnboardingScreen(
                             .fillMaxWidth()
                             .height(328.dp)
                             .graphicsLayer {
-                                alpha = alpha
+                                this.alpha = visualAlpha
                                 scaleX = scale
                                 scaleY = scale
                             }
