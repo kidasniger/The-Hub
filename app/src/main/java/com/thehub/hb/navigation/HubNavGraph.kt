@@ -20,7 +20,7 @@ import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
 import com.thehub.hb.di.AppContainer
 import com.thehub.hb.ui.bookmarks.BookmarksScreen
-import com.thehub.hb.ui.components.NetworkOfflineDialog
+import com.thehub.hb.ui.components.NetworkOfflineScreen
 import com.thehub.hb.ui.bookmarks.BookmarksViewModel
 import com.thehub.hb.ui.comments.CommentsScreen
 import com.thehub.hb.ui.comments.CommentsViewModel
@@ -80,22 +80,31 @@ fun HubNavGraph(
     onNotificationDeepLinkConsumed: () -> Unit = {},
     onRequestNotificationPermission: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val networkConnectivityMonitor = remember(context.applicationContext) {
+        NetworkConnectivityMonitor(context.applicationContext)
+    }
+    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(
+        initial = networkConnectivityMonitor.initialIsOnline
+    )
+
+    // Offline is a global blocking state: do not compose the navigation graph,
+    // update checks, or authenticated network-driven ViewModels until connectivity returns.
+    if (!isOnline) {
+        NetworkOfflineScreen(
+            onRetry = { networkConnectivityMonitor.refresh() }
+        )
+        return
+    }
+
     val authRepository = appContainer.authRepository
     val dataStoreManager = appContainer.dataStoreManager
     val currentUser by authRepository.currentUserFlow.collectAsState(
         initial = authRepository.currentFirebaseUser
     )
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStackEntry?.destination?.route
     val authRoutingScope = rememberCoroutineScope()
     val systemControls by appContainer.systemControlRepository.controls.collectAsState()
     val isCurrentUserAdmin = remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
-    val networkConnectivityMonitor = remember(context.applicationContext) {
-        NetworkConnectivityMonitor(context.applicationContext)
-    }
-    val isOnline by networkConnectivityMonitor.isOnline.collectAsState(initial = networkConnectivityMonitor.initialIsOnline)
 
     fun routeAfterAuthentication() {
         authRoutingScope.launch {
@@ -126,12 +135,6 @@ fun HubNavGraph(
             isCurrentUserAdmin.value = false
         }
     }
-    if (!isOnline) {
-        NetworkOfflineDialog(
-            onRetry = { networkConnectivityMonitor.refresh() }
-        )
-    }
-
     val updateViewModel: UpdateViewModel = viewModel(
         factory = UpdateViewModel.Factory(
             updateRepository = appContainer.updateRepository,
