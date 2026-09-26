@@ -40,32 +40,32 @@ fun WelcomeScreen(
             .background(HubSurfaceDark)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
+            .padding(horizontal = 20.dp, vertical = 22.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            AppLogo(size = 48.dp, animated = false)
+            AppLogo(size = 64.dp, animated = false)
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(38.dp))
 
             Text(
                 text = "Bienvenue sur\nThe Hub.",
                 color = HubWhite,
-                fontSize = 34.sp,
+                fontSize = 42.sp,
                 fontWeight = FontWeight.SemiBold,
-                lineHeight = 40.sp,
+                lineHeight = 49.sp,
                 letterSpacing = (-0.5).sp
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = "Le réseau où le silence est une feature.",
                 color = HubSecondary,
-                fontSize = 15.sp,
-                lineHeight = 22.sp
+                fontSize = 17.sp,
+                lineHeight = 25.sp
             )
         }
 
@@ -93,8 +93,8 @@ fun WelcomeScreen(
             Text(
                 text = termsText,
                 color = HubMuted,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)

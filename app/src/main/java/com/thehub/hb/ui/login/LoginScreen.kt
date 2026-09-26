@@ -82,12 +82,12 @@ fun LoginScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        val panelShape = RoundedCornerShape(34.dp)
+        val panelShape = RoundedCornerShape(40.dp)
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
             // Retour conservé, mais intégré au même langage de surface que l'onboarding.
             IconButton(
@@ -129,7 +129,7 @@ fun LoginScreen(
                         if (colors.isGlass) HubWhite.copy(alpha = 0.18f) else HubBorderLight,
                         panelShape
                     )
-                    .padding(horizontal = 24.dp, vertical = 28.dp)
+                    .padding(horizontal = 30.dp, vertical = 38.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -137,8 +137,8 @@ fun LoginScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(92.dp)
-                            .clip(RoundedCornerShape(26.dp))
+                            .size(126.dp)
+                            .clip(RoundedCornerShape(34.dp))
                             .background(
                                 if (colors.isGlass) HubWhite.copy(alpha = 0.08f)
                                 else HubSurfaceElevated
@@ -146,21 +146,21 @@ fun LoginScreen(
                             .border(
                                 1.dp,
                                 if (colors.isGlass) HubWhite.copy(alpha = 0.20f) else HubBorderLight,
-                                RoundedCornerShape(26.dp)
+                                RoundedCornerShape(34.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        AppLogo(size = 64.dp, animated = true)
+                        AppLogo(size = 90.dp, animated = true)
                     }
 
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(24.dp))
 
                     Text(
                         text = "THE HUB",
                         color = HubWhite,
-                        fontSize = 25.sp,
+                        fontSize = 30.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 5.sp,
+                        letterSpacing = 5.5.sp,
                         textAlign = TextAlign.Center
                     )
 
@@ -169,35 +169,35 @@ fun LoginScreen(
                     Text(
                         text = "Bienvenue dans ton espace",
                         color = HubSecondary,
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     Text(
                         text = "Connecte-toi pour partager, découvrir et échanger avec ta communauté.",
                         color = HubSecondary,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
+                            .padding(horizontal = 2.dp)
                             .testTag("login_description")
                     )
 
-                    Spacer(Modifier.height(26.dp))
+                    Spacer(Modifier.height(30.dp))
 
                     Button(
                         onClick = { viewModel.signInWithGoogle(context) },
                         enabled = !uiState.isGoogleLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(60.dp)
                             .testTag("login_google_button"),
-                        shape = RoundedCornerShape(28.dp),
+                        shape = RoundedCornerShape(30.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent,
                             contentColor = Color.White,
@@ -209,8 +209,8 @@ fun LoginScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp)
-                                .clip(RoundedCornerShape(28.dp))
+                                .height(60.dp)
+                                .clip(RoundedCornerShape(30.dp))
                                 .background(
                                     Brush.horizontalGradient(
                                         listOf(HubViolet, HubBlue)
@@ -220,7 +220,7 @@ fun LoginScreen(
                         ) {
                             if (uiState.isGoogleLoading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
+                                    modifier = Modifier.size(24.dp),
                                     strokeWidth = 2.5.dp,
                                     color = Color.White
                                 )
@@ -228,14 +228,14 @@ fun LoginScreen(
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_google_g),
                                     contentDescription = "Logo Google",
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
 
                                 Spacer(modifier = Modifier.size(10.dp))
 
                                 Text(
                                     text = "Continuer avec Google",
-                                    fontSize = 15.sp,
+                                    fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -259,8 +259,8 @@ fun LoginScreen(
                             Text(
                                 text = uiState.generalError.orEmpty(),
                                 color = HubError,
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -129,7 +129,7 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -142,20 +142,20 @@ fun OnboardingScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(HubWhite.copy(alpha = if (colors.isGlass) 0.10f else 0.06f))
                             .border(1.dp, HubBorderLight, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        AppLogo(size = 26.dp, animated = false)
+                        AppLogo(size = 30.dp, animated = false)
                     }
                     Text(
                         text = "THE HUB",
                         color = HubSecondary,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.2.sp
+                        letterSpacing = 2.4.sp
                     )
                 }
 
@@ -207,7 +207,7 @@ fun OnboardingScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(328.dp)
+                            .height(390.dp)
                             .graphicsLayer {
                                 this.alpha = visualAlpha
                                 scaleX = scale
@@ -217,15 +217,15 @@ fun OnboardingScreen(
                         OnboardingIllustration(type = page.type, glass = colors.isGlass)
                     }
 
-                    Spacer(Modifier.height(26.dp))
+                    Spacer(Modifier.height(20.dp))
 
                     Text(
                         text = page.title,
                         color = HubWhite,
-                        fontSize = 29.sp,
+                        fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        lineHeight = 35.sp,
+                        lineHeight = 38.sp,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
 
@@ -234,10 +234,10 @@ fun OnboardingScreen(
                     Text(
                         text = page.description,
                         color = HubSecondary,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp,
+                        fontSize = 16.sp,
+                        lineHeight = 23.sp,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 18.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
             }
@@ -245,7 +245,7 @@ fun OnboardingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 14.dp),
+                    .padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -288,9 +288,9 @@ fun OnboardingScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .shadow(12.dp, RoundedCornerShape(28.dp), clip = false),
-                shape = RoundedCornerShape(28.dp),
+                    .height(60.dp)
+                    .shadow(16.dp, RoundedCornerShape(30.dp), clip = false),
+                shape = RoundedCornerShape(30.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
@@ -300,14 +300,14 @@ fun OnboardingScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(28.dp))
+                        .height(60.dp)
+                        .clip(RoundedCornerShape(30.dp))
                         .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue))),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (last) "Commencer" else "Continuer",
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -336,7 +336,7 @@ private fun OnboardingIllustration(
         // Accent glows / depth.
         Box(
             modifier = Modifier
-                .size(150.dp)
+                .size(184.dp)
                 .align(Alignment.TopStart)
                 .offset(x = (-70).dp, y = (-70).dp)
                 .clip(CircleShape)
@@ -373,7 +373,7 @@ private fun WelcomeIllustration() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
-                .size(198.dp)
+                .size(270.dp)
                 .clip(CircleShape)
                 .background(HubWhite.copy(alpha = 0.035f))
                 .border(1.dp, HubBorderLight, CircleShape)
@@ -388,13 +388,13 @@ private fun WelcomeIllustration() {
         ) {
             Box(
                 modifier = Modifier
-                    .size(116.dp)
+                    .size(142.dp)
                     .clip(RoundedCornerShape(32.dp))
                     .background(HubCard)
                     .border(1.dp, HubBorderLight, RoundedCornerShape(32.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                AppLogo(size = 88.dp, animated = true)
+                AppLogo(size = 108.dp, animated = true)
             }
         }
 
@@ -421,19 +421,19 @@ private fun FeedIllustration() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
-                .width(238.dp)
+                .width(286.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(HubCard)
                 .border(1.dp, HubBorderLight, RoundedCornerShape(28.dp))
-                .padding(14.dp),
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarBubble(HubViolet)
+                AvatarBubble(HubViolet, size = 34.dp)
                 Spacer(Modifier.width(9.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("The Hub", color = HubWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("il y a 2 min", color = HubMuted, fontSize = 9.sp)
+                    Text("The Hub", color = HubWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("il y a 2 min", color = HubMuted, fontSize = 10.sp)
                 }
                 Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = HubMuted, modifier = Modifier.size(18.dp))
             }
@@ -441,14 +441,14 @@ private fun FeedIllustration() {
             Text(
                 "Une communauté qui tient l'essentiel dans une seule place.",
                 color = HubWhite,
-                fontSize = 11.sp,
-                lineHeight = 15.sp
+                fontSize = 12.sp,
+                lineHeight = 17.sp
             )
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(118.dp)
+                    .height(146.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(
                         Brush.linearGradient(
@@ -457,7 +457,7 @@ private fun FeedIllustration() {
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Image, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(36.dp))
+                Icon(Icons.Default.Image, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(42.dp))
             }
 
             Row(
@@ -474,7 +474,7 @@ private fun FeedIllustration() {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .offset(x = (-14).dp, y = (-18).dp)
-                .size(54.dp)
+                .size(62.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(HubViolet, HubBlue)))
                 .border(2.dp, Color.White.copy(alpha = 0.72f), CircleShape),
@@ -490,16 +490,16 @@ private fun ShareIllustration() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
-                .width(244.dp)
-                .height(252.dp)
+                .width(286.dp)
+                .height(292.dp)
                 .clip(RoundedCornerShape(30.dp))
                 .background(HubCard)
                 .border(1.dp, HubBorderLight, RoundedCornerShape(30.dp))
-                .padding(15.dp)
+                .padding(18.dp)
         ) {
             Column(Modifier.fillMaxSize()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AvatarBubble(HubBlue)
+                    AvatarBubble(HubBlue, size = 34.dp)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Créer une publication", color = HubWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -512,7 +512,7 @@ private fun ShareIllustration() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(78.dp)
+                        .height(92.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(HubSurfaceDark)
                         .border(1.dp, HubBorder, RoundedCornerShape(18.dp))
@@ -541,8 +541,8 @@ private fun ShareIllustration() {
                 Box(
                     modifier = Modifier
                         .align(Alignment.End)
-                        .width(116.dp)
-                        .height(40.dp)
+                        .width(132.dp)
+                        .height(44.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue))),
                     contentAlignment = Alignment.Center
@@ -572,7 +572,7 @@ private fun CommunityIllustration() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
-                .size(116.dp)
+                .size(136.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(HubViolet, HubBlue)))
                 .border(3.dp, Color.White.copy(alpha = 0.78f), CircleShape),
@@ -612,10 +612,10 @@ private fun CommunityIllustration() {
 }
 
 @Composable
-private fun AvatarBubble(color: Color) {
+private fun AvatarBubble(color: Color, size: androidx.compose.ui.unit.Dp = 30.dp) {
     Box(
         modifier = Modifier
-            .size(30.dp)
+            .size(size)
             .clip(CircleShape)
             .background(color.copy(alpha = 0.75f)),
         contentAlignment = Alignment.Center
@@ -690,7 +690,7 @@ private fun CommunityNode(
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(56.dp)
                 .clip(CircleShape)
                 .background(color.copy(alpha = 0.18f))
                 .border(1.dp, color.copy(alpha = 0.55f), CircleShape),

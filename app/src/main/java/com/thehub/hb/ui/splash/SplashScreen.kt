@@ -142,17 +142,17 @@ fun SplashScreen(
             .navigationBarsPadding()
     ) {
         val isGlass = colors.isGlass
-        val panelShape = RoundedCornerShape(40.dp)
+        val panelShape = RoundedCornerShape(44.dp)
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 28.dp)
+                .padding(horizontal = 20.dp)
         ) {
             // Même langage visuel que l'onboarding : halos de marque + surface principale.
             Box(
                 modifier = Modifier
-                    .size(330.dp)
+                    .size(390.dp)
                     .align(Alignment.Center)
                     .clip(CircleShape)
                     .background(
@@ -179,7 +179,8 @@ fun SplashScreen(
                         if (isGlass) HubWhite.copy(alpha = 0.18f) else HubBorderLight,
                         panelShape
                     )
-                    .padding(horizontal = 28.dp, vertical = 34.dp)
+                    .alpha(brandAlpha)
+                    .padding(horizontal = 30.dp, vertical = 42.dp)
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -188,8 +189,8 @@ fun SplashScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(126.dp)
-                            .clip(RoundedCornerShape(34.dp))
+                            .size(154.dp)
+                            .clip(RoundedCornerShape(38.dp))
                             .background(
                                 if (isGlass) HubWhite.copy(alpha = 0.08f)
                                 else HubSurfaceElevated
@@ -197,34 +198,34 @@ fun SplashScreen(
                             .border(
                                 1.dp,
                                 if (isGlass) HubWhite.copy(alpha = 0.20f) else HubBorderLight,
-                                RoundedCornerShape(34.dp)
+                                RoundedCornerShape(38.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        AppLogo(size = 92.dp, animated = true)
+                        AppLogo(size = 112.dp, animated = true)
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(28.dp))
 
                     Text(
                         text = "THE HUB",
                         color = HubWhite,
-                        fontSize = 24.sp,
+                        fontSize = 30.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 5.5.sp
+                        letterSpacing = 6.5.sp
                     )
 
                     Spacer(Modifier.height(10.dp))
 
                     Box(
                         modifier = Modifier
-                            .width(44.dp)
-                            .height(3.dp)
+                            .width(56.dp)
+                            .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue)))
                     )
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     Text(
                         text = when {
@@ -233,9 +234,9 @@ fun SplashScreen(
                             else -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
                         },
                         color = HubSecondary,
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.6.sp,
+                        letterSpacing = 2.0.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
