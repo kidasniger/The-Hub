@@ -242,6 +242,15 @@ fun SplashScreen(
                 }
             }
 
+            var activeIndicator by remember { mutableStateOf(0) }
+
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(850L)
+                    activeIndicator = (activeIndicator + 1) % 3
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -249,22 +258,42 @@ fun SplashScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .height(7.dp)
-                        .width(28.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue)))
-                )
-                Spacer(Modifier.width(5.dp))
-                repeat(2) {
+                repeat(3) { index ->
+                    val isActive = activeIndicator == index
+                    val indicatorWidth by androidx.compose.animation.core.animateDpAsState(
+                        targetValue = if (isActive) 28.dp else 7.dp,
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = FastOutSlowInEasing
+                        ),
+                        label = "splash_indicator_width_$index"
+                    )
+                    val indicatorAlpha by animateFloatAsState(
+                        targetValue = if (isActive) 1f else 0.45f,
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                        label = "splash_indicator_alpha_$index"
+                    )
+
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(HubMuted.copy(alpha = 0.45f))
+                            .padding(horizontal = 3.dp)
+                            .height(7.dp)
+                            .width(indicatorWidth)
+                            .clip(RoundedCornerShape(50))
+                            .alpha(indicatorAlpha)
+                            .background(
+                                if (isActive) {
+                                    Brush.horizontalGradient(listOf(HubViolet, HubBlue))
+                                } else {
+                                    Brush.linearGradient(
+                                        listOf(
+                                            HubMuted.copy(alpha = 0.95f),
+                                            HubMuted.copy(alpha = 0.95f)
+                                        )
+                                    )
+                                }
+                            )
                     )
-                    if (it == 0) Spacer(Modifier.width(5.dp))
                 }
             }
         }
