@@ -267,6 +267,7 @@ fun SplashScreen(
             }
         }
     }
+}
 
 private fun isTransientNetworkFailure(error: Exception): Boolean {
     if (error is FirebaseFirestoreException) {
