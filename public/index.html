@@ -192,7 +192,7 @@
           <div class="download-title">Télécharger The Hub</div>
           <div class="download-meta">Dernière version : <strong>v${esc(release.version)}</strong>${meta ? " · " + esc(meta) : ""}</div>
           <button class="button primary" type="button" data-download>⬇️ Télécharger l’APK</button>
-          ${releaseNotesMarkup(release.body)}
+          <div class='notes'><h2>Version</h2><ul><li>Les informations de version sont mises à jour automatiquement.</li></ul></div>
           ${release.sha256 ? "<div class='integrity'>SHA-256 : <code>" + esc(release.sha256) + "</code></div>" : ""}
         </section>`;
     }
