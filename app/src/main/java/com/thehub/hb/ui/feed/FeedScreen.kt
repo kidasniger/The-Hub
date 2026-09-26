@@ -213,8 +213,8 @@ fun FeedScreen(
                     is FeedUiState.Success -> {
                         LazyColumn(
                             state = listState,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(state.posts, key = { it.id }) { post ->
@@ -321,8 +321,8 @@ private fun FeedSkeletonList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 0.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         repeat(3) {
             Box(

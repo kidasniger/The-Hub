@@ -2,11 +2,6 @@ package com.thehub.hb.ui.feed.components
 
 import com.thehub.hb.ui.components.OfficialVerificationBadge
 import androidx.compose.foundation.background
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +24,6 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -39,37 +32,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import com.thehub.hb.utils.ImageSaver
-import kotlinx.coroutines.launch
-import com.thehub.hb.utils.RelativeTime
 
 @Composable
 fun PostCard(
@@ -86,58 +67,48 @@ fun PostCard(
     onMoreOptionsClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
+            .background(HubBlack)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = HubDarkGray),
                 onClick = { onPostClick(post.id) }
             )
-            .testTag("post_card_${post.id}"),
-        colors = CardDefaults.cardColors(containerColor = HubSurface),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, HubOutline)
+            .testTag("post_card_${post.id}")
     ) {
+        val author = rememberLiveUser(userId = post.authorId)
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            val author = rememberLiveUser(
-                userId = post.authorId
-            )
-
-            // Repost banner if repost
             if (post.isRepost) {
-                val reposter = rememberLiveUser(
-                    userId = post.authorId
-                )
+                val reposter = rememberLiveUser(userId = post.authorId)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 10.dp)
+                        .padding(bottom = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Repeat,
                         contentDescription = "Repost",
                         tint = HubSecondary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = "Reposté par ${reposter.effectiveName}",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = HubSecondary
                     )
                 }
             }
 
-            // Author Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -154,41 +125,39 @@ fun PostCard(
                     UserAvatar(
                         name = author.effectiveName,
                         photoUrl = author.photoUrl,
-                        size = 40.dp
+                        size = 36.dp
                     )
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(9.dp))
 
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = author.effectiveName,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = HubWhite
                             )
                             if (author.isVerified && author.verificationType == "admin") {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                OfficialVerificationBadge(
-                                    size = 17.dp
-                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                OfficialVerificationBadge(size = 15.dp)
                             }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (author.username.isNotBlank()) {
                                 Text(
                                     text = "@${author.username}",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     color = HubMuted,
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text("·", fontSize = 12.sp, color = HubMuted)
-                                Spacer(modifier = Modifier.width(5.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("·", fontSize = 11.sp, color = HubMuted)
+                                Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
                                 text = RelativeTime.format(post.createdAt),
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 color = HubMuted
                             )
                         }
@@ -199,64 +168,73 @@ fun PostCard(
                     IconButton(
                         onClick = { onMoreOptionsClick(post) },
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .testTag("post_options_button_${post.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Options de la publication",
                             tint = HubMuted,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            // Post Text
             val hasVideo = !post.videoUrl.isNullOrBlank()
             val textIsOnlyVideoUrl = hasVideo &&
                 post.text.trim().equals(post.videoUrl?.trim(), ignoreCase = true)
 
             if (post.text.isNotBlank() && !textIsOnlyVideoUrl) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = post.text,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    color = HubWhite
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    color = HubWhite,
+                    maxLines = 6,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (!hasVideo) {
                     LinkPreviewCard(
                         text = post.text,
-                        modifier = Modifier.padding(top = 10.dp)
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             }
+        }
 
-            // Post Image
-            if (!post.imageUrl.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                PostMediaImage(
-                    imageUrl = post.imageUrl,
-                    contentDescription = "Image de la publication",
-                    cornerRadius = 12.dp,
-                    showSaveButton = true,
-                    saveButtonTag = "post_card_save_image_button",
-                    onImageClick = onImageClick
-                )
-            }
+        if (!post.imageUrl.isNullOrBlank()) {
+            PostMediaImage(
+                imageUrl = post.imageUrl,
+                contentDescription = "Image de la publication",
+                cornerRadius = 0.dp,
+                showSaveButton = true,
+                saveButtonTag = "post_card_save_image_button",
+                onImageClick = onImageClick,
+                maxHeight = 360.dp
+            )
+        }
 
-            if (!post.videoUrl.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(12.dp))
+        if (!post.videoUrl.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
                 VideoLinkCard(
                     videoUrl = post.videoUrl!!,
                     onClick = onVideoClick
                 )
             }
+        }
 
-            // Embedded Original Post if Repost
-            if (post.isRepost && post.originalPost != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+        if (post.isRepost && post.originalPost != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
                 EmbeddedOriginalPost(
                     originalPost = post.originalPost,
                     onImageClick = onImageClick,
@@ -264,96 +242,98 @@ fun PostCard(
                     onPostClick = onPostClick
                 )
             }
+        }
 
-            // Action Bar: Like, Comment, Share
-            Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.testTag("action_like_${post.id}")
             ) {
-                // Like Button & Counter
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.testTag("action_like_${post.id}")
-                ) {
-                    IconButton(
-                        onClick = { onToggleLike(post.id) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Aimer",
-                            tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Text(
-                        text = "${post.likesCount}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubSecondary,
-                        modifier = Modifier
-                            .padding(start = 2.dp)
-                            .clickable { onOpenLikes(post.id) }
-                            .padding(vertical = 4.dp, horizontal = 4.dp)
-                    )
-                }
-
-                // Comment Button & Counter
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clickable { onOpenComments(post.id) }
-                        .padding(4.dp)
-                        .testTag("action_comment_${post.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = "Commentaires",
-                        tint = HubMuted,
-                        modifier = Modifier.size(19.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${post.commentsCount}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = HubSecondary
-                    )
-                }
-
-                // Share Button
                 IconButton(
-                    onClick = { onOpenShare(post) },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .testTag("action_share_${post.id}")
+                    onClick = { onToggleLike(post.id) },
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Share,
-                        contentDescription = "Partager",
-                        tint = HubMuted,
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-
-                // Bookmark Button
-                IconButton(
-                    onClick = { onToggleBookmark?.invoke(post.id) },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .testTag("action_bookmark_${post.id}")
-                ) {
-                    Icon(
-                        imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                        contentDescription = if (post.isBookmarkedByCurrentUser) "Retirer des signets" else "Enregistrer",
-                        tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubMuted,
+                        imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Aimer",
+                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
                         modifier = Modifier.size(20.dp)
                     )
                 }
+                Text(
+                    text = "${post.likesCount}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubSecondary,
+                    modifier = Modifier
+                        .clickable { onOpenLikes(post.id) }
+                        .padding(horizontal = 2.dp, vertical = 6.dp)
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable { onOpenComments(post.id) }
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .testTag("action_comment_${post.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                    contentDescription = "Commentaires",
+                    tint = HubMuted,
+                    modifier = Modifier.size(19.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = "${post.commentsCount}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = HubSecondary
+                )
+            }
+
+            IconButton(
+                onClick = { onOpenShare(post) },
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("action_share_${post.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Share,
+                    contentDescription = "Partager",
+                    tint = HubMuted,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            IconButton(
+                onClick = { onToggleBookmark?.invoke(post.id) },
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("action_bookmark_${post.id}")
+            ) {
+                Icon(
+                    imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                    contentDescription = if (post.isBookmarkedByCurrentUser) "Retirer des signets" else "Enregistrer",
+                    tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubMuted,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(HubBorder)
+        )
     }
 }
 

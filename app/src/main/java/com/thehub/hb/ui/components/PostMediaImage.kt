@@ -56,7 +56,8 @@ fun PostMediaImage(
     showSaveButton: Boolean = true,
     saveButtonTag: String = "post_save_image_button",
     onImageClick: ((String) -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxHeight: Dp? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -101,6 +102,7 @@ fun PostMediaImage(
         contentDescription = contentDescription,
         modifier = modifier
             .fillMaxWidth()
+            .then(if (maxHeight != null) Modifier.heightIn(max = maxHeight) else Modifier)
             .clip(RoundedCornerShape(cornerRadius)),
         loading = {
             Box(
@@ -131,7 +133,7 @@ fun PostMediaImage(
                                 Modifier.clickable { onImageClick(imageUrl) }
                             } else Modifier
                         ),
-                    contentScale = ContentScale.FillWidth
+                    contentScale = if (maxHeight != null) ContentScale.Crop else ContentScale.FillWidth
                 )
 
                 if (showSaveButton) {
