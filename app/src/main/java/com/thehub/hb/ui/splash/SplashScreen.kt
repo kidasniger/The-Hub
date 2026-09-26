@@ -41,9 +41,14 @@ import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.utils.SessionValidationPolicy
 import com.thehub.hb.ui.theme.AppThemeMode
-import com.thehub.hb.ui.theme.HubBackground
-import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubSecondary
+import com.thehub.hb.ui.theme.HubCard
+import com.thehub.hb.ui.theme.HubBorderLight
+import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubMuted
+import com.thehub.hb.ui.theme.HubViolet
+import com.thehub.hb.ui.theme.HubBlue
+import com.thehub.hb.ui.theme.HubThemeBackground
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.ui.theme.LocalHubColors
 import kotlinx.coroutines.delay
@@ -127,112 +132,141 @@ fun SplashScreen(
         showBrand = true
     }
 
-    Box(
+
+    HubThemeBackground(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        if (colors.isGlass) {
+        val isGlass = colors.isGlass
+        val panelShape = RoundedCornerShape(40.dp)
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp)
+        ) {
+            // Même langage visuel que l'onboarding : halos de marque + surface principale.
             Box(
                 modifier = Modifier
-                    .size(280.dp)
+                    .size(330.dp)
                     .align(Alignment.Center)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
                             listOf(
-                                Color(0x5567E8F9),
-                                Color(0x223B82F6),
+                                HubViolet.copy(alpha = if (isGlass) 0.28f else 0.16f),
+                                HubBlue.copy(alpha = if (isGlass) 0.18f else 0.08f),
                                 Color.Transparent
                             )
                         )
                     )
             )
+
             Box(
                 modifier = Modifier
-                    .size(180.dp)
-                    .align(Alignment.TopEnd)
-                    .padding(24.dp)
-                    .clip(CircleShape)
+                    .fillMaxWidth()
+                    .align(Alignment.Center)
+                    .clip(panelShape)
                     .background(
-                        Brush.radialGradient(
-                            listOf(Color(0x446A5CFA), Color.Transparent))
+                        if (isGlass) HubWhite.copy(alpha = 0.055f) else HubCard
                     )
-            )
-        }
-
-        Column(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            AppLogo(size = 180.dp, animated = true)
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.alpha(brandAlpha)
+                    .border(
+                        1.dp,
+                        if (isGlass) HubWhite.copy(alpha = 0.18f) else HubBorderLight,
+                        panelShape
+                    )
+                    .padding(horizontal = 28.dp, vertical = 34.dp)
             ) {
-                Text(
-                    text = "THE HUB",
-                    color = HubWhite,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 6.sp
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(126.dp)
+                            .clip(RoundedCornerShape(34.dp))
+                            .background(
+                                if (isGlass) HubWhite.copy(alpha = 0.08f)
+                                else HubSurfaceElevated
+                            )
+                            .border(
+                                1.dp,
+                                if (isGlass) HubWhite.copy(alpha = 0.20f) else HubBorderLight,
+                                RoundedCornerShape(34.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppLogo(size = 92.dp, animated = true)
+                    }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(Modifier.height(24.dp))
 
-                Box(
-                    modifier = Modifier
-                        .width(38.dp)
-                        .height(2.dp)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(HubWhite.copy(alpha = 0.55f))
-                )
+                    Text(
+                        text = "THE HUB",
+                        color = HubWhite,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 5.5.sp
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
 
-                Text(
-                    text = when {
-                        colors.isGlass -> "CONNECTÉ. CRÉATIF. ENSEMBLE."
-                        colors.isLight -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
-                        else -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
-                    },
-                    color = HubSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 1.8.sp
-                )
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue)))
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Text(
+                        text = when {
+                            isGlass -> "CONNECTÉ. CRÉATIF. ENSEMBLE."
+                            colors.isLight -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
+                            else -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
+                        },
+                        color = HubSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.6.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 34.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(width = 26.dp, height = 4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(HubWhite.copy(alpha = 0.85f))
-            )
-            repeat(2) {
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 30.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(HubWhite.copy(alpha = 0.18f))
+                        .height(7.dp)
+                        .width(28.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue)))
                 )
+                Spacer(Modifier.width(5.dp))
+                repeat(2) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(HubMuted.copy(alpha = 0.45f))
+                    )
+                    if (it == 0) Spacer(Modifier.width(5.dp))
+                }
             }
         }
     }
+
 }
 
 private fun isTransientNetworkFailure(error: Exception): Boolean {
