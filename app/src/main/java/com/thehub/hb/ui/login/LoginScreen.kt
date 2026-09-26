@@ -1,6 +1,8 @@
 package com.thehub.hb.ui.login
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
@@ -48,7 +50,6 @@ import com.thehub.hb.ui.theme.HubBlue
 import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.ui.theme.HubThemeBackground
 import com.thehub.hb.ui.theme.LocalHubColors
-import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 
@@ -268,7 +269,5 @@ fun LoginScreen(
                 }
             }
         }
-    }
-
     }
 }
