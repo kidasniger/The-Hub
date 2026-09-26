@@ -9,14 +9,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.Modifier
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.navigation.HubDeepLink
@@ -87,6 +90,20 @@ class MainActivity : ComponentActivity() {
             val currentThemeMode by appContainer.dataStoreManager.appThemeMode.collectAsState(
                 initial = AppThemeMode.SYSTEM
             )
+
+            val systemIsDark = isSystemInDarkTheme()
+            val useDarkSystemBars = when (currentThemeMode) {
+                AppThemeMode.LIGHT -> false
+                AppThemeMode.SYSTEM -> systemIsDark
+                AppThemeMode.DARK, AppThemeMode.GLASS -> true
+            }
+
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !useDarkSystemBars
+                    isAppearanceLightNavigationBars = !useDarkSystemBars
+                }
+            }
 
             CompositionLocalProvider(LocalHubStrings provides FrenchHubStrings) {
                 TheHubTheme(themeMode = currentThemeMode) {
