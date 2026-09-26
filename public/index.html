@@ -9,7 +9,7 @@
   <meta property="og:title" content="The Hub">
   <meta property="og:description" content="Découvrez une publication The Hub ou téléchargez la dernière version de l'application.">
   <meta property="og:type" content="website">
-  <link rel="icon" type="image/svg+xml" href="/assets/dreamhub-logo-anime.svg">
+  <link rel="icon" type="image/svg+xml" href="/assets/dreamhub-logo-anime.svg?v=2">
   <title>The Hub</title>
   <style>
     :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -66,7 +66,7 @@
 </head>
 <body>
   <header>
-    <img class="brand-logo" src="/assets/dreamhub-logo-anime.svg" alt="Logo The Hub">
+    <img class="brand-logo" src="/assets/dreamhub-logo-anime.svg?v=2" alt="Logo The Hub">
     <div class="brand">The Hub</div>
   </header>
 
@@ -136,21 +136,6 @@
       try { return decodeURIComponent(parts[1]); } catch (_) { return ""; }
     }
 
-    function releaseNotesMarkup(body) {
-      const notes = [];
-      for (const raw of String(body || "").split("\n")) {
-        const line = raw.trim();
-        if ((line.startsWith("- ") || line.startsWith("* ")) && !line.includes("**Full Changelog**")) {
-          const value = line.slice(2).trim();
-          if (value) notes.push(value);
-        }
-      }
-      if (!notes.length) return "";
-      return "<div class='notes'><h2>Nouveautés</h2><ul>" +
-        notes.slice(0, 12).map(note => "<li>" + esc(note) + "</li>").join("") +
-        "</ul></div>";
-    }
-
     async function loadLatestRelease() {
       const response = await fetch(RELEASES_URL, {
         headers: { Accept: "application/vnd.github+json" },
@@ -207,7 +192,7 @@
           <div class="download-title">Télécharger The Hub</div>
           <div class="download-meta">Dernière version : <strong>v${esc(release.version)}</strong>${meta ? " · " + esc(meta) : ""}</div>
           <button class="button primary" type="button" data-download>⬇️ Télécharger l’APK</button>
-          ${releaseNotesMarkup(release.body)}
+          <div class='notes'><h2>Version</h2><ul><li>Les informations de version sont mises à jour automatiquement.</li></ul></div>
           ${release.sha256 ? "<div class='integrity'>SHA-256 : <code>" + esc(release.sha256) + "</code></div>" : ""}
         </section>`;
     }
@@ -216,7 +201,7 @@
       document.title = "The Hub · Télécharger";
       app.innerHTML = `
         <section class="card hero">
-          <img class="hero-logo" src="/assets/dreamhub-logo-anime.svg" alt="Logo The Hub">
+          <img class="hero-logo" src="/assets/dreamhub-logo-anime.svg?v=2" alt="Logo The Hub">
           <h1>The Hub</h1>
           <p>La dernière version de l’application est récupérée automatiquement depuis la release officielle.</p>
           ${release ? "<div class='version'>● v" + esc(release.version) + " disponible</div>" : ""}
@@ -304,7 +289,7 @@
           </div>
           ${release ? downloadPanel(release) : ""}
         </article>
-        <footer>Publication <code>${esc(postId)}</code> · The Hub</footer>`;
+        <footer>Publication partagée sur The Hub</footer>`;
       bindDownloadButtons();
     }
 
