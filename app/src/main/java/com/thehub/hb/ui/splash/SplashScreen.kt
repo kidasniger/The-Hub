@@ -4,6 +4,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -266,8 +267,6 @@ fun SplashScreen(
             }
         }
     }
-
-}
 
 private fun isTransientNetworkFailure(error: Exception): Boolean {
     if (error is FirebaseFirestoreException) {
