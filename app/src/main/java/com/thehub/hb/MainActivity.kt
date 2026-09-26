@@ -24,6 +24,7 @@ import com.thehub.hb.navigation.HubNavGraph
 import com.thehub.hb.ui.theme.AppThemeMode
 import com.thehub.hb.ui.theme.FrenchHubStrings
 import com.thehub.hb.ui.theme.HubBackground
+import com.thehub.hb.ui.theme.HubThemeBackground
 import com.thehub.hb.ui.theme.HubTextPrimary
 import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.ui.theme.TheHubTheme
@@ -84,17 +85,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val currentThemeMode by appContainer.dataStoreManager.appThemeMode.collectAsState(
-                initial = AppThemeMode.DARK
+                initial = AppThemeMode.SYSTEM
             )
 
             CompositionLocalProvider(LocalHubStrings provides FrenchHubStrings) {
                 TheHubTheme(themeMode = currentThemeMode) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = HubBackground,
-                        contentColor = HubTextPrimary
-                    ) {
-                        HubNavGraph(
+                    HubThemeBackground {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = HubBackground,
+                            contentColor = HubTextPrimary
+                        ) {
+                            HubNavGraph(
                             appContainer = appContainer,
                             openUpdateDialogRequest = openUpdateDialogRequest,
                             onUpdateDialogRequestConsumed = {
@@ -107,7 +109,8 @@ class MainActivity : ComponentActivity() {
                             onRequestNotificationPermission = {
                                 requestNotificationPermissionIfNeeded()
                             }
-                        )
+                            )
+                        }
                     }
                 }
             }
