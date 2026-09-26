@@ -115,8 +115,8 @@ val HubLightPalette = HubPalette(
 
 // Palette Glass : Effet verre dépoli aéro avec reflets translucides et lueur moderne
 val HubGlassPalette = HubPalette(
-    black = Color(0xFF090D18), // Fond saphir nuit cosmique
-    surfaceDark = Color(0xFF0F172A),
+    black = Color(0xCC090D18), // 80% : laisse les halos du fond global transparaître
+    surfaceDark = Color(0x80101A2B), // 50% : surface vitrée légère
     card = Color(0x2EFFFFFF), // 18% verre dépoli translucide
     surfaceElevated = Color(0x40FFFFFF), // 25% verre dépoli surélevé
     border = Color(0x38FFFFFF), // 22% bordure translucide lumineuse
