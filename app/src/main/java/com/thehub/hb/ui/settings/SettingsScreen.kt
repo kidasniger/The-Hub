@@ -74,6 +74,7 @@ import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubWhite
 
 @Composable
