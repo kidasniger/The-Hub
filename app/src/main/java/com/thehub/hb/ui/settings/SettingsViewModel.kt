@@ -44,7 +44,7 @@ class SettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val currentThemeMode: StateFlow<com.thehub.hb.ui.theme.AppThemeMode> = dataStoreManager.appThemeMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.thehub.hb.ui.theme.AppThemeMode.DARK)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.thehub.hb.ui.theme.AppThemeMode.SYSTEM)
 
     fun setThemeMode(mode: com.thehub.hb.ui.theme.AppThemeMode) {
         viewModelScope.launch { dataStoreManager.setAppThemeMode(mode) }

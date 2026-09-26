@@ -1,25 +1,22 @@
 package com.thehub.hb.ui.theme
 
 /**
- * Modes de thème pris en charge par The Hub :
- * - DARK : Sombre épuré (par défaut, reposant pour les yeux)
- * - LIGHT : Clair lumineux (haute lisibilité)
- * - GLASS : Effet Glassmorphism Aéro (verre dépoli moderne translucide avec reflets)
- * - SYSTEM : Automatique selon les paramètres du système
+ * Modes de thème pris en charge par The Hub.
+ * Le mode Système suit le réglage clair/sombre du téléphone.
  */
 enum class AppThemeMode(
     val key: String,
     val titleFr: String,
     val descriptionFr: String
 ) {
-    DARK("dark", "Mode Sombre", "Design épuré et reposant pour les yeux"),
-    LIGHT("light", "Mode Clair", "Design épuré, lumineux et contrasté"),
-    GLASS("glass", "Effet Glass", "Verre dépoli aéro avec reflets translucides modernes"),
-    SYSTEM("system", "Système (Automatique)", "S'adapte au mode clair ou sombre de l'appareil");
+    DARK("dark", "Mode Sombre", "Fond profond, contraste confortable et interface sobre"),
+    LIGHT("light", "Mode Clair", "Fond lumineux, cartes nettes et texte très lisible"),
+    GLASS("glass", "Effet Glass", "Surfaces translucides, reflets et profondeur en verre"),
+    SYSTEM("system", "Système", "Suit automatiquement le thème de ton téléphone");
 
     companion object {
         fun fromKey(key: String?): AppThemeMode {
-            return entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: DARK
+            return entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: SYSTEM
         }
     }
 }

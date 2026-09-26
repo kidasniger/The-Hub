@@ -9,14 +9,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.Modifier
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.navigation.HubDeepLink
@@ -24,6 +27,7 @@ import com.thehub.hb.navigation.HubNavGraph
 import com.thehub.hb.ui.theme.AppThemeMode
 import com.thehub.hb.ui.theme.FrenchHubStrings
 import com.thehub.hb.ui.theme.HubBackground
+import com.thehub.hb.ui.theme.HubThemeBackground
 import com.thehub.hb.ui.theme.HubTextPrimary
 import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.ui.theme.TheHubTheme
@@ -84,17 +88,32 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val currentThemeMode by appContainer.dataStoreManager.appThemeMode.collectAsState(
-                initial = AppThemeMode.DARK
+                initial = AppThemeMode.SYSTEM
             )
+
+            val systemIsDark = isSystemInDarkTheme()
+            val useDarkSystemBars = when (currentThemeMode) {
+                AppThemeMode.LIGHT -> false
+                AppThemeMode.SYSTEM -> systemIsDark
+                AppThemeMode.DARK, AppThemeMode.GLASS -> true
+            }
+
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !useDarkSystemBars
+                    isAppearanceLightNavigationBars = !useDarkSystemBars
+                }
+            }
 
             CompositionLocalProvider(LocalHubStrings provides FrenchHubStrings) {
                 TheHubTheme(themeMode = currentThemeMode) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = HubBackground,
-                        contentColor = HubTextPrimary
-                    ) {
-                        HubNavGraph(
+                    HubThemeBackground {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = HubBackground,
+                            contentColor = HubTextPrimary
+                        ) {
+                            HubNavGraph(
                             appContainer = appContainer,
                             openUpdateDialogRequest = openUpdateDialogRequest,
                             onUpdateDialogRequestConsumed = {
@@ -107,7 +126,8 @@ class MainActivity : ComponentActivity() {
                             onRequestNotificationPermission = {
                                 requestNotificationPermissionIfNeeded()
                             }
-                        )
+                            )
+                        }
                     }
                 }
             }

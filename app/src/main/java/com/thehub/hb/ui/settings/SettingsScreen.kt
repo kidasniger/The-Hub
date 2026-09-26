@@ -7,7 +7,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +31,9 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -53,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -269,36 +275,33 @@ fun SettingsScreen(
             onDismissRequest = { showThemeDialog = false },
             containerColor = MaterialTheme.colorScheme.surface,
             title = {
-                Text(strings.dialogThemeTitle, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HubWhite)
+                Column {
+                    Text(
+                        strings.dialogThemeTitle,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HubWhite
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Choisis l'apparence de toute l'application.",
+                        fontSize = 13.sp,
+                        color = HubSecondary
+                    )
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppThemeMode.entries.forEach { mode ->
                         val isSelected = mode == currentThemeMode
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (isSelected) HubSurfaceElevated else HubBlack.copy(alpha = 0.5f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable {
-                                    viewModel.setThemeMode(mode)
-                                    showThemeDialog = false
-                                }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    mode.titleFr,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) HubWhite else HubSecondary
-                                )
-                                Text(mode.descriptionFr, fontSize = 12.sp, color = HubMuted)
+                        ThemeChoiceRow(
+                            mode = mode,
+                            selected = isSelected,
+                            onClick = {
+                                viewModel.setThemeMode(mode)
+                                showThemeDialog = false
                             }
-                        }
+                        )
                     }
                 }
             },
@@ -517,3 +520,89 @@ private fun SettingsToggleRow(
         )
     }
 }
+
+
+@Composable
+private fun ThemeChoiceRow(
+    mode: AppThemeMode,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val icon = when (mode) {
+        AppThemeMode.DARK -> Icons.Default.DarkMode
+        AppThemeMode.LIGHT -> Icons.Default.LightMode
+        AppThemeMode.GLASS -> Icons.Default.Palette
+        AppThemeMode.SYSTEM -> Icons.Default.Palette
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                if (selected) HubSurfaceElevated
+                else HubBlack.copy(alpha = 0.45f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) HubWhite.copy(alpha = 0.24f) else HubOutline,
+                shape = RoundedCornerShape(18.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    when (mode) {
+                        AppThemeMode.LIGHT -> Color(0xFFF1F5F9)
+                        AppThemeMode.GLASS -> HubSurfaceElevated.copy(alpha = 0.72f)
+                        AppThemeMode.SYSTEM -> HubSurfaceDark
+                        AppThemeMode.DARK -> Color(0xFF111116)
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = when (mode) {
+                    AppThemeMode.LIGHT -> Color(0xFF172033)
+                    else -> HubWhite
+                },
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                mode.titleFr,
+                fontSize = 15.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = HubWhite
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                mode.descriptionFr,
+                fontSize = 12.sp,
+                color = HubMuted,
+                lineHeight = 17.sp
+            )
+        }
+
+        if (selected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = HubWhite,
+                modifier = Modifier.size(21.dp)
+            )
+        }
+    }
+}
+

@@ -1,14 +1,19 @@
 package com.thehub.hb.ui.theme
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 
-// Définition des formes globales Material 3
+// Formes globales Material 3 : arrondies et cohérentes dans les quatre modes.
 val HubShapes = Shapes(
     extraSmall = RoundedCornerShape(14.dp),
     small = RoundedCornerShape(20.dp),
@@ -26,9 +31,9 @@ private fun createDarkColorScheme(palette: HubPalette) = darkColorScheme(
     onSecondary = Color.White,
     tertiary = HubViolet,
     onTertiary = Color.White,
-    background = palette.black,
+    background = if (palette.isGlass) Color.Transparent else palette.black,
     onBackground = palette.white,
-    surface = if (palette.isGlass) palette.surfaceDark else palette.card,
+    surface = palette.card,
     onSurface = palette.white,
     surfaceVariant = palette.surfaceElevated,
     onSurfaceVariant = palette.secondary,
@@ -63,7 +68,7 @@ private fun createLightColorScheme(palette: HubPalette) = lightColorScheme(
 
 @Composable
 fun TheHubTheme(
-    themeMode: AppThemeMode = AppThemeMode.DARK,
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -94,5 +99,47 @@ fun TheHubTheme(
             shapes = HubShapes,
             content = content
         )
+    }
+}
+
+/**
+ * Arrière-plan global du thème.
+ * Glass ajoute plusieurs halos colorés derrière les surfaces translucides ;
+ * sombre et clair restent très sobres pour préserver la lisibilité.
+ */
+@Composable
+fun HubThemeBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val palette = LocalHubColors.current
+    val brush = when {
+        palette.isGlass -> Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF08101F),
+                Color(0xFF111B31),
+                Color(0xFF0A0D18)
+            )
+        )
+        palette.isLight -> Brush.linearGradient(
+            colors = listOf(
+                Color(0xFFF8FAFC),
+                Color(0xFFF1F5F9)
+            )
+        )
+        else -> Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF08080B),
+                Color(0xFF0D0D13)
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(brush)
+    ) {
+        content()
     }
 }
