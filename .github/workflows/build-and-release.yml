@@ -374,7 +374,8 @@ jobs:
           files: |
             release-artifacts/*.apk
             release-artifacts/*.sha256
-          generate_release_notes: true
+          body_path: release-notes/${{ env.VERSION_NAME }}.md
+          generate_release_notes: false
           draft: false
           prerelease: false
         env:
