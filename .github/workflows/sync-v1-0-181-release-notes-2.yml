@@ -1,0 +1,23 @@
+name: Apply exact v1.0.181 release notes
+
+on:
+  push:
+    paths:
+      - ".github/workflows/sync-v1-0-181-release-notes-2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Apply release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release edit v1.0.181 --title "The Hub v1.0.181" --notes-file release-notes/1.0.181.md
