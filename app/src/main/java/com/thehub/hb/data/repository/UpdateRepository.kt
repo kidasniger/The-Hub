@@ -17,10 +17,37 @@ class UpdateRepository(
     private val _updateState = MutableStateFlow<UpdateCheckResult?>(null)
     val updateState: StateFlow<UpdateCheckResult?> = _updateState.asStateFlow()
 
+    private val testPopupNotes = """
+• La clé API ImgBB a été retirée du code Android : elle n'est plus embarquée dans l'APK.
+• Les images sont désormais envoyées par l'application à une Cloud Function Firebase authentifiée.
+• Firebase Storage n'est pas utilisé pour les images : ImgBB reste le stockage des images.
+• Firestore continue de stocker uniquement l'URL retournée par ImgBB.
+• La clé ImgBB est maintenant prévue dans Firebase Secret Manager côté serveur.
+• La Cloud Function vérifie l'authentification, limite la taille de l'image et valide que l'URL retournée provient d'ImgBB.
+• Le pipeline CI/CD a été renforcé : les versions ne sont préparées qu'après un build valide et les releases sont bloquées sans la clé ImgBB.
+• Le déploiement production de la Function reste en attente de la configuration du secret IMGBB_API_KEY.
+""".trimIndent()
+
     suspend fun checkForUpdate(
         currentVersion: String = BuildConfig.VERSION_NAME,
         forceRefresh: Boolean = false
     ): UpdateCheckResult {
+        if (BuildConfig.DEBUG && BuildConfig.TEST_UPDATE_POPUP) {
+            val testUpdate = UpdateCheckResult.UpdateAvailable(
+                AppUpdateInfo(
+                    latestVersion = "v1.0.181",
+                    currentVersion = currentVersion,
+                    releaseTitle = "Mise à jour The Hub — sécurité ImgBB",
+                    releaseNotes = testPopupNotes,
+                    apkDownloadUrl = "",
+                    apkFileName = "",
+                    apkSizeInBytes = 0L,
+                    isUpdateAvailable = true
+                )
+            )
+            _updateState.value = testUpdate
+            return testUpdate
+        }
         if (!forceRefresh && _updateState.value is UpdateCheckResult.UpdateAvailable) {
             return _updateState.value!!
         }
