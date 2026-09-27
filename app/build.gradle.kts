@@ -44,6 +44,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
+    buildConfigField("boolean", "TEST_UPDATE_POPUP", providers.gradleProperty("testUpdatePopup").orNull?.toBoolean()?.toString() ?: "false")
     applicationId = "com.thehub.hb"
     minSdk = 24
     targetSdk = 36
