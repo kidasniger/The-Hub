@@ -51,6 +51,16 @@ function formatDate(value) {
   }
 }
 
+function isImgBbUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" &&
+      (url.hostname === "ibb.co" || url.hostname.endsWith(".ibb.co"));
+  } catch (_) {
+    return false;
+  }
+}
+
 function postIdFromRequest(req) {
   const path = String(req.path || "").split("/").filter(Boolean);
   if (path[0] === "post" && path[1]) {
@@ -356,7 +366,7 @@ exports.uploadImageToImgbb = onRequest(
         !upstreamResponse.ok ||
         payload?.success !== true ||
         typeof payload?.data?.url !== "string" ||
-        !payload.data.url.startsWith("https://")
+        !isImgBbUrl(payload.data.url)
       ) {
         logger.warn("ImgBB upload rejected.", {
           uid: user.uid,
