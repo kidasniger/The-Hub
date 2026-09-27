@@ -1,13 +1,14 @@
 package com.thehub.hb.data.remote
 
-import android.util.Base64
 import android.util.Log
-import com.thehub.hb.BuildConfig
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -17,17 +18,12 @@ class ImgbbService(
         .connectTimeout(45, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(45, TimeUnit.SECONDS)
-        .build()
+        .build(),
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
     companion object {
-        private const val DEFAULT_KEY = "f5cf2a4a5280b1e58ae04cea77b5607d"
-        private val API_KEY: String
-            get() = if (BuildConfig.IMGBB_API_KEY.isNotBlank() && BuildConfig.IMGBB_API_KEY != "YOUR_IMGBB_API_KEY") {
-                BuildConfig.IMGBB_API_KEY
-            } else {
-                DEFAULT_KEY
-            }
-        private const val UPLOAD_URL = "https://api.imgbb.com/1/upload"
+        private const val UPLOAD_FUNCTION_URL =
+            "https://europe-west1-the-hub-f95f4.cloudfunctions.net/uploadImageToImgbb"
         private const val TAG = "ImgbbService"
     }
 
@@ -36,35 +32,38 @@ class ImgbbService(
             return@withContext Result.failure(IOException("Image vide."))
         }
 
-        val key = API_KEY.trim()
-        if (key.isBlank() || key == "YOUR_IMGBB_API_KEY") {
-            return@withContext Result.failure(IOException("Clé ImgBB non configurée."))
-        }
-
-        // ImgBB accepts a base64 image in an x-www-form-urlencoded POST.
-        // This avoids multipart/file MIME mismatches for Android Photo Picker media.
-        val base64Image = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
-        if (base64Image.isBlank()) {
-            return@withContext Result.failure(IOException("Impossible d'encoder l'image."))
-        }
+        val user = auth.currentUser
+            ?: return@withContext Result.failure(IOException("Session Firebase requise."))
 
         var lastFailure: Exception? = null
+        var forceRefresh = false
 
         repeat(3) { attempt ->
             try {
-                val requestBody = FormBody.Builder()
-                    .add("image", base64Image)
-                    .build()
+                val idToken = user.getIdToken(forceRefresh).await()?.token
+                    ?.trim()
+                    .orEmpty()
+
+                if (idToken.isBlank()) {
+                    return@withContext Result.failure(
+                        IOException("Impossible d'obtenir le jeton Firebase.")
+                    )
+                }
+
+                val requestBody = imageBytes.toRequestBody(
+                    "application/octet-stream".toMediaType()
+                )
 
                 val request = Request.Builder()
-                    .url("$UPLOAD_URL?key=$key")
+                    .url(UPLOAD_FUNCTION_URL)
+                    .header("Authorization", "Bearer $idToken")
                     .header("Accept", "application/json")
                     .post(requestBody)
                     .build()
 
                 client.newCall(request).execute().use { response ->
                     val responseBody = response.body?.string().orEmpty()
-                    Log.d(TAG, "ImgBB upload response code: " + response.code)
+                    Log.d(TAG, "Image upload response code: " + response.code)
 
                     val json = try {
                         JSONObject(responseBody)
@@ -72,29 +71,31 @@ class ImgbbService(
                         null
                     }
 
-                    if (response.isSuccessful && json?.optBoolean("success") == true) {
-                        val data = json.optJSONObject("data")
-                        val url = data?.optString("url")?.trim().orEmpty()
-                        if (url.isNotBlank()) {
-                            Log.d(TAG, "ImgBB upload succeeded on attempt " + (attempt + 1))
+                    if (response.isSuccessful) {
+                        val url = json?.optString("url")?.trim().orEmpty()
+                        if (url.startsWith("https://")) {
+                            Log.d(
+                                TAG,
+                                "ImgBB upload succeeded on attempt " + (attempt + 1)
+                            )
                             return@withContext Result.success(url)
                         }
                     }
 
-                    val errorObject = json?.optJSONObject("error")
-                    val errorMessage = errorObject?.optString("message")
-                        ?.takeIf { it.isNotBlank() }
-                        ?: json?.optString("status")
+                    if (response.code == 401 && attempt == 0) {
+                        forceRefresh = true
+                        lastFailure = IOException("Session Firebase expirée.")
+                    } else {
+                        val errorMessage = json
+                            ?.optString("error")
                             ?.takeIf { it.isNotBlank() }
-                        ?: responseBody.takeIf { it.isNotBlank() }
-                        ?: "Échec de l'envoi de l'image (HTTP " + response.code + ")"
+                            ?: "Échec de l'envoi de l'image (HTTP " + response.code + ")."
 
-                    lastFailure = IOException(errorMessage)
+                        lastFailure = IOException(errorMessage)
 
-                    // Retry only transient HTTP failures. Client/configuration
-                    // errors are returned immediately with the real server message.
-                    if (response.code in 400..499) {
-                        return@withContext Result.failure(lastFailure!!)
+                        if (response.code in 400..499 && response.code != 429) {
+                            return@withContext Result.failure(lastFailure!!)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -107,8 +108,7 @@ class ImgbbService(
         }
 
         Result.failure(
-            lastFailure ?: IOException("Échec de l'upload de l'image vers ImgBB.")
+            lastFailure ?: IOException("Échec de l'upload de l'image.")
         )
     }
 }
-

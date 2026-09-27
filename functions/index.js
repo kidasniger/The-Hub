@@ -1,10 +1,15 @@
 const { onRequest } = require("firebase-functions/https");
-const { setGlobalOptions } = require("firebase-functions");
-const { logger } = require("firebase-functions");
+const { setGlobalOptions, logger } = require("firebase-functions");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 
 initializeApp();
+
+const imgbbApiKey = defineSecret("IMGBB_API_KEY");
+const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
+const IMGBB_UPLOAD_URL = "https://api.imgbb.com/1/upload";
 
 setGlobalOptions({
   region: "europe-west1",
@@ -43,6 +48,16 @@ function formatDate(value) {
     }).format(date);
   } catch (_) {
     return "";
+  }
+}
+
+function isImgBbUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" &&
+      (url.hostname === "ibb.co" || url.hostname.endsWith(".ibb.co"));
+  } catch (_) {
+    return false;
   }
 }
 
@@ -278,6 +293,122 @@ function renderPost(post, postId) {
     body,
   });
 }
+
+async function requireAuthenticatedUser(req) {
+  const authorization = String(req.get("Authorization") || "");
+  const match = /^Bearer\s+(.+)$/i.exec(authorization);
+  if (!match) {
+    const error = new Error("UNAUTHENTICATED");
+    error.code = "unauthenticated";
+    throw error;
+  }
+
+  return getAuth().verifyIdToken(match[1], true);
+}
+
+exports.uploadImageToImgbb = onRequest(
+  {
+    secrets: [imgbbApiKey],
+  },
+  async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Méthode non autorisée." });
+      return;
+    }
+
+    try {
+      const user = await requireAuthenticatedUser(req);
+      const rawBody = req.rawBody;
+
+      if (!rawBody || !Buffer.isBuffer(rawBody) || rawBody.length === 0) {
+        res.status(400).json({ error: "Image vide." });
+        return;
+      }
+
+      if (rawBody.length > MAX_IMAGE_BYTES) {
+        res.status(413).json({ error: "Image trop volumineuse." });
+        return;
+      }
+
+      const apiKey = imgbbApiKey.value().trim();
+      if (!apiKey) {
+        logger.error("ImgBB API key is not configured.");
+        res.status(503).json({ error: "Service d'image indisponible." });
+        return;
+      }
+
+      const form = new FormData();
+      form.append(
+        "image",
+        new Blob([rawBody], { type: "application/octet-stream" }),
+        "image"
+      );
+
+      const upstreamResponse = await fetch(
+        `${IMGBB_UPLOAD_URL}?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          body: form,
+        }
+      );
+
+      let payload = null;
+      try {
+        payload = await upstreamResponse.json();
+      } catch (_) {
+        payload = null;
+      }
+
+      if (
+        !upstreamResponse.ok ||
+        payload?.success !== true ||
+        typeof payload?.data?.url !== "string" ||
+        !isImgBbUrl(payload.data.url)
+      ) {
+        logger.warn("ImgBB upload rejected.", {
+          uid: user.uid,
+          status: upstreamResponse.status,
+        });
+
+        const statusCode =
+          upstreamResponse.status === 429
+            ? 429
+            : upstreamResponse.status >= 500
+              ? 502
+              : 400;
+
+        res.status(statusCode).json({ error: "Échec de l'envoi de l'image." });
+        return;
+      }
+
+      res.status(200).json({
+        url: payload.data.url,
+      });
+    } catch (error) {
+      if (
+        error?.code === "unauthenticated" ||
+        error?.code === "auth/id-token-expired" ||
+        error?.code === "auth/argument-error"
+      ) {
+        res.status(401).json({ error: "Authentification requise." });
+        return;
+      }
+
+      if (error?.code === "auth/id-token-revoked") {
+        res.status(401).json({ error: "Session Firebase révoquée." });
+        return;
+      }
+
+      logger.error("Authenticated ImgBB upload failed.", {
+        error: error?.message || String(error),
+      });
+      res.status(500).json({ error: "Service d'image indisponible." });
+    }
+  }
+);
 
 exports.postPreview = onRequest(async (req, res) => {
   res.set("Cache-Control", "public, max-age=60, s-maxage=300");

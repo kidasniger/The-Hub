@@ -213,19 +213,6 @@ jobs:
           PY
           cat gradle/version.properties
 
-      - name: Commit version bump when needed
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- gradle/version.properties; then
-            echo "Version file already matches $VERSION_NAME."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add gradle/version.properties
-            git commit -m "chore(release): prepare $TAG"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
-
       - name: Verify repository version and tag state
         run: |
           set -euo pipefail
@@ -352,6 +339,19 @@ jobs:
           cp "$APK_FILE" "release-artifacts/TheHub-${TAG}.apk"
           sha256sum "release-artifacts/TheHub-${TAG}.apk" | cut -d' ' -f1 > "release-artifacts/TheHub-${TAG}.apk.sha256"
           echo "Published APK SHA-256: $(cat "release-artifacts/TheHub-${TAG}.apk.sha256")"
+
+      - name: Commit version bump after successful build
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- gradle/version.properties; then
+            echo "Version file already matches $VERSION_NAME."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add gradle/version.properties
+            git commit -m "chore(release): prepare $TAG"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
 
       - name: Create Git Tag
         run: |
