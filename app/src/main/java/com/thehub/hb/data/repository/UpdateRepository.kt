@@ -18,14 +18,13 @@ class UpdateRepository(
     val updateState: StateFlow<UpdateCheckResult?> = _updateState.asStateFlow()
 
     private val testPopupNotes = """
-• La clé API ImgBB a été retirée du code Android : elle n'est plus embarquée dans l'APK.
-• Les images sont désormais envoyées par l'application à une Cloud Function Firebase authentifiée.
-• Firebase Storage n'est pas utilisé pour les images : ImgBB reste le stockage des images.
+• La clé API ImgBB en dur a été retirée du code Android : elle n'est plus embarquée dans l'APK.
+• L'application utilise désormais une Cloud Function Firebase authentifiée comme relais pour l'envoi des images vers ImgBB.
+• Firebase Storage n'est pas utilisé pour les images : ImgBB reste le service de stockage des fichiers image.
 • Firestore continue de stocker uniquement l'URL retournée par ImgBB.
-• La clé ImgBB est maintenant prévue dans Firebase Secret Manager côté serveur.
-• La Cloud Function vérifie l'authentification, limite la taille de l'image et valide que l'URL retournée provient d'ImgBB.
-• Le pipeline CI/CD a été renforcé : les versions ne sont préparées qu'après un build valide et les releases sont bloquées sans la clé ImgBB.
-• Le déploiement production de la Function reste en attente de la configuration du secret IMGBB_API_KEY.
+• Le code de la Cloud Function vérifie l'authentification Firebase, limite les images à 16 MiB et vérifie que l'URL retournée provient bien d'ImgBB.
+• Le pipeline de release Android a été séparé du secret ImgBB : l'APK peut être construit sans embarquer ni exposer la clé, tandis que le déploiement de la Function gère le secret côté serveur.
+• Prérequis restant côté production : configurer le secret IMGBB_API_KEY et déployer la Cloud Function. Tant que cette étape n'est pas confirmée, le nouveau chemin d'upload ImgBB n'est pas garanti en production.
 """.trimIndent()
 
     suspend fun checkForUpdate(
