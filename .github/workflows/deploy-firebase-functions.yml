@@ -79,16 +79,6 @@ jobs:
             exit 1
           fi
 
-      - name: Sync ImgBB secret to Firebase Secret Manager
-        env:
-          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
-        run: |
-          set -euo pipefail
-          SECRET_FILE="$RUNNER_TEMP/imgbb-api-key.txt"
-          printf '%s' "$IMGBB_API_KEY" > "$SECRET_FILE"
-          chmod 600 "$SECRET_FILE"
-          firebase functions:secrets:set IMGBB_API_KEY             --project the-hub-f95f4             --data-file "$SECRET_FILE"
-          rm -f "$SECRET_FILE"
 
       - name: Prepare Firebase credentials
         env:
@@ -99,6 +89,16 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_FILE"
           chmod 600 "$CREDENTIALS_FILE"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_FILE" >> "$GITHUB_ENV"
+      - name: Sync ImgBB secret to Firebase Secret Manager
+        env:
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+        run: |
+          set -euo pipefail
+          SECRET_FILE="$RUNNER_TEMP/imgbb-api-key.txt"
+          printf '%s' "$IMGBB_API_KEY" > "$SECRET_FILE"
+          chmod 600 "$SECRET_FILE"
+          firebase functions:secrets:set IMGBB_API_KEY             --project the-hub-f95f4             --data-file "$SECRET_FILE"
+          rm -f "$SECRET_FILE"
 
       - name: Validate Firebase Functions source
         working-directory: functions
