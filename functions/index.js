@@ -286,7 +286,7 @@ function renderPost(post, postId) {
 
 async function requireAuthenticatedUser(req) {
   const authorization = String(req.get("Authorization") || "");
-  const match = /^Bearer\\s+(.+)$/i.exec(authorization);
+  const match = /^Bearer\s+(.+)$/i.exec(authorization);
   if (!match) {
     const error = new Error("UNAUTHENTICATED");
     error.code = "unauthenticated";
