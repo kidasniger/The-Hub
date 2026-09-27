@@ -68,6 +68,28 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools@latest
 
+      - name: Validate ImgBB secret
+        env:
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$IMGBB_API_KEY" ]; then
+            echo "ERROR: GitHub secret IMGBB_API_KEY is required to deploy Firebase Functions."
+            echo "Add a newly rotated ImgBB API key to the repository secrets before deployment."
+            exit 1
+          fi
+
+      - name: Sync ImgBB secret to Firebase Secret Manager
+        env:
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+        run: |
+          set -euo pipefail
+          SECRET_FILE="$RUNNER_TEMP/imgbb-api-key.txt"
+          printf '%s' "$IMGBB_API_KEY" > "$SECRET_FILE"
+          chmod 600 "$SECRET_FILE"
+          firebase functions:secrets:set IMGBB_API_KEY             --project the-hub-f95f4             --data-file "$SECRET_FILE"
+          rm -f "$SECRET_FILE"
+
       - name: Prepare Firebase credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -105,13 +127,13 @@ jobs:
               data = json.load(fh)
 
           raw = json.dumps(data)
-          required = ["pushNotificationOnCreate", "reassignFcmTokenToOwner"]
+          required = ["postPreview", "uploadImageToImgbb"]
           missing = [name for name in required if name not in raw]
           if missing:
               print("ERROR: missing deployed Firebase Functions: " + ", ".join(missing))
               sys.exit(1)
 
-          print("SUCCESS: pushNotificationOnCreate, FCM token ownership cleanup, and postPreview are deployed.")
+          print("SUCCESS: postPreview and uploadImageToImgbb are deployed.")
           PY
 
       - name: Remove Firebase credentials
