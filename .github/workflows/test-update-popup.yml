@@ -45,7 +45,10 @@ jobs:
           set -euo pipefail
           test -s app/build/outputs/apk/debug/app-debug.apk
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
-          "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk | grep -F "versionName='1.0.180'"
+          EXPECTED_VERSION="$(grep '^versionName=' gradle/version.properties | cut -d= -f2)"
+          test -n "$EXPECTED_VERSION"
+          echo "Expected debug APK version: $EXPECTED_VERSION"
+          "$AAPT" dump badging app/build/outputs/apk/debug/app-debug.apk | grep -F "versionName='$EXPECTED_VERSION'"
 
 
       - name: Upload popup test APK
