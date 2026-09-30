@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrandForge AI — MVP</title>
+<meta name="description" content="Transforme une idée en identité numérique complète avec BrandForge AI.">
+<style>
+:root{--bg:#090b12;--panel:#111522;--panel2:#171b2a;--text:#f6f7fb;--muted:#aab0c0;--line:#292f42;--accent:#8b7cff;--accent2:#55d6be;--danger:#ff7a9a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#1a1731 0,#090b12 40%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+button,input,textarea{font:inherit}button{cursor:pointer}.wrap{max-width:1180px;margin:auto;padding:28px 22px 70px}
+nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:70px}.brand{font-weight:800;letter-spacing:-.04em;font-size:20px}.brand span{color:var(--accent)}
+.pill{border:1px solid var(--line);border-radius:999px;padding:9px 14px;color:var(--muted);font-size:13px}
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:55px;align-items:center}.eyebrow{color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.12em;font-size:12px}
+h1{font-size:clamp(46px,7vw,82px);line-height:.94;letter-spacing:-.065em;margin:18px 0 24px}h1 em{font-style:normal;color:var(--accent)}
+.lead{font-size:19px;line-height:1.65;color:var(--muted);max-width:650px}
+.cta{display:flex;gap:12px;margin-top:30px}.primary{border:0;background:var(--accent);color:#fff;padding:14px 20px;border-radius:12px;font-weight:800}.secondary{border:1px solid var(--line);background:transparent;color:var(--text);padding:14px 20px;border-radius:12px}
+.mock{background:linear-gradient(145deg,#171b2a,#0e111a);border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 25px 80px #0008}.mockbar{display:flex;gap:7px;margin-bottom:20px}.dot{width:9px;height:9px;border-radius:50%;background:#3a4052}.preview{border:1px solid var(--line);border-radius:18px;padding:20px;background:#0b0e16}.preview h3{margin:0 0 8px;font-size:24px}.mini{height:8px;border-radius:9px;background:#252b3c;margin:8px 0;width:80%}.mini.short{width:48%}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.card{background:var(--panel2);border:1px solid var(--line);padding:16px;border-radius:14px}.card strong{display:block;margin-bottom:7px}.card span{font-size:13px;color:var(--muted);line-height:1.5}
+section{margin-top:100px}.section-title{font-size:36px;letter-spacing:-.04em;margin:0 0 12px}.section-lead{color:var(--muted);line-height:1.6}
+.generator{display:grid;grid-template-columns:.9fr 1.1fr;gap:18px;margin-top:28px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px}.field{margin-bottom:17px}.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}.field input,.field textarea{width:100%;border:1px solid var(--line);background:#0b0e16;color:var(--text);border-radius:11px;padding:12px;outline:none}.field textarea{min-height:110px;resize:vertical}.result{min-height:320px}.result h3{font-size:28px;margin:0 0 8px}.result p{color:var(--muted);line-height:1.6}.tagrow{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tag{border:1px solid #343b52;background:#151a29;border-radius:999px;padding:7px 10px;font-size:12px}.deliverables{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.deliverable{border:1px solid var(--line);border-radius:12px;padding:13px}.deliverable b{display:block}.deliverable small{color:var(--muted)}
+footer{margin-top:100px;padding-top:25px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media(max-width:800px){.hero,.generator{grid-template-columns:1fr}.hero{gap:35px}.cards,.deliverables{grid-template-columns:1fr 1fr}nav{margin-bottom:45px}}
+@media(max-width:520px){.wrap{padding:20px 16px 50px}.cards,.deliverables{grid-template-columns:1fr}h1{font-size:52px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><div class="brand">BrandForge<span>AI</span></div><div class="pill">MVP • v0.1</div></nav>
+<main>
+<div class="hero">
+<div>
+<div class="eyebrow">Une idée → une présence numérique</div>
+<h1>Construis une marque qui <em>existe vraiment.</em></h1>
+<p class="lead">BrandForge AI transforme une simple description en concept de marque, site vitrine, messages marketing et plan de contenu. Le MVP ci-dessous simule le cœur du produit sans exposer de clé API.</p>
+<div class="cta"><button class="primary" onclick="document.getElementById('generator').scrollIntoView({behavior:'smooth'})">Créer mon concept</button><button class="secondary" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">Voir le fonctionnement</button></div>
+</div>
+<div class="mock"><div class="mockbar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div><div class="preview"><h3 id="mockName">Nova Studio</h3><p id="mockPitch">Une marque moderne, claire et mémorable.</p><div class="cards"><div class="card"><strong>Site</strong><span>Accueil + offre + contact</span></div><div class="card"><strong>Social</strong><span>30 idées de contenu</span></div><div class="card"><strong>Brand</strong><span>Nom + ton + messages</span></div></div></div></div>
+</div>
+
+<section id="how"><h2 class="section-title">Le produit en 3 étapes</h2><p class="section-lead">L'objectif est de rendre la création d'une présence numérique beaucoup plus rapide pour les indépendants et petites entreprises.</p>
+<div class="cards">
+<div class="card"><strong>01 — Décris</strong><span>Explique ton activité, ton public et ton objectif en langage naturel.</span></div>
+<div class="card"><strong>02 — Génère</strong><span>Le moteur IA transforme ces informations en assets structurés et cohérents.</span></div>
+<div class="card"><strong>03 — Lance</strong><span>Prévisualise, modifie puis exporte ou publie les éléments produits.</span></div>
+</div></section>
+
+<section id="generator"><h2 class="section-title">Générateur de concept</h2><p class="section-lead">Cette première version fonctionne localement. L'étape suivante sera de connecter un véritable modèle IA et une base de données.</p>
+<div class="generator">
+<div class="panel">
+<div class="field"><label>Nom de ton projet</label><input id="name" value="Nova Studio" oninput="updatePreview()"></div>
+<div class="field"><label>Ce que tu proposes</label><textarea id="offer" oninput="updatePreview()">Création de sites web et contenu digital pour petites entreprises.</textarea></div>
+<div class="field"><label>Ton objectif</label><input id="goal" value="Obtenir plus de clients en ligne"></div>
+<button class="primary" style="width:100%" onclick="generate()">Générer le concept</button>
+</div>
+<div class="panel result" id="result"><div class="eyebrow">Concept proposé</div><h3 id="resultName">Nova Studio</h3><p id="resultPitch">Une identité numérique moderne conçue pour transformer une activité locale en marque visible en ligne.</p><div class="tagrow"><span class="tag">Positionnement clair</span><span class="tag">Site vitrine</span><span class="tag">Contenu social</span><span class="tag">Identité visuelle</span></div><div class="deliverables"><div class="deliverable"><b>Hero headline</b><small id="headline">Votre activité mérite d'être vue.</small></div><div class="deliverable"><b>CTA</b><small id="cta">Découvrir l'offre</small></div><div class="deliverable"><b>Audience</b><small>PME et indépendants</small></div><div class="deliverable"><b>Ton</b><small>Clair, moderne, confiant</small></div></div></div>
+</div></section>
+</main>
+<footer>BrandForge AI — prototype produit. Les fonctionnalités IA réelles seront branchées dans une prochaine itération.</footer>
+</div>
+<script>
+function updatePreview(){const n=document.getElementById('name').value||'Nova Studio';document.getElementById('mockName').textContent=n;document.getElementById('resultName').textContent=n}
+function generate(){const n=document.getElementById('name').value.trim()||'Nova Studio';const offer=document.getElementById('offer').value.trim()||'une solution digitale';const goal=document.getElementById('goal').value.trim()||'développer sa présence en ligne';document.getElementById('resultName').textContent=n;document.getElementById('mockName').textContent=n;document.getElementById('resultPitch').textContent=n+' aide son audience grâce à '+offer.toLowerCase()+', avec un positionnement orienté vers '+goal.toLowerCase()+'.';document.getElementById('headline').textContent='Transformez '+goal.toLowerCase()+'.';document.getElementById('cta').textContent='Commencer maintenant';}
+</script>
+</body>
+</html>
