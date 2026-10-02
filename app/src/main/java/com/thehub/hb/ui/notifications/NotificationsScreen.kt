@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.NotificationItem
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -346,57 +347,57 @@ private fun NotificationRow(
 
         // Text & Timestamp
         Column(modifier = Modifier.weight(1f)) {
-            val annotatedText = buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = HubWhite)) {
-                    append(actor.effectiveName)
-                }
+            HubVerifiedUserName(
+                name = actor.effectiveName,
+                isVerified = actor.isVerified,
+                verificationType = actor.verificationType,
+                fontSize = 14.sp,
+                color = HubWhite,
+                badgeSize = 15.dp
+            )
 
-                val actionText = when (notification.type) {
-                    NotificationItem.TYPE_LIKE -> " a aimé votre publication."
-                    NotificationItem.TYPE_LIKE_COMMENT -> " a aimé votre commentaire."
-                    NotificationItem.TYPE_COMMENT -> {
-                        if (!notification.commentText.isNullOrBlank()) {
-                            " a commenté : « ${notification.commentText} »"
-                        } else {
-                            " a commenté votre publication."
-                        }
+            val actionText = when (notification.type) {
+                NotificationItem.TYPE_LIKE -> "a aimé votre publication."
+                NotificationItem.TYPE_LIKE_COMMENT -> "a aimé votre commentaire."
+                NotificationItem.TYPE_COMMENT -> {
+                    if (!notification.commentText.isNullOrBlank()) {
+                        "a commenté : « ${notification.commentText} »"
+                    } else {
+                        "a commenté votre publication."
                     }
-                    NotificationItem.TYPE_REPLY_COMMENT -> {
-                        if (!notification.commentText.isNullOrBlank()) {
-                            " a répondu à votre commentaire : « ${notification.commentText} »"
-                        } else {
-                            " a répondu à votre commentaire."
-                        }
-                    }
-                    NotificationItem.TYPE_FOLLOW -> " a commencé à vous suivre."
-                    NotificationItem.TYPE_MESSAGE -> {
-                        if (!notification.commentText.isNullOrBlank()) {
-                            " vous a envoyé un message : « ${notification.commentText} »"
-                        } else {
-                            " vous a envoyé un message."
-                        }
-                    }
-                    NotificationItem.TYPE_ANNOUNCEMENT -> {
-                        if (!notification.commentText.isNullOrBlank()) {
-                            " : ${notification.commentText}"
-                        } else {
-                            " vous a envoyé une annonce."
-                        }
-                    }
-                    else -> " a interagi avec vous."
                 }
-
-                withStyle(SpanStyle(fontWeight = FontWeight.Normal, color = HubWhite.copy(alpha = 0.9f))) {
-                    append(actionText)
+                NotificationItem.TYPE_REPLY_COMMENT -> {
+                    if (!notification.commentText.isNullOrBlank()) {
+                        "a répondu à votre commentaire : « ${notification.commentText} »"
+                    } else {
+                        "a répondu à votre commentaire."
+                    }
                 }
+                NotificationItem.TYPE_FOLLOW -> "a commencé à vous suivre."
+                NotificationItem.TYPE_MESSAGE -> {
+                    if (!notification.commentText.isNullOrBlank()) {
+                        "vous a envoyé un message : « ${notification.commentText} »"
+                    } else {
+                        "vous a envoyé un message."
+                    }
+                }
+                NotificationItem.TYPE_ANNOUNCEMENT -> {
+                    if (!notification.commentText.isNullOrBlank()) {
+                        ": ${notification.commentText}"
+                    } else {
+                        "vous a envoyé une annonce."
+                    }
+                }
+                else -> "a interagi avec vous."
             }
 
             Text(
-                text = annotatedText,
+                text = actionText,
                 fontSize = 14.sp,
                 lineHeight = 19.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = HubWhite.copy(alpha = 0.9f)
             )
 
             Spacer(modifier = Modifier.height(4.dp))
