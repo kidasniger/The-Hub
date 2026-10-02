@@ -95,6 +95,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -679,11 +680,13 @@ private fun CommentItemRow(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = author.effectiveName,
+                    HubVerifiedUserName(
+                        name = author.effectiveName,
+                        isVerified = author.isVerified,
+                        verificationType = author.verificationType,
                         fontSize = if (isReply) 13.sp else 14.sp,
-                        fontWeight = FontWeight.Bold,
                         color = HubWhite,
+                        badgeSize = if (isReply) 14.dp else 15.dp,
                         modifier = Modifier.then(
                             if (onUserClick != null) Modifier.clickable { onUserClick(comment.authorId) } else Modifier
                         )
