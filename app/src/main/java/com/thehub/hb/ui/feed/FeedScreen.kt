@@ -104,7 +104,9 @@ fun FeedScreen(
     var postToReport by remember { mutableStateOf<Post?>(null) }
     var isDeletingPost by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
-    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.ALL.name) }\n    val activeFeedFilter = remember(feedFilter) { FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.ALL }\n    val listState = rememberLazyListState()
+    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.ALL.name) }
+    val activeFeedFilter = remember(feedFilter) { FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.ALL }
+    val listState = rememberLazyListState()
 
     val shouldLoadMore by remember {
         derivedStateOf {
