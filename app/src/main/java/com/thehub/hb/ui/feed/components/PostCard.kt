@@ -76,7 +76,14 @@ fun PostCard(
     onAuthorClick: ((String) -> Unit)? = null,
     onMoreOptionsClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
-) {\n    val likeScale by animateFloatAsState(\n        targetValue = if (post.isLikedByCurrentUser) 1.12f else 1f,\n        animationSpec = tween(180),\n        label = "post_like_scale"\n    )\n\n    Column(\n        modifier = modifier\n            .fillMaxWidth()\n            .padding(horizontal = 8.dp, vertical = 6.dp)\n            .clip(RoundedCornerShape(20.dp))\n            .background(HubCard)\n            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
+) {
+    val likeScale by animateFloatAsState(
+        targetValue = if (post.isLikedByCurrentUser) 1.12f else 1f,
+        animationSpec = tween(180),
+        label = "post_like_scale"
+    )
+
+    Column(\n        modifier = modifier\n            .fillMaxWidth()\n            .padding(horizontal = 8.dp, vertical = 6.dp)\n            .clip(RoundedCornerShape(20.dp))\n            .background(HubCard)\n            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = HubDarkGray),
@@ -268,7 +275,10 @@ fun PostCard(
                     Icon(
                         imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Aimer",
-                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,\n                        modifier = Modifier\n                            .size(20.dp)\n                            .graphicsLayer(scaleX = likeScale, scaleY = likeScale)
+                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .graphicsLayer(scaleX = likeScale, scaleY = likeScale)
                     )
                 }
                 Text(
