@@ -24,7 +24,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: the-hub-release
+  group: the-hub-release-v2
   cancel-in-progress: true
 
 jobs:
@@ -32,6 +32,7 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     name: Build, Test & Release Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
