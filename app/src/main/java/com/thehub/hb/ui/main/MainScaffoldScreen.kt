@@ -38,7 +38,6 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -518,27 +517,17 @@ fun HubBottomNavigationBar(
                         ),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isNotifTab && unreadNotificationsCount > 0) {
-                            BadgedBox(
-                                badge = {
-                                    Badge(
-                                        containerColor = HubWhite,
-                                        contentColor = HubBlack,
-                                        modifier = Modifier.testTag("notifications_unread_badge")
-                                    ) {
-                                        Text(
-                                            text = if (unreadNotificationsCount > 99) "99+" else "" + unreadNotificationsCount,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            ) {
+                        if (isNotifTab) {
+                            Box(contentAlignment = Alignment.TopEnd) {
                                 Icon(
                                     imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
                                     contentDescription = tabTitle,
                                     tint = if (isSelected) HubWhite else HubMuted,
                                     modifier = Modifier.size(24.dp)
+                                )
+                                com.thehub.hb.ui.components.HubCountBadge(
+                                    count = unreadNotificationsCount,
+                                    modifier = Modifier.align(Alignment.TopEnd)
                                 )
                             }
                         } else {
