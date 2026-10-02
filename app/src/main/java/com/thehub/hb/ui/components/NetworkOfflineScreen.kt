@@ -82,16 +82,16 @@ fun NetworkOfflineScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(36.dp))
-                    .background(HubCard.copy(alpha = 0.96f))
-                    .border(1.dp, HubBorderLight, RoundedCornerShape(36.dp))
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(HubCard.copy(alpha = 0.94f))
+                    .border(1.dp, HubBorderLight, RoundedCornerShape(28.dp))
                     .padding(horizontal = 28.dp, vertical = 34.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(104.dp)
+                        .size(88.dp)
                         .clip(CircleShape)
                         .background(HubSurfaceElevated)
                         .border(1.dp, HubBorder, CircleShape),
@@ -110,7 +110,7 @@ fun NetworkOfflineScreen(
                 Text(
                     text = strings.offlineTitle,
                     color = HubWhite,
-                    fontSize = 25.sp,
+                    fontSize = 23.sp,
                     fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center,
                     lineHeight = 31.sp
