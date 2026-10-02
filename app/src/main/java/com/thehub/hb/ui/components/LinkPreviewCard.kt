@@ -81,7 +81,7 @@ fun LinkPreviewCard(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(HubCard)
                 .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
                 .padding(12.dp),
@@ -134,7 +134,7 @@ fun LinkPreviewCard(
                     contentDescription = data.title ?: "Aperçu du lien",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp),
+                        .height(168.dp),
                     contentScale = ContentScale.Crop
                 )
             }
