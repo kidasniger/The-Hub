@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
@@ -41,7 +42,11 @@ class HubApplication : Application(), ImageLoaderFactory {
                 val currentUserId = firebaseUser?.uid
 
                 if (currentUserId != null) {
-                    container.notificationRepository.registerCurrentFcmToken()
+                    repeat(3) { attempt ->
+                        val result = container.notificationRepository.registerCurrentFcmToken()
+                        if (result.isSuccess) return@repeat
+                        delay(500L * (attempt + 1))
+                    }
                 }
 
                 pushRegistrationUserId = currentUserId
