@@ -40,7 +40,7 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         serviceScope.launch {
-            NotificationRepository().registerCurrentFcmToken()
+            NotificationRepository().registerCurrentFcmToken(token)
         }
     }
 
@@ -326,6 +326,7 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             .setShowWhen(true)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setNumber(1)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(
                 if (deepLink == "thehub://update") {
@@ -353,6 +354,7 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = CHANNEL_DESCRIPTION
+            setShowBadge(true)
         }
         manager.createNotificationChannel(channel)
     }
