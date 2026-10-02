@@ -104,8 +104,11 @@ fun FeedScreen(
     var postToReport by remember { mutableStateOf<Post?>(null) }
     var isDeletingPost by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
-    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.ALL.name) }
-    val activeFeedFilter = remember(feedFilter) { FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.ALL }
+    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.FOR_YOU.name) }
+    val activeFeedFilter = remember(feedFilter) {
+        FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.FOR_YOU
+    }
+    var followingIds by remember { mutableStateOf<Set<String>?>(null) }
     val listState = rememberLazyListState()
 
     val shouldLoadMore by remember {
@@ -113,6 +116,12 @@ fun FeedScreen(
             val totalItems = listState.layoutInfo.totalItemsCount
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             totalItems > 0 && lastVisibleItem >= totalItems - 3
+        }
+    }
+
+    LaunchedEffect(activeFeedFilter) {
+        if (activeFeedFilter == FeedFilter.FOLLOWING && followingIds == null) {
+            followingIds = viewModel.getFollowingIds()
         }
     }
 
@@ -323,7 +332,9 @@ fun FeedScreen(
 }
 
 private enum class FeedFilter(val label: String) {
-    ALL("Tout"), MEDIA("Médias"), REPOSTS("Republications")
+    FOR_YOU("Pour toi"),
+    FOLLOWING("Abonnements"),
+    RECENT("Récent")
 }
 
 @Composable
