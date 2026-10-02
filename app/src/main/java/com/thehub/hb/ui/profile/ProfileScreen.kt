@@ -88,6 +88,7 @@ import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.HubCountBadge
 import com.thehub.hb.ui.components.rememberRemoteImageUnavailable
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
@@ -111,6 +112,8 @@ fun ProfileScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToEditProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    unreadNotificationsCount: Int = 0,
+    onOpenNotifications: () -> Unit = {},
     onNavigateToBookmarks: () -> Unit = {},
     onNavigateToFollowers: (String) -> Unit,
     onNavigateToFollowing: (String) -> Unit,
@@ -171,7 +174,9 @@ fun ProfileScreen(
                 onNavigateBack = onNavigateBack,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToBookmarks = onNavigateToBookmarks,
-                onMenuClick = { showMenu = true }
+                onMenuClick = { showMenu = true },
+                unreadNotificationsCount = unreadNotificationsCount,
+                onOpenNotifications = onOpenNotifications
             )
 
             // Dropdown Menu for Other User
@@ -468,6 +473,8 @@ private fun ProfileTopBar(
     isBottomTab: Boolean,
     onNavigateBack: (() -> Unit)?,
     onNavigateToSettings: () -> Unit,
+    unreadNotificationsCount: Int = 0,
+    onOpenNotifications: () -> Unit = {},
     onNavigateToBookmarks: () -> Unit,
     onMenuClick: () -> Unit
 ) {
@@ -501,6 +508,23 @@ private fun ProfileTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+
+        Box(contentAlignment = Alignment.TopEnd) {
+            IconButton(
+                onClick = onOpenNotifications,
+                modifier = Modifier.testTag("profile_notifications_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Notifications",
+                    tint = HubWhite
+                )
+            }
+            HubCountBadge(
+                count = unreadNotificationsCount,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+        }
 
         if (isOwnProfile) {
             IconButton(
