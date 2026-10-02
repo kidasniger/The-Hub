@@ -254,13 +254,6 @@ fun MainScaffoldScreen(
                             }
                         },
                         onOpenFriends = onOpenFriends,
-                        onOpenNotifications = {
-                            if (selectedTab != MainTab.NOTIFICATIONS.ordinal) {
-                                tabHistory.add(selectedTab)
-                                selectedTab = MainTab.NOTIFICATIONS.ordinal
-                            }
-                        },
-                        unreadNotificationsCount = unreadNotificationsCount,
                         onDiscoverUsers = {
                             tabHistory.add(selectedTab)
                             selectedTab = MainTab.SEARCH.ordinal
@@ -331,8 +324,6 @@ fun MainScaffoldScreen(
                         onNavigateBack = null,
                         onNavigateToEditProfile = onNavigateToEditProfile,
                         onNavigateToSettings = onNavigateToSettings,
-                        unreadNotificationsCount = unreadNotificationsCount,
-                        onOpenNotifications = { selectedTab = MainTab.NOTIFICATIONS.ordinal },
                         onNavigateToBookmarks = onNavigateToBookmarks,
                         onNavigateToFollowers = onNavigateToFollowers,
                         onNavigateToFollowing = onNavigateToFollowing,
