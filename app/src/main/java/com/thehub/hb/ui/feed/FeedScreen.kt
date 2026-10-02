@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -103,7 +102,8 @@ fun FeedScreen(
     var postToDelete by remember { mutableStateOf<Post?>(null) }
     var postToReport by remember { mutableStateOf<Post?>(null) }
     var isDeletingPost by remember { mutableStateOf(false) }
-    var isSubmittingReport by remember { mutableStateOf(false) }\n    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.ALL.name) }\n    val activeFeedFilter = remember(feedFilter) { FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.ALL }\n    val listState = rememberLazyListState()
+    var isSubmittingReport by remember { mutableStateOf(false) }
+    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.ALL.name) }\n    val activeFeedFilter = remember(feedFilter) { FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.ALL }\n    val listState = rememberLazyListState()
 
     val shouldLoadMore by remember {
         derivedStateOf {
