@@ -50,6 +50,7 @@ import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubTextField
 import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -409,22 +410,9 @@ private fun MessengerLoadingSkeleton() {
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.45f)
-                            .height(14.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(HubSurfaceElevated)
-                    )
+                    HubSkeletonLine(height = 13.dp, widthFraction = 0.45f)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.75f)
-                            .height(12.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(HubSurface)
-                            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-                    )
+                    HubSkeletonLine(height = 11.dp, widthFraction = 0.72f)
                 }
             }
         }
