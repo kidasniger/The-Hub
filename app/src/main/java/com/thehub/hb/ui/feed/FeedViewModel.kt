@@ -61,9 +61,17 @@ class FeedViewModel(
     private fun actionMutexFor(postId: String): Mutex =
         postActionMutexes.getOrPut(postId) { Mutex() }
     private var hasMoreFeedPages = true
+    private var cachedFollowingIds: Set<String>? = null
 
     init {
         loadFirstPage(isRefresh = false)
+    }
+
+    suspend fun getFollowingIds(): Set<String> {
+        cachedFollowingIds?.let { return it }
+        val ids = userRepository?.getFollowingIds().orEmpty()
+        cachedFollowingIds = ids
+        return ids
     }
 
     fun refresh() {
