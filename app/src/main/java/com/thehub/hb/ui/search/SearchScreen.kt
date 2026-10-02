@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.theme.HubBlack
@@ -655,13 +656,13 @@ private fun UserSearchResultRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = liveUser.effectiveName,
+            HubVerifiedUserName(
+                name = liveUser.effectiveName,
+                isVerified = liveUser.isVerified,
+                verificationType = liveUser.verificationType,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
                 color = HubWhite,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                badgeSize = 16.dp
             )
 
             if (liveUser.username.isNotBlank()) {
