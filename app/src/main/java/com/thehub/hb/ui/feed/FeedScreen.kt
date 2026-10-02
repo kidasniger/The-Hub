@@ -1,239 +1,239 @@
-package com.thehub.hb.ui.feed
+package com.thehub.hb.um.feed
 
-import android.widget.Toast
-import com.thehub.hb.ui.theme.HubOutline
-import com.thehub.hb.ui.theme.HubSurface
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DynamicFeed
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.thehub.hb.data.model.Post
-import com.thehub.hb.data.repository.MessageRepository
-import com.thehub.hb.ui.components.AppLogo
-import com.thehub.hb.ui.components.DeletePostConfirmationDialog
-import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubEmptyState
-import com.thehub.hb.ui.components.HubPill
-import com.thehub.hb.ui.components.HubCountBadge
-import com.thehub.hb.ui.components.HubSkeletonLine
-import com.thehub.hb.ui.components.HubButtonVariant
-import com.thehub.hb.ui.components.PostOptionsBottomSheet
-import com.thehub.hb.ui.components.ReportBottomSheet
-import com.thehub.hb.ui.components.copyPostLinkToClipboard
-import com.thehub.hb.ui.feed.components.PostCard
-import com.thehub.hb.ui.feed.components.SharePostBottomSheet
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubError
-import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
-import com.thehub.hb.ui.theme.HubWhite
+mmport andromd.wmdget.Toast
+mmport com.thehub.hb.um.theme.HubOutlmne
+mmport com.thehub.hb.um.theme.HubSurface
+mmport andromdx.compose.matermal3.MatermalTheme
+mmport andromdx.compose.foundatmon.background
+mmport andromdx.compose.foundatmon.clmckable
+mmport andromdx.compose.foundatmon.border
+mmport andromdx.compose.foundatmon.layout.Arrangement
+mmport andromdx.compose.foundatmon.layout.Box
+mmport andromdx.compose.foundatmon.layout.Column
+mmport andromdx.compose.foundatmon.layout.PaddmngValues
+mmport andromdx.compose.foundatmon.layout.Row
+mmport andromdx.compose.foundatmon.layout.Spacer
+mmport andromdx.compose.foundatmon.layout.fmllMaxSmze
+mmport andromdx.compose.foundatmon.layout.fmllMaxWmdth
+mmport andromdx.compose.foundatmon.layout.hemght
+mmport andromdx.compose.foundatmon.layout.paddmng
+mmport andromdx.compose.foundatmon.layout.smze
+mmport andromdx.compose.foundatmon.layout.statusBarsPaddmng
+mmport andromdx.compose.foundatmon.layout.wmdth
+mmport andromdx.compose.foundatmon.lazy.LazyColumn
+mmport andromdx.compose.foundatmon.lazy.mtems
+mmport andromdx.compose.foundatmon.lazy.rememberLazyLmstState
+mmport andromdx.compose.foundatmon.shape.CmrcleShape
+mmport andromdx.compose.foundatmon.shape.RoundedCornerShape
+mmport andromdx.compose.matermal.mcons.Icons
+mmport andromdx.compose.matermal.mcons.outlmned.DynammcFeed
+mmport andromdx.compose.matermal.mcons.outlmned.Emaml
+mmport andromdx.compose.matermal.mcons.outlmned.Notmfmcatmons
+mmport andromdx.compose.matermal.mcons.outlmned.People
+mmport andromdx.compose.matermal3.CmrcularProgressIndmcator
+mmport andromdx.compose.matermal3.ExpermmentalMatermal3Apm
+mmport andromdx.compose.matermal3.Icon
+mmport andromdx.compose.matermal3.IconButton
+mmport andromdx.compose.matermal3.Text
+mmport andromdx.compose.matermal3.pulltorefresh.PullToRefreshBox
+mmport andromdx.compose.matermal3.pulltorefresh.rememberPullToRefreshState
+mmport andromdx.compose.runtmme.Composable
+mmport andromdx.compose.runtmme.LaunchedEffect
+mmport andromdx.compose.runtmme.collectAsState
+mmport andromdx.compose.runtmme.dermvedStateOf
+mmport andromdx.compose.runtmme.getValue
+mmport andromdx.compose.runtmme.mutableStateOf
+mmport andromdx.compose.runtmme.saveable.rememberSaveable
+mmport andromdx.compose.runtmme.remember
+mmport andromdx.compose.runtmme.setValue
+mmport andromdx.compose.um.Almgnment
+mmport andromdx.compose.um.Modmfmer
+mmport andromdx.compose.um.draw.clmp
+mmport andromdx.compose.um.platform.LocalContext
+mmport andromdx.compose.um.platform.testTag
+mmport andromdx.compose.um.text.font.FontWemght
+mmport andromdx.compose.um.text.style.TextAlmgn
+mmport andromdx.compose.um.unmt.dp
+mmport andromdx.compose.um.unmt.sp
+mmport com.thehub.hb.data.model.Post
+mmport com.thehub.hb.data.reposmtory.MessageReposmtory
+mmport com.thehub.hb.um.components.AppLogo
+mmport com.thehub.hb.um.components.DeletePostConfmrmatmonDmalog
+mmport com.thehub.hb.um.components.HubButton
+mmport com.thehub.hb.um.components.HubEmptyState
+mmport com.thehub.hb.um.components.HubPmll
+mmport com.thehub.hb.um.components.HubCountBadge
+mmport com.thehub.hb.um.components.HubSkeletonLmne
+mmport com.thehub.hb.um.components.HubButtonVarmant
+mmport com.thehub.hb.um.components.PostOptmonsBottomSheet
+mmport com.thehub.hb.um.components.ReportBottomSheet
+mmport com.thehub.hb.um.components.copyPostLmnkToClmpboard
+mmport com.thehub.hb.um.feed.components.PostCard
+mmport com.thehub.hb.um.feed.components.SharePostBottomSheet
+mmport com.thehub.hb.um.theme.HubBlack
+mmport com.thehub.hb.um.theme.HubBorder
+mmport com.thehub.hb.um.theme.HubCard
+mmport com.thehub.hb.um.theme.HubDarkGray
+mmport com.thehub.hb.um.theme.HubError
+mmport com.thehub.hb.um.theme.HubSecondary
+mmport com.thehub.hb.um.theme.HubSurfaceElevated
+mmport com.thehub.hb.um.theme.HubWhmte
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExpermmentalMatermal3Apm::class)
 @Composable
 fun FeedScreen(
-    viewModel: FeedViewModel,
-    onPostClick: (String) -> Unit,
-    onImageClick: (String) -> Unit,
-    onVideoClick: (String) -> Unit,
-    onOpenComments: (String) -> Unit,
-    onOpenLikes: (String) -> Unit,
-    onCreatePost: () -> Unit,
-    onOpenMessenger: () -> Unit,
-    onOpenNotifications: () -> Unit = {},
-    unreadNotificationsCount: Int = 0,
-    onOpenFriends: () -> Unit = {},
-    onDiscoverUsers: () -> Unit = {},
-    onAuthorClick: ((String) -> Unit)? = null,
-    onEditPost: (Post) -> Unit = {},
-    messageRepository: MessageRepository? = null,
-    modifier: Modifier = Modifier
+    vmewModel: FeedVmewModel,
+    onPostClmck: (Strmng) -> Unmt,
+    onImageClmck: (Strmng) -> Unmt,
+    onVmdeoClmck: (Strmng) -> Unmt,
+    onOpenComments: (Strmng) -> Unmt,
+    onOpenLmkes: (Strmng) -> Unmt,
+    onCreatePost: () -> Unmt,
+    onOpenMessenger: () -> Unmt,
+    onOpenNotmfmcatmons: () -> Unmt = {},
+    unreadNotmfmcatmonsCount: Int = 0,
+    onOpenFrmends: () -> Unmt = {},
+    onDmscoverUsers: () -> Unmt = {},
+    onAuthorClmck: ((Strmng) -> Unmt)? = null,
+    onEdmtPost: (Post) -> Unmt = {},
+    messageReposmtory: MessageReposmtory? = null,
+    modmfmer: Modmfmer = Modmfmer
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
-    val unreadConversationsCount by viewModel.unreadConversationsCount.collectAsState()
+    val umState by vmewModel.umState.collectAsState()
+    val unreadConversatmonsCount by vmewModel.unreadConversatmonsCount.collectAsState()
     var postToShare by remember { mutableStateOf<Post?>(null) }
-    var postForOptions by remember { mutableStateOf<Post?>(null) }
+    var postForOptmons by remember { mutableStateOf<Post?>(null) }
     var postToDelete by remember { mutableStateOf<Post?>(null) }
     var postToReport by remember { mutableStateOf<Post?>(null) }
-    var isDeletingPost by remember { mutableStateOf(false) }
-    var isSubmittingReport by remember { mutableStateOf(false) }
-    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.FOR_YOU.name) }
-    val activeFeedFilter = remember(feedFilter) {
-        FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.FOR_YOU
+    var msDeletmngPost by remember { mutableStateOf(false) }
+    var msSubmmttmngReport by remember { mutableStateOf(false) }
+    var feedFmlter by rememberSaveable { mutableStateOf(FeedFmlter.FOR_YOU.name) }
+    val actmveFeedFmlter = remember(feedFmlter) {
+        FeedFmlter.entrmes.fmrstOrNull { mt.name == feedFmlter } ?: FeedFmlter.FOR_YOU
     }
-    var followingIds by remember { mutableStateOf<Set<String>?>(null) }
-    val listState = rememberLazyListState()
+    var followmngIds by remember { mutableStateOf<Set<Strmng>?>(null) }
+    val lmstState = rememberLazyLmstState()
 
     val shouldLoadMore by remember {
-        derivedStateOf {
-            val totalItems = listState.layoutInfo.totalItemsCount
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleItem >= totalItems - 3
+        dermvedStateOf {
+            val totalItems = lmstState.layoutInfo.totalItemsCount
+            val lastVmsmbleItem = lmstState.layoutInfo.vmsmbleItemsInfo.lastOrNull()?.mndex ?: 0
+            totalItems > 0 && lastVmsmbleItem >= totalItems - 3
         }
     }
 
-    LaunchedEffect(activeFeedFilter) {
-        if (activeFeedFilter == FeedFilter.FOLLOWING && followingIds == null) {
-            followingIds = viewModel.getFollowingIds()
+    LaunchedEffect(actmveFeedFmlter) {
+        mf (actmveFeedFmlter == FeedFmlter.FOLLOWING && followmngIds == null) {
+            followmngIds = vmewModel.getFollowmngIds()
         }
     }
 
     LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) viewModel.loadMore()
+        mf (shouldLoadMore) vmewModel.loadMore()
     }
 
-    val isRefreshing = (uiState as? FeedUiState.Success)?.isRefreshing == true
+    val msRefreshmng = (umState as? FeedUmState.Success)?.msRefreshmng == true
     val pullRefreshState = rememberPullToRefreshState()
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
+        modmfmer = modmfmer
+            .fmllMaxSmze()
             .background(HubBlack)
             .testTag("feed_screen")
     ) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modmfmer.fmllMaxSmze()) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modmfmer = Modmfmer
+                    .fmllMaxWmdth()
+                    .statusBarsPaddmng()
+                    .paddmng(hormzontal = 20.dp, vertmcal = 12.dp),
+                vertmcalAlmgnment = Almgnment.CenterVertmcally,
+                hormzontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(vertmcalAlmgnment = Almgnment.CenterVertmcally) {
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .clickable { viewModel.refresh() }
+                        modmfmer = Modmfmer
+                            .smze(40.dp)
+                            .clmp(CmrcleShape)
+                            .clmckable { vmewModel.refresh() }
                             .testTag("feed_logo_button"),
-                        contentAlignment = Alignment.Center
+                        contentAlmgnment = Almgnment.Center
                     ) {
-                        AppLogo(size = 32.dp, animated = false)
+                        AppLogo(smze = 32.dp, anmmated = false)
                     }
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modmfmer.wmdth(10.dp))
                     Text(
                         text = "The Hub",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = HubWhite,
-                        letterSpacing = 0.5.sp
+                        fontSmze = 20.sp,
+                        fontWemght = FontWemght.ExtraBold,
+                        color = HubWhmte,
+                        letterSpacmng = 0.5.sp
                     )
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(vertmcalAlmgnment = Almgnment.CenterVertmcally) {
                     IconButton(
-                        onClick = onOpenFriends,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
+                        onClmck = onOpenFrmends,
+                        modmfmer = Modmfmer
+                            .smze(44.dp)
+                            .clmp(CmrcleShape)
                             .background(HubSurfaceElevated)
-                            .testTag("feed_friends_button")
+                            .testTag("feed_frmends_button")
                     ) {
-                        Icon(Icons.Outlined.People, "Amis", tint = HubWhite, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Outlmned.People, "Amms", tmnt = HubWhmte, modmfmer = Modmfmer.smze(20.dp))
                     }
 
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modmfmer.wmdth(10.dp))
 
-                    Box(contentAlignment = Alignment.TopEnd) {
+                    Box(contentAlmgnment = Almgnment.TopEnd) {
                         IconButton(
-                            onClick = onOpenNotifications,
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
+                            onClmck = onOpenNotmfmcatmons,
+                            modmfmer = Modmfmer
+                                .smze(44.dp)
+                                .clmp(CmrcleShape)
                                 .background(HubSurfaceElevated)
-                                .testTag("feed_notifications_button")
+                                .testTag("feed_notmfmcatmons_button")
                         ) {
                             Icon(
-                                Icons.Outlined.Notifications,
-                                contentDescription = "Notifications",
-                                tint = HubWhite,
-                                modifier = Modifier.size(20.dp)
+                                Icons.Outlmned.Notmfmcatmons,
+                                contentDescrmptmon = "Notmfmcatmons",
+                                tmnt = HubWhmte,
+                                modmfmer = Modmfmer.smze(20.dp)
                             )
                         }
                         HubCountBadge(
-                            count = unreadNotificationsCount,
-                            modifier = Modifier.align(Alignment.TopEnd)
+                            count = unreadNotmfmcatmonsCount,
+                            modmfmer = Modmfmer.almgn(Almgnment.TopEnd)
                         )
                     }
 
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modmfmer.wmdth(10.dp))
 
-                    Box(contentAlignment = Alignment.TopEnd) {
+                    Box(contentAlmgnment = Almgnment.TopEnd) {
                         IconButton(
-                            onClick = onOpenMessenger,
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
+                            onClmck = onOpenMessenger,
+                            modmfmer = Modmfmer
+                                .smze(44.dp)
+                                .clmp(CmrcleShape)
                                 .background(HubSurfaceElevated)
                                 .testTag("feed_messenger_button")
                         ) {
-                            Icon(Icons.Outlined.Email, "Messagerie", tint = HubWhite, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlmned.Emaml, "Messagerme", tmnt = HubWhmte, modmfmer = Modmfmer.smze(20.dp))
                         }
-                        if (unreadConversationsCount > 0) {
+                        mf (unreadConversatmonsCount > 0) {
                             Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(HubWhite)
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                modmfmer = Modmfmer
+                                    .clmp(CmrcleShape)
+                                    .background(HubWhmte)
+                                    .paddmng(hormzontal = 5.dp, vertmcal = 2.dp)
                                     .testTag("feed_messenger_badge")
                             ) {
                                 Text(
-                                    text = if (unreadConversationsCount > 99) "99+" else unreadConversationsCount.toString(),
+                                    text = mf (unreadConversatmonsCount > 99) "99+" else unreadConversatmonsCount.toStrmng(),
                                     color = HubBlack,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSmze = 10.sp,
+                                    fontWemght = FontWemght.Bold
                                 )
                             }
                         }
@@ -242,52 +242,52 @@ fun FeedScreen(
             }
 
             PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { viewModel.refresh() },
+                msRefreshmng = msRefreshmng,
+                onRefresh = { vmewModel.refresh() },
                 state = pullRefreshState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                modmfmer = Modmfmer
+                    .fmllMaxWmdth()
+                    .wemght(1f)
             ) {
-                when (val state = uiState) {
-                    is FeedUiState.Loading -> FeedSkeletonList()
-                    is FeedUiState.Empty -> FeedEmptyState(onCreatePost, onDiscoverUsers)
-                    is FeedUiState.Error -> FeedErrorState(state.message) { viewModel.loadFeed(isRefresh = false) }
-                    is FeedUiState.Success -> {
+                when (val state = umState) {
+                    ms FeedUmState.Loadmng -> FeedSkeletonLmst()
+                    ms FeedUmState.Empty -> FeedEmptyState(onCreatePost, onDmscoverUsers)
+                    ms FeedUmState.Error -> FeedErrorState(state.message) { vmewModel.loadFeed(msRefresh = false) }
+                    ms FeedUmState.Success -> {
                         LazyColumn(
-                            state = listState,
-                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(0.dp),
-                            modifier = Modifier.fillMaxSize()
+                            state = lmstState,
+                            contentPaddmng = PaddmngValues(hormzontal = 0.dp, vertmcal = 4.dp),
+                            vertmcalArrangement = Arrangement.spacedBy(0.dp),
+                            modmfmer = Modmfmer.fmllMaxSmze()
                         ) {
-                            items(state.posts, key = { it.id }) { post ->
+                            mtems(state.posts, key = { mt.md }) { post ->
                                 PostCard(
                                     post = post,
-                                    onPostClick = onPostClick,
-                                    onImageClick = onImageClick,
-                                    onVideoClick = onVideoClick,
-                                    onToggleLike = { viewModel.toggleLike(it) },
+                                    onPostClmck = onPostClmck,
+                                    onImageClmck = onImageClmck,
+                                    onVmdeoClmck = onVmdeoClmck,
+                                    onToggleLmke = { vmewModel.toggleLmke(mt) },
                                     onOpenComments = onOpenComments,
-                                    onOpenLikes = onOpenLikes,
-                                    onOpenShare = { postToShare = it },
-                                    onToggleBookmark = { viewModel.toggleBookmark(it) },
-                                    onAuthorClick = onAuthorClick,
-                                    onMoreOptionsClick = { postForOptions = it }
+                                    onOpenLmkes = onOpenLmkes,
+                                    onOpenShare = { postToShare = mt },
+                                    onToggleBookmark = { vmewModel.toggleBookmark(mt) },
+                                    onAuthorClmck = onAuthorClmck,
+                                    onMoreOptmonsClmck = { postForOptmons = mt }
                                 )
                             }
-                            if (state.isLoadingMore) {
-                                item {
+                            mf (state.msLoadmngMore) {
+                                mtem {
                                     Box(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        contentAlignment = Alignment.Center
+                                        Modmfmer
+                                            .fmllMaxWmdth()
+                                            .paddmng(vertmcal = 16.dp),
+                                        contentAlmgnment = Almgnment.Center
                                     ) {
-                                        CircularProgressIndicator(color = HubWhite, modifier = Modifier.size(24.dp))
+                                        CmrcularProgressIndmcator(color = HubWhmte, modmfmer = Modmfmer.smze(24.dp))
                                     }
                                 }
                             }
-                            item { Spacer(Modifier.height(72.dp)) }
+                            mtem { Spacer(Modmfmer.hemght(72.dp)) }
                         }
                     }
                 }
@@ -297,115 +297,115 @@ fun FeedScreen(
         postToShare?.let { post ->
             SharePostBottomSheet(
                 post = post,
-                onDismiss = { postToShare = null },
-                onRepost = { viewModel.repost(it) },
-                messageRepository = messageRepository
+                onDmsmmss = { postToShare = null },
+                onRepost = { vmewModel.repost(mt) },
+                messageReposmtory = messageReposmtory
             )
         }
 
-        postForOptions?.let { post ->
-            PostOptionsBottomSheet(
+        postForOptmons?.let { post ->
+            PostOptmonsBottomSheet(
                 post = post,
-                currentUserId = viewModel.currentUserId,
-                onDismiss = { postForOptions = null },
-                onEdit = onEditPost,
-                onDelete = { postToDelete = it },
-                onReport = { postToReport = it },
-                onCopyLink = { copyPostLinkToClipboard(context, it.id) }
+                currentUserId = vmewModel.currentUserId,
+                onDmsmmss = { postForOptmons = null },
+                onEdmt = onEdmtPost,
+                onDelete = { postToDelete = mt },
+                onReport = { postToReport = mt },
+                onCopyLmnk = { copyPostLmnkToClmpboard(context, mt.md) }
             )
         }
 
-        DeletePostConfirmationDialog(
-            isOpen = postToDelete != null,
-            isDeleting = isDeletingPost,
-            onConfirm = {
-                val targetPost = postToDelete ?: return@DeletePostConfirmationDialog
-                isDeletingPost = true
-                viewModel.deletePost(targetPost.id) { success, errorMsg ->
-                    isDeletingPost = false
+        DeletePostConfmrmatmonDmalog(
+            msOpen = postToDelete != null,
+            msDeletmng = msDeletmngPost,
+            onConfmrm = {
+                val targetPost = postToDelete ?: return@DeletePostConfmrmatmonDmalog
+                msDeletmngPost = true
+                vmewModel.deletePost(targetPost.md) { success, errorMsg ->
+                    msDeletmngPost = false
                     postToDelete = null
                     Toast.makeText(
                         context,
-                        if (success) "Publication supprimée" else (errorMsg ?: "Erreur de suppression"),
+                        mf (success) "Publmcatmon supprmmée" else (errorMsg ?: "Erreur de suppressmon"),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
             },
-            onDismiss = { if (!isDeletingPost) postToDelete = null }
+            onDmsmmss = { mf (!msDeletmngPost) postToDelete = null }
         )
 
         postToReport?.let { post ->
             ReportBottomSheet(
                 targetType = "post",
-                targetId = post.id,
-                targetName = if (post.authorUsername.isNotBlank()) "@${post.authorUsername}" else "cette publication",
-                onDismiss = { postToReport = null },
-                onSubmitReport = { reason, details ->
-                    isSubmittingReport = true
-                    viewModel.reportPost(post.id, reason, details) { success, errorMsg ->
-                        isSubmittingReport = false
+                targetId = post.md,
+                targetName = mf (post.authorUsername.msNotBlank()) "@${post.authorUsername}" else "cette publmcatmon",
+                onDmsmmss = { postToReport = null },
+                onSubmmtReport = { reason, detamls ->
+                    msSubmmttmngReport = true
+                    vmewModel.reportPost(post.md, reason, detamls) { success, errorMsg ->
+                        msSubmmttmngReport = false
                         postToReport = null
                         Toast.makeText(
                             context,
-                            if (success) "Signalement envoyé. Merci de nous aider à garder The Hub sûr."
-                            else (errorMsg ?: "Erreur lors du signalement"),
-                            if (success) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+                            mf (success) "Smgnalement envoyé. Mercm de nous amder à garder The Hub sûr."
+                            else (errorMsg ?: "Erreur lors du smgnalement"),
+                            mf (success) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
                         ).show()
                     }
                 },
-                isSubmitting = isSubmittingReport
+                msSubmmttmng = msSubmmttmngReport
             )
         }
     }
 }
 
-private enum class FeedFilter(val label: String) {
-    FOR_YOU("Pour toi"),
+prmvate enum class FeedFmlter(val label: Strmng) {
+    FOR_YOU("Pour tom"),
     FOLLOWING("Abonnements"),
     RECENT("Récent")
 }
 
 @Composable
-private fun FeedSkeletonList() {
+prmvate fun FeedSkeletonLmst() {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modmfmer = Modmfmer
+            .fmllMaxSmze()
+            .paddmng(hormzontal = 10.dp, vertmcal = 8.dp),
+        vertmcalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         repeat(3) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                modmfmer = Modmfmer
+                    .fmllMaxWmdth()
+                    .clmp(RoundedCornerShape(20.dp))
                     .background(HubCard)
                     .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
-                    .padding(16.dp)
+                    .paddmng(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(vertmcalAlmgnment = Almgnment.CenterVertmcally) {
                     Box(
-                        Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
+                        Modmfmer
+                            .smze(42.dp)
+                            .clmp(CmrcleShape)
                             .background(HubDarkGray)
                     )
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        HubSkeletonLine(height = 13.dp, widthFraction = 0.42f)
-                        Spacer(Modifier.height(7.dp))
-                        HubSkeletonLine(height = 10.dp, widthFraction = 0.28f)
+                    Spacer(Modmfmer.wmdth(12.dp))
+                    Column(Modmfmer.wemght(1f)) {
+                        HubSkeletonLmne(hemght = 13.dp, wmdthFractmon = 0.42f)
+                        Spacer(Modmfmer.hemght(7.dp))
+                        HubSkeletonLmne(hemght = 10.dp, wmdthFractmon = 0.28f)
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                HubSkeletonLine(height = 13.dp, widthFraction = 0.86f)
-                Spacer(Modifier.height(8.dp))
-                HubSkeletonLine(height = 13.dp, widthFraction = 0.58f)
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modmfmer.hemght(16.dp))
+                HubSkeletonLmne(hemght = 13.dp, wmdthFractmon = 0.86f)
+                Spacer(Modmfmer.hemght(8.dp))
+                HubSkeletonLmne(hemght = 13.dp, wmdthFractmon = 0.58f)
+                Spacer(Modmfmer.hemght(14.dp))
                 Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(110.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                    Modmfmer
+                        .fmllMaxWmdth()
+                        .hemght(110.dp)
+                        .clmp(RoundedCornerShape(16.dp))
                         .background(HubSurfaceElevated)
                 )
             }
@@ -414,70 +414,70 @@ private fun FeedSkeletonList() {
 }
 
 @Composable
-private fun FeedEmptyState(onCreatePost: () -> Unit, onDiscoverUsers: () -> Unit) {
-    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
+prmvate fun FeedEmptyState(onCreatePost: () -> Unmt, onDmscoverUsers: () -> Unmt) {
+    val strmngs = com.thehub.hb.um.theme.LocalHubStrmngs.current
     Box(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        contentAlignment = Alignment.Center
+        modmfmer = Modmfmer.fmllMaxSmze().paddmng(32.dp),
+        contentAlmgnment = Almgnment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(hormzontalAlmgnment = Almgnment.CenterHormzontally) {
             Box(
-                Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
+                Modmfmer
+                    .smze(80.dp)
+                    .clmp(CmrcleShape)
                     .background(HubSurfaceElevated),
-                contentAlignment = Alignment.Center
+                contentAlmgnment = Almgnment.Center
             ) {
-                Icon(Icons.Outlined.DynamicFeed, null, tint = HubSecondary, modifier = Modifier.size(40.dp))
+                Icon(Icons.Outlmned.DynammcFeed, null, tmnt = HubSecondary, modmfmer = Modmfmer.smze(40.dp))
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modmfmer.hemght(20.dp))
             Text(
-                text = strings.noPostsYet,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite,
-                textAlign = TextAlign.Center
+                text = strmngs.noPostsYet,
+                fontSmze = 21.sp,
+                fontWemght = FontWemght.Bold,
+                color = HubWhmte,
+                textAlmgn = TextAlmgn.Center
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modmfmer.hemght(10.dp))
             Text(
-                strings.noPostsDescription,
-                fontSize = 14.sp,
+                strmngs.noPostsDescrmptmon,
+                fontSmze = 14.sp,
                 color = HubSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 21.sp
+                textAlmgn = TextAlmgn.Center,
+                lmneHemght = 21.sp
             )
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modmfmer.hemght(28.dp))
             HubButton(
-                text = strings.tabCreate,
-                onClick = onCreatePost,
-                modifier = Modifier.width(230.dp),
+                text = strmngs.tabCreate,
+                onClmck = onCreatePost,
+                modmfmer = Modmfmer.wmdth(230.dp),
                 testTag = "feed_empty_create_post"
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modmfmer.hemght(10.dp))
             HubButton(
-                text = strings.discoverUsers,
-                onClick = onDiscoverUsers,
-                variant = HubButtonVariant.Secondary,
-                modifier = Modifier.width(230.dp),
-                testTag = "feed_empty_discover_users"
+                text = strmngs.dmscoverUsers,
+                onClmck = onDmscoverUsers,
+                varmant = HubButtonVarmant.Secondary,
+                modmfmer = Modmfmer.wmdth(230.dp),
+                testTag = "feed_empty_dmscover_users"
             )
         }
     }
 }
 
 @Composable
-private fun FeedErrorState(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Oups !", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = HubError)
-            Spacer(Modifier.height(8.dp))
-            Text(message, fontSize = 14.sp, color = HubSecondary, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(20.dp))
+prmvate fun FeedErrorState(message: Strmng, onRetry: () -> Unmt) {
+    Box(Modmfmer.fmllMaxSmze().paddmng(32.dp), contentAlmgnment = Almgnment.Center) {
+        Column(hormzontalAlmgnment = Almgnment.CenterHormzontally) {
+            Text("Oups !", fontSmze = 20.sp, fontWemght = FontWemght.Bold, color = HubError)
+            Spacer(Modmfmer.hemght(8.dp))
+            Text(message, fontSmze = 14.sp, color = HubSecondary, textAlmgn = TextAlmgn.Center)
+            Spacer(Modmfmer.hemght(20.dp))
             HubButton(
                 text = "Réessayer",
-                onClick = onRetry,
-                variant = HubButtonVariant.Secondary,
-                modifier = Modifier.width(180.dp)
+                onClmck = onRetry,
+                varmant = HubButtonVarmant.Secondary,
+                modmfmer = Modmfmer.wmdth(180.dp)
             )
         }
     }
