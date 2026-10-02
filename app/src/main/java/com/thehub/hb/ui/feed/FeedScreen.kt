@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +62,7 @@ import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubEmptyState
 import com.thehub.hb.ui.components.HubPill
+import com.thehub.hb.ui.components.HubCountBadge
 import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
@@ -88,6 +90,8 @@ fun FeedScreen(
     onOpenLikes: (String) -> Unit,
     onCreatePost: () -> Unit,
     onOpenMessenger: () -> Unit,
+    onOpenNotifications: () -> Unit = {},
+    unreadNotificationsCount: Int = 0,
     onOpenFriends: () -> Unit = {},
     onDiscoverUsers: () -> Unit = {},
     onAuthorClick: ((String) -> Unit)? = null,
@@ -178,6 +182,30 @@ fun FeedScreen(
                             .testTag("feed_friends_button")
                     ) {
                         Icon(Icons.Outlined.People, "Amis", tint = HubWhite, modifier = Modifier.size(20.dp))
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Box(contentAlignment = Alignment.TopEnd) {
+                        IconButton(
+                            onClick = onOpenNotifications,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(HubSurfaceElevated)
+                                .testTag("feed_notifications_button")
+                        ) {
+                            Icon(
+                                Icons.Outlined.Notifications,
+                                contentDescription = "Notifications",
+                                tint = HubWhite,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        HubCountBadge(
+                            count = unreadNotificationsCount,
+                            modifier = Modifier.align(Alignment.TopEnd)
+                        )
                     }
 
                     Spacer(Modifier.width(10.dp))
