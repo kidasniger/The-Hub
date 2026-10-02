@@ -45,7 +45,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -112,8 +111,6 @@ fun ProfileScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToEditProfile: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    unreadNotificationsCount: Int = 0,
-    onOpenNotifications: () -> Unit = {},
     onNavigateToBookmarks: () -> Unit = {},
     onNavigateToFollowers: (String) -> Unit,
     onNavigateToFollowing: (String) -> Unit,
@@ -174,9 +171,7 @@ fun ProfileScreen(
                 onNavigateBack = onNavigateBack,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToBookmarks = onNavigateToBookmarks,
-                onMenuClick = { showMenu = true },
-                unreadNotificationsCount = unreadNotificationsCount,
-                onOpenNotifications = onOpenNotifications
+                onMenuClick = { showMenu = true }
             )
 
             // Dropdown Menu for Other User
@@ -473,8 +468,6 @@ private fun ProfileTopBar(
     isBottomTab: Boolean,
     onNavigateBack: (() -> Unit)?,
     onNavigateToSettings: () -> Unit,
-    unreadNotificationsCount: Int = 0,
-    onOpenNotifications: () -> Unit = {},
     onNavigateToBookmarks: () -> Unit,
     onMenuClick: () -> Unit
 ) {
@@ -508,20 +501,6 @@ private fun ProfileTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-
-        Box(contentAlignment = Alignment.TopEnd) {
-            IconButton(
-                onClick = onOpenNotifications,
-                modifier = Modifier.testTag("profile_notifications_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Notifications,
-                    contentDescription = "Notifications",
-                    tint = HubWhite
-                )
-            }
-
-        }
 
         if (isOwnProfile) {
             IconButton(
