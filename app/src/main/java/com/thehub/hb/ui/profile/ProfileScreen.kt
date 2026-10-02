@@ -311,7 +311,7 @@ fun ProfileScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                                            .padding(horizontal = 16.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
@@ -658,11 +658,11 @@ private fun ProfileHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .background(HubSurfaceElevated)
-                    .border(1.dp, HubBorder, RoundedCornerShape(10.dp))
+                    .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
                     .clickable(onClick = onEditProfile)
-                    .padding(vertical = 10.dp)
+                    .padding(vertical = 13.dp)
                     .testTag("edit_profile_button"),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
@@ -705,8 +705,8 @@ private fun ProfileHeader(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(HubSurfaceElevated)
                             .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                             .clickable(onClick = onSendMessage)
@@ -733,8 +733,8 @@ private fun ProfileHeader(
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = HubError.copy(alpha = 0.08f),
                         border = androidx.compose.foundation.BorderStroke(1.dp, HubError.copy(alpha = 0.45f))
                     ) {
@@ -773,9 +773,10 @@ private fun StatItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(HubSurfaceElevated.copy(alpha = 0.5f))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
             .testTag(testTag)
     ) {
         Text(
