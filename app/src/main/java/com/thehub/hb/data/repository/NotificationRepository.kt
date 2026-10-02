@@ -75,12 +75,12 @@ class NotificationRepository(
      * The token is stored under the authenticated user and identified by a
      * one-way SHA-256 document id so the raw token is never used as a path.
      */
-    suspend fun registerCurrentFcmToken(): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun registerCurrentFcmToken(tokenOverride: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
         val uid = currentUserId
             ?: return@withContext Result.success(Unit)
 
         try {
-            val token = FirebaseMessaging.getInstance().token.await()
+            val token = tokenOverride?.trim()?.takeIf { it.isNotBlank() }\n                ?: FirebaseMessaging.getInstance().token.await()
             if (auth.currentUser?.uid != uid) {
                 return@withContext Result.success(Unit)
             }
