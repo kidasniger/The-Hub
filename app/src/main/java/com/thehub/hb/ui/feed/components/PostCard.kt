@@ -83,7 +83,13 @@ fun PostCard(
         label = "post_like_scale"
     )
 
-    Column(\n        modifier = modifier\n            .fillMaxWidth()\n            .padding(horizontal = 8.dp, vertical = 6.dp)\n            .clip(RoundedCornerShape(20.dp))\n            .background(HubCard)\n            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(HubCard)
+            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = HubDarkGray),
