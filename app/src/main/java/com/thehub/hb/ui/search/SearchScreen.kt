@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -348,6 +349,7 @@ private fun SearchBarHeader(
     onClearQuery: () -> Unit,
     onSearchSubmit: () -> Unit
 ) {
+    var focused by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -356,10 +358,10 @@ private fun SearchBarHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(HubSurfaceDark)
-                .border(1.dp, HubBorder, RoundedCornerShape(24.dp))
+                .height(52.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(HubSurfaceElevated)
+                .border(1.dp, if (focused) HubWhite.copy(alpha = 0.45f) else HubBorder, RoundedCornerShape(18.dp))
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -377,6 +379,7 @@ private fun SearchBarHeader(
                 onValueChange = onQueryChanged,
                 modifier = Modifier
                     .weight(1f)
+                    .onFocusChanged { focused = it.isFocused }
                     .testTag("search_input_field"),
                 textStyle = TextStyle(
                     color = HubWhite,
@@ -407,7 +410,7 @@ private fun SearchBarHeader(
                 IconButton(
                     onClick = onClearQuery,
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(40.dp)
                         .testTag("clear_search_button")
                 ) {
                     Icon(
