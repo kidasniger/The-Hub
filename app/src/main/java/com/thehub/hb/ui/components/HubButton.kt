@@ -3,6 +3,7 @@ package com.thehub.hb.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -10,6 +11,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -21,6 +23,8 @@ import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.HubBlue
+import com.thehub.hb.ui.theme.HubViolet
 
 enum class HubButtonVariant {
     Primary,
@@ -51,10 +55,10 @@ fun HubButton(
                 shape = shape,
                 enabled = enabled && !isLoading,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = HubWhite,
-                    contentColor = HubBlack,
-                    disabledContainerColor = if (isLoading) HubWhite else HubSurfaceElevated,
-                    disabledContentColor = if (isLoading) HubBlack else HubMuted
+                    containerColor = HubViolet,
+                    contentColor = Color.White,
+                    disabledContainerColor = HubSurfaceElevated,
+                    disabledContentColor = HubMuted
                 )
             ) {
                 if (isLoading) {
