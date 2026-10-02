@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.tasks.await
 
 // Push isolation: validate every incoming notification against the active Firebase UID.
@@ -36,6 +37,12 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
