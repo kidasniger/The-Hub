@@ -658,6 +658,8 @@ class MessageRepository(
         var username = "utilisateur"
         var displayName: String? = null
         var photoUrl: String? = null
+        var isVerified = false
+        var verificationType: String? = null
 
         try {
             val doc = firestore.collection("users").document(userId).get().await()
@@ -668,6 +670,8 @@ class MessageRepository(
                 if (!dbUsername.isNullOrBlank()) username = dbUsername
                 if (!dbDisplayName.isNullOrBlank()) displayName = dbDisplayName
                 if (!dbPhoto.isNullOrBlank()) photoUrl = dbPhoto
+                isVerified = doc.getBoolean("isVerified") == true
+                verificationType = doc.getString("verificationType")
             } else {
                 val authUser = auth.currentUser
                 if (authUser != null && authUser.uid == userId) {
@@ -683,7 +687,9 @@ class MessageRepository(
         return ParticipantInfo(
             username = username,
             displayName = displayName,
-            photoUrl = photoUrl
+            photoUrl = photoUrl,
+            isVerified = isVerified,
+            verificationType = verificationType
         )
     }
 
