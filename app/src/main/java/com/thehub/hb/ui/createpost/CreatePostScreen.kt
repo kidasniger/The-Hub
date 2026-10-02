@@ -98,8 +98,7 @@ fun CreatePostScreen(
     var textFieldFocused by remember { mutableStateOf(false) }
     var showVideoDialog by remember { mutableStateOf(false) }
     var videoDialogUrl by remember { mutableStateOf("") }
-    var videoDialogError by remember { mutableStateOf<String?>(null) }
-
+    var videoDialogError by remember { mutableStateOf<String?>(null) }\n    var showDiscardDialog by remember { mutableStateOf(false) }\n
     // Native Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -139,8 +138,7 @@ fun CreatePostScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
-                    onClick = onNavigateBack,
+                IconButton(\n                    onClick = {\n                        if (uiState.text.isNotBlank() || uiState.selectedImageUri != null || !uiState.videoUrl.isNullOrBlank()) {\n                            showDiscardDialog = true\n                        } else {\n                            onNavigateBack()\n                        }\n                    },
                     modifier = Modifier.testTag("create_post_back_button")
                 ) {
                     Icon(
@@ -172,8 +170,7 @@ fun CreatePostScreen(
                         disabledContentColor = if (uiState.isLoading) HubBlack else HubMuted
                     ),
                     modifier = Modifier
-                        .height(36.dp)
-                        .testTag("create_post_publish_button")
+                        .height(44.dp)\n                        .testTag("create_post_publish_button")
                 ) {
                     if (uiState.isLoading) {
                         AppLogo(
@@ -261,7 +258,7 @@ fun CreatePostScreen(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Text(
-                        text = "${uiState.charCount} caractères",
+                        text = if (uiState.charCount == 0) "Prêt à publier" else "${uiState.charCount} caractères",
                         fontSize = 12.sp,
                         color = HubMuted,
                         fontWeight = FontWeight.Normal,
@@ -413,6 +410,38 @@ fun CreatePostScreen(
                     }
                 }
             }
+        if (showDiscardDialog) {
+            AlertDialog(
+                onDismissRequest = { showDiscardDialog = false },
+                title = { Text("Quitter sans publier ?", color = HubWhite) },
+                text = {
+                    Text(
+                        "Ta publication en cours sera perdue si tu quittes maintenant.",
+                        color = HubSecondary,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDiscardDialog = false
+                            onNavigateBack()
+                        },
+                        modifier = Modifier.testTag("create_post_discard_confirm")
+                    ) {
+                        Text("Quitter", color = HubError, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscardDialog = false }) {
+                        Text("Continuer", color = HubWhite)
+                    }
+                },
+                containerColor = HubSurfaceElevated
+            )
+        }
+
         if (showVideoDialog) {
             AlertDialog(
                 onDismissRequest = { showVideoDialog = false },
