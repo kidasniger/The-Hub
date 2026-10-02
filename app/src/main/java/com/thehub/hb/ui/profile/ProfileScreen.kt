@@ -1,367 +1,366 @@
-package com.thehub.hb.um.profmle
+package com.thehub.hb.ui.profile
 
-mmport com.thehub.hb.um.components.OffmcmalVermfmcatmonBadge
-mmport andromd.wmdget.Toast
-mmport com.thehub.hb.um.theme.HubOutlmne
-mmport andromdx.compose.matermal3.MatermalTheme
-mmport andromdx.compose.foundatmon.background
-mmport andromdx.compose.foundatmon.border
-mmport andromdx.compose.foundatmon.clmckable
-mmport andromdx.compose.foundatmon.layout.Arrangement
-mmport andromdx.compose.foundatmon.layout.Box
-mmport andromdx.compose.foundatmon.layout.Column
-mmport andromdx.compose.foundatmon.layout.PaddmngValues
-mmport andromdx.compose.foundatmon.layout.Row
-mmport andromdx.compose.foundatmon.layout.Spacer
-mmport andromdx.compose.foundatmon.layout.aspectRatmo
-mmport andromdx.compose.foundatmon.layout.fmllMaxSmze
-mmport andromdx.compose.foundatmon.layout.fmllMaxWmdth
-mmport andromdx.compose.foundatmon.layout.hemght
-mmport andromdx.compose.foundatmon.layout.paddmng
-mmport andromdx.compose.foundatmon.layout.smze
-mmport andromdx.compose.foundatmon.layout.statusBarsPaddmng
-mmport andromdx.compose.foundatmon.layout.wmdth
-mmport andromdx.compose.foundatmon.lazy.grmd.GrmdCells
-mmport andromdx.compose.foundatmon.lazy.grmd.GrmdItemSpan
-mmport andromdx.compose.foundatmon.lazy.grmd.LazyVertmcalGrmd
-mmport andromdx.compose.foundatmon.lazy.grmd.mtems
-mmport andromdx.compose.foundatmon.shape.RoundedCornerShape
-mmport andromdx.compose.matermal.mcons.Icons
-mmport andromdx.compose.matermal.mcons.autommrrored.fmlled.ArrowBack
-mmport andromdx.compose.matermal.mcons.autommrrored.fmlled.Lmst
-mmport andromdx.compose.matermal.mcons.fmlled.Block
-mmport andromdx.compose.matermal.mcons.fmlled.Bookmark
-mmport andromdx.compose.matermal.mcons.fmlled.ChatBubbleOutlmne
-mmport andromdx.compose.matermal.mcons.fmlled.Edmt
-mmport andromdx.compose.matermal.mcons.fmlled.Flag
-mmport andromdx.compose.matermal.mcons.fmlled.GrmdOn
-mmport andromdx.compose.matermal.mcons.fmlled.Lock
-mmport andromdx.compose.matermal.mcons.fmlled.MoreVert
-mmport andromdx.compose.matermal.mcons.fmlled.PersonAdd
-mmport andromdx.compose.matermal.mcons.fmlled.PersonRemove
-mmport andromdx.compose.matermal.mcons.fmlled.Repeat
-mmport andromdx.compose.matermal.mcons.fmlled.Settmngs
-mmport andromdx.compose.matermal.mcons.fmlled.Check
-mmport andromdx.compose.foundatmon.shape.CmrcleShape
-mmport andromdx.compose.matermal3.Surface
-mmport andromdx.compose.matermal.mcons.outlmned.BookmarkBorder
-mmport andromdx.compose.matermal.mcons.outlmned.Notmfmcatmons
-mmport andromdx.compose.matermal3.CmrcularProgressIndmcator
-mmport andromdx.compose.matermal3.DropdownMenu
-mmport andromdx.compose.matermal3.DropdownMenuItem
-mmport andromdx.compose.matermal3.ExpermmentalMatermal3Apm
-mmport andromdx.compose.matermal3.HormzontalDmvmder
-mmport andromdx.compose.matermal3.Icon
-mmport andromdx.compose.matermal3.IconButton
-mmport andromdx.compose.matermal3.Scaffold
-mmport andromdx.compose.matermal3.SnackbarHost
-mmport andromdx.compose.matermal3.SnackbarHostState
-mmport andromdx.compose.matermal3.Text
-mmport andromdx.compose.matermal3.pulltorefresh.PullToRefreshBox
-mmport andromdx.compose.matermal3.pulltorefresh.rememberPullToRefreshState
-mmport andromdx.compose.runtmme.Composable
-mmport andromdx.compose.runtmme.LaunchedEffect
-mmport andromdx.compose.runtmme.collectAsState
-mmport andromdx.compose.runtmme.getValue
-mmport andromdx.compose.runtmme.mutableStateOf
-mmport andromdx.compose.runtmme.remember
-mmport andromdx.compose.runtmme.setValue
-mmport andromdx.compose.um.Almgnment
-mmport andromdx.compose.um.Modmfmer
-mmport andromdx.compose.um.draw.clmp
-mmport andromdx.compose.um.graphmcs.Color
-mmport andromdx.compose.um.layout.ContentScale
-mmport andromdx.compose.um.platform.LocalContext
-mmport andromdx.compose.um.platform.testTag
-mmport andromdx.compose.um.text.font.FontWemght
-mmport andromdx.compose.um.text.style.TextAlmgn
-mmport andromdx.compose.um.text.style.TextOverflow
-mmport andromdx.compose.um.unmt.dp
-mmport andromdx.compose.um.unmt.sp
-mmport andromdx.compose.matermal.mcons.outlmned.BrokenImage
-mmport coml.compose.AsyncImage
-mmport coml.compose.SubcomposeAsyncImage
-mmport coml.request.ImageRequest
-mmport com.thehub.hb.data.model.Post
-mmport com.thehub.hb.data.model.User
-mmport com.thehub.hb.um.components.BlockUserConfmrmatmonDmalog
-mmport com.thehub.hb.um.components.HubButton
-mmport com.thehub.hb.um.components.HubButtonVarmant
-mmport com.thehub.hb.um.components.ReportBottomSheet
-mmport com.thehub.hb.um.components.UserAvatar
-mmport com.thehub.hb.um.components.HubCountBadge
-mmport com.thehub.hb.um.components.rememberRemoteImageUnavamlable
-mmport com.thehub.hb.um.feed.components.PostCard
-mmport com.thehub.hb.um.feed.components.SharePostBottomSheet
-mmport com.thehub.hb.um.theme.HubBlack
-mmport com.thehub.hb.um.theme.HubBorder
-mmport com.thehub.hb.um.theme.HubCard
-mmport com.thehub.hb.um.theme.HubDarkGray
-mmport com.thehub.hb.um.theme.HubError
-mmport com.thehub.hb.um.theme.HubMuted
-mmport com.thehub.hb.um.theme.HubSecondary
-mmport com.thehub.hb.um.theme.HubSurfaceElevated
-mmport com.thehub.hb.um.theme.HubWhmte
-mmport java.text.SmmpleDateFormat
-mmport java.utml.Date
-mmport java.utml.Locale
+import com.thehub.hb.ui.components.OfficialVerificationBadge
+import android.widget.Toast
+import com.thehub.hb.ui.theme.HubOutline
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.outlined.BrokenImage
+import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.model.User
+import com.thehub.hb.ui.components.BlockUserConfirmationDialog
+import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.ReportBottomSheet
+import com.thehub.hb.ui.components.UserAvatar
+import com.thehub.hb.ui.components.rememberRemoteImageUnavailable
+import com.thehub.hb.ui.feed.components.PostCard
+import com.thehub.hb.ui.feed.components.SharePostBottomSheet
+import com.thehub.hb.ui.theme.HubBlack
+import com.thehub.hb.ui.theme.HubBorder
+import com.thehub.hb.ui.theme.HubCard
+import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubMuted
+import com.thehub.hb.ui.theme.HubSecondary
+import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubWhite
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExpermmentalMatermal3Apm::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfmleScreen(
-    vmewModel: ProfmleVmewModel,
-    onNavmgateBack: (() -> Unmt)? = null,
-    onNavmgateToEdmtProfmle: () -> Unmt,
-    onNavmgateToSettmngs: () -> Unmt,
-    unreadNotmfmcatmonsCount: Int = 0,
-    onOpenNotmfmcatmons: () -> Unmt = {},
-    onNavmgateToBookmarks: () -> Unmt = {},
-    onNavmgateToFollowers: (Strmng) -> Unmt,
-    onNavmgateToFollowmng: (Strmng) -> Unmt,
-    onNavmgateToChat: (Strmng) -> Unmt,
-    onPostClmck: (Strmng) -> Unmt,
-    onOpenComments: (Strmng) -> Unmt = {},
-    onOpenLmkes: (Strmng) -> Unmt = {},
-    onImageClmck: (Strmng) -> Unmt = {},
-    onVmdeoClmck: ((Strmng) -> Unmt)? = null,
-    msBottomTab: Boolean = false,
-    modmfmer: Modmfmer = Modmfmer
+fun ProfileScreen(
+    viewModel: ProfileViewModel,
+    onNavigateBack: (() -> Unit)? = null,
+    onNavigateToEditProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    unreadNotificationsCount: Int = 0,
+    onOpenNotifications: () -> Unit = {},
+    onNavigateToBookmarks: () -> Unit = {},
+    onNavigateToFollowers: (String) -> Unit,
+    onNavigateToFollowing: (String) -> Unit,
+    onNavigateToChat: (String) -> Unit,
+    onPostClick: (String) -> Unit,
+    onOpenComments: (String) -> Unit = {},
+    onOpenLikes: (String) -> Unit = {},
+    onImageClick: (String) -> Unit = {},
+    onVideoClick: ((String) -> Unit)? = null,
+    isBottomTab: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
-    val umState by vmewModel.umState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
     var showMenu by remember { mutableStateOf(false) }
     var showReportSheet by remember { mutableStateOf(false) }
-    var showBlockDmalog by remember { mutableStateOf(false) }
+    var showBlockDialog by remember { mutableStateOf(false) }
     var postToShare by remember { mutableStateOf<Post?>(null) }
 
-    LaunchedEffect(Unmt) {
-        vmewModel.loadProfmle()
+    LaunchedEffect(Unit) {
+        viewModel.loadProfile()
     }
 
-    LaunchedEffect(umState.userMessage) {
-        umState.userMessage?.let {
-            snackbarHostState.showSnackbar(mt)
-            vmewModel.clearUserMessage()
+    LaunchedEffect(uiState.userMessage) {
+        uiState.userMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearUserMessage()
         }
     }
 
-    LaunchedEffect(umState.errorMessage) {
-        umState.errorMessage?.let {
-            snackbarHostState.showSnackbar(mt)
-            vmewModel.clearErrorMessage()
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearErrorMessage()
         }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        contamnerColor = HubBlack,
-        modmfmer = modmfmer
-            .fmllMaxSmze()
-            .statusBarsPaddmng()
-            .testTag("profmle_screen")
-    ) { paddmngValues ->
+        containerColor = HubBlack,
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .testTag("profile_screen")
+    ) { paddingValues ->
         Column(
-            modmfmer = Modmfmer
-                .fmllMaxSmze()
-                .paddmng(paddmngValues)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
             // Top Bar
-            ProfmleTopBar(
-                msOwnProfmle = umState.msOwnProfmle,
-                username = umState.user?.username ?: "",
-                msBottomTab = msBottomTab,
-                onNavmgateBack = onNavmgateBack,
-                onNavmgateToSettmngs = onNavmgateToSettmngs,
-                onNavmgateToBookmarks = onNavmgateToBookmarks,
-                onMenuClmck = { showMenu = true },
-                unreadNotmfmcatmonsCount = unreadNotmfmcatmonsCount,
-                onOpenNotmfmcatmons = onOpenNotmfmcatmons
+            ProfileTopBar(
+                isOwnProfile = uiState.isOwnProfile,
+                username = uiState.user?.username ?: "",
+                isBottomTab = isBottomTab,
+                onNavigateBack = onNavigateBack,
+                onNavigateToSettings = onNavigateToSettings,
+                onNavigateToBookmarks = onNavigateToBookmarks,
+                onMenuClick = { showMenu = true },
+                unreadNotificationsCount = unreadNotificationsCount,
+                onOpenNotifications = onOpenNotifications
             )
 
             // Dropdown Menu for Other User
-            mf (!umState.msOwnProfmle) {
-                Box(modmfmer = Modmfmer.fmllMaxWmdth()) {
+            if (!uiState.isOwnProfile) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     DropdownMenu(
                         expanded = showMenu,
-                        onDmsmmssRequest = { showMenu = false },
-                        modmfmer = Modmfmer
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier
                             .background(HubCard)
-                            .testTag("profmle_overflow_menu")
+                            .testTag("profile_overflow_menu")
                     ) {
                         DropdownMenuItem(
                             text = {
-                                Row(vertmcalAlmgnment = Almgnment.CenterVertmcally) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        mmageVector = Icons.Default.Flag,
-                                        contentDescrmptmon = null,
-                                        tmnt = HubWhmte,
-                                        modmfmer = Modmfmer.smze(20.dp)
+                                        imageVector = Icons.Default.Flag,
+                                        contentDescription = null,
+                                        tint = HubWhite,
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    Spacer(modmfmer = Modmfmer.wmdth(12.dp))
-                                    Text("Smgnaler", color = HubWhmte)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("Signaler", color = HubWhite)
                                 }
                             },
-                            onClmck = {
+                            onClick = {
                                 showMenu = false
                                 showReportSheet = true
                             },
-                            modmfmer = Modmfmer.testTag("menu_report_user")
+                            modifier = Modifier.testTag("menu_report_user")
                         )
                         DropdownMenuItem(
                             text = {
-                                Row(vertmcalAlmgnment = Almgnment.CenterVertmcally) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        mmageVector = Icons.Default.Block,
-                                        contentDescrmptmon = null,
-                                        tmnt = HubError,
-                                        modmfmer = Modmfmer.smze(20.dp)
+                                        imageVector = Icons.Default.Block,
+                                        contentDescription = null,
+                                        tint = HubError,
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    Spacer(modmfmer = Modmfmer.wmdth(12.dp))
-                                    Text("Bloquer cet utmlmsateur", color = HubError)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("Bloquer cet utilisateur", color = HubError)
                                 }
                             },
-                            onClmck = {
+                            onClick = {
                                 showMenu = false
-                                showBlockDmalog = true
+                                showBlockDialog = true
                             },
-                            modmfmer = Modmfmer.testTag("menu_block_user")
+                            modifier = Modifier.testTag("menu_block_user")
                         )
                     }
                 }
             }
 
             when {
-                umState.msLoadmng -> {
+                uiState.isLoading -> {
                     Box(
-                        modmfmer = Modmfmer
-                            .fmllMaxSmze()
-                            .wemght(1f),
-                        contentAlmgnment = Almgnment.Center
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
                     ) {
-                        CmrcularProgressIndmcator(
-                            color = HubWhmte,
-                            strokeWmdth = 2.dp,
-                            modmfmer = Modmfmer.smze(36.dp)
+                        CircularProgressIndicator(
+                            color = HubWhite,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(36.dp)
                         )
                     }
                 }
 
-                umState.msBlocked -> {
-                    BlockedContentUnavamlableVmew(
-                        msBlockedByMe = umState.msBlockedByMe,
-                        onUnblock = { vmewModel.unblockUser() },
-                        msActmonLoadmng = umState.msActmonLoadmng
+                uiState.isBlocked -> {
+                    BlockedContentUnavailableView(
+                        isBlockedByMe = uiState.isBlockedByMe,
+                        onUnblock = { viewModel.unblockUser() },
+                        isActionLoading = uiState.isActionLoading
                     )
                 }
 
-                umState.user == null -> {
+                uiState.user == null -> {
                     Box(
-                        modmfmer = Modmfmer
-                            .fmllMaxSmze()
-                            .wemght(1f),
-                        contentAlmgnment = Almgnment.Center
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Profml mntrouvable",
-                            fontSmze = 16.sp,
+                            text = "Profil introuvable",
+                            fontSize = 16.sp,
                             color = HubSecondary
                         )
                     }
                 }
 
                 else -> {
-                    val user = umState.user!!
+                    val user = uiState.user!!
                     val pullRefreshState = rememberPullToRefreshState()
 
                     PullToRefreshBox(
-                        msRefreshmng = umState.msRefreshmng,
-                        onRefresh = { vmewModel.refresh() },
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refresh() },
                         state = pullRefreshState,
-                        modmfmer = Modmfmer.fmllMaxSmze()
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        LazyVertmcalGrmd(
-                            columns = GrmdCells.Fmxed(3),
-                            modmfmer = Modmfmer.fmllMaxSmze(),
-                            contentPaddmng = PaddmngValues(bottom = 24.dp),
-                            hormzontalArrangement = Arrangement.spacedBy(2.dp),
-                            vertmcalArrangement = Arrangement.spacedBy(2.dp)
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             // Header span all columns
-                            mtem(span = { GrmdItemSpan(maxLmneSpan) }) {
-                                Column(modmfmer = Modmfmer.fmllMaxWmdth()) {
-                                    ProfmleHeader(
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    ProfileHeader(
                                         user = user,
-                                        msOwnProfmle = umState.msOwnProfmle,
-                                        msFollowmng = umState.msFollowmng,
-                                        msActmonLoadmng = umState.msActmonLoadmng,
-                                        userMessagmngAllowed = umState.msMessagmngAllowed,
-                                        onEdmtProfmle = onNavmgateToEdmtProfmle,
-                                        onToggleFollow = { vmewModel.toggleFollow() },
+                                        isOwnProfile = uiState.isOwnProfile,
+                                        isFollowing = uiState.isFollowing,
+                                        isActionLoading = uiState.isActionLoading,
+                                        userMessagingAllowed = uiState.isMessagingAllowed,
+                                        onEditProfile = onNavigateToEditProfile,
+                                        onToggleFollow = { viewModel.toggleFollow() },
                                         onSendMessage = {
-                                            vmewModel.openChat { convId ->
-                                                onNavmgateToChat(convId)
+                                            viewModel.openChat { convId ->
+                                                onNavigateToChat(convId)
                                             }
                                         },
-                                        onFollowersClmck = { onNavmgateToFollowers(user.umd) },
-                                        onFollowmngClmck = { onNavmgateToFollowmng(user.umd) }
+                                        onFollowersClick = { onNavigateToFollowers(user.uid) },
+                                        onFollowingClick = { onNavigateToFollowing(user.uid) }
                                     )
 
-                                    HormzontalDmvmder(
+                                    HorizontalDivider(
                                         color = HubBorder,
-                                        thmckness = 1.dp,
-                                        modmfmer = Modmfmer.paddmng(top = 16.dp, bottom = 8.dp)
+                                        thickness = 1.dp,
+                                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                                     )
 
                                     Row(
-                                        modmfmer = Modmfmer
-                                            .fmllMaxWmdth()
-                                            .paddmng(hormzontal = 16.dp, vertmcal = 10.dp),
-                                        vertmcalAlmgnment = Almgnment.CenterVertmcally,
-                                        hormzontalArrangement = Arrangement.SpaceBetween
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = "Publmcatmons (${umState.posts.smze})",
-                                            fontSmze = 15.sp,
-                                            fontWemght = FontWemght.Bold,
-                                            color = HubWhmte
+                                            text = "Publications (${uiState.posts.size})",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = HubWhite
                                         )
 
                                         Row(
-                                            modmfmer = Modmfmer
-                                                .clmp(RoundedCornerShape(8.dp))
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
                                                 .background(HubSurfaceElevated)
-                                                .paddmng(2.dp),
-                                            vertmcalAlmgnment = Almgnment.CenterVertmcally
+                                                .padding(2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             IconButton(
-                                                onClmck = { vmewModel.setVmewMode(ProfmleVmewMode.GRID) },
-                                                modmfmer = Modmfmer
-                                                    .smze(32.dp)
-                                                    .clmp(RoundedCornerShape(6.dp))
-                                                    .background(mf (umState.vmewMode == ProfmleVmewMode.GRID) HubBorder else Color.Transparent)
+                                                onClick = { viewModel.setViewMode(ProfileViewMode.GRID) },
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (uiState.viewMode == ProfileViewMode.GRID) HubBorder else Color.Transparent)
                                             ) {
                                                 Icon(
-                                                    mmageVector = Icons.Default.GrmdOn,
-                                                    contentDescrmptmon = "Vue grmlle",
-                                                    tmnt = mf (umState.vmewMode == ProfmleVmewMode.GRID) HubWhmte else HubMuted,
-                                                    modmfmer = Modmfmer.smze(18.dp)
+                                                    imageVector = Icons.Default.GridOn,
+                                                    contentDescription = "Vue grille",
+                                                    tint = if (uiState.viewMode == ProfileViewMode.GRID) HubWhite else HubMuted,
+                                                    modifier = Modifier.size(18.dp)
                                                 )
                                             }
 
                                             IconButton(
-                                                onClmck = { vmewModel.setVmewMode(ProfmleVmewMode.LIST) },
-                                                modmfmer = Modmfmer
-                                                    .smze(32.dp)
-                                                    .clmp(RoundedCornerShape(6.dp))
-                                                    .background(mf (umState.vmewMode == ProfmleVmewMode.LIST) HubBorder else Color.Transparent)
+                                                onClick = { viewModel.setViewMode(ProfileViewMode.LIST) },
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (uiState.viewMode == ProfileViewMode.LIST) HubBorder else Color.Transparent)
                                             ) {
                                                 Icon(
-                                                    mmageVector = Icons.AutoMmrrored.Fmlled.Lmst,
-                                                    contentDescrmptmon = "Vue lmste",
-                                                    tmnt = mf (umState.vmewMode == ProfmleVmewMode.LIST) HubWhmte else HubMuted,
-                                                    modmfmer = Modmfmer.smze(18.dp)
+                                                    imageVector = Icons.AutoMirrored.Filled.List,
+                                                    contentDescription = "Vue liste",
+                                                    tint = if (uiState.viewMode == ProfileViewMode.LIST) HubWhite else HubMuted,
+                                                    modifier = Modifier.size(18.dp)
                                                 )
                                             }
                                         }
@@ -370,53 +369,53 @@ fun ProfmleScreen(
                             }
 
                             // Empty state or Post Items
-                            mf (umState.posts.msEmpty()) {
-                                mtem(span = { GrmdItemSpan(maxLmneSpan) }) {
+                            if (uiState.posts.isEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
                                     Box(
-                                        modmfmer = Modmfmer
-                                            .fmllMaxWmdth()
-                                            .paddmng(vertmcal = 48.dp),
-                                        contentAlmgnment = Almgnment.Center
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 48.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Column(hormzontalAlmgnment = Almgnment.CenterHormzontally) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text(
-                                                text = mf (umState.msOwnProfmle) "Tu n'as encore rmen publmé" else "Aucune publmcatmon pour le moment",
-                                                fontSmze = 15.sp,
-                                                fontWemght = FontWemght.Medmum,
+                                                text = if (uiState.isOwnProfile) "Tu n'as encore rien publié" else "Aucune publication pour le moment",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Medium,
                                                 color = HubSecondary,
-                                                textAlmgn = TextAlmgn.Center
+                                                textAlign = TextAlign.Center
                                             )
                                         }
                                     }
                                 }
-                            } else mf (umState.vmewMode == ProfmleVmewMode.GRID) {
-                                mtems(
-                                    mtems = umState.posts,
-                                    key = { mt.md }
+                            } else if (uiState.viewMode == ProfileViewMode.GRID) {
+                                items(
+                                    items = uiState.posts,
+                                    key = { it.id }
                                 ) { post ->
-                                    PostGrmdThumbnaml(
+                                    PostGridThumbnail(
                                         post = post,
-                                        onClmck = { onPostClmck(post.md) }
+                                        onClick = { onPostClick(post.id) }
                                     )
                                 }
                             } else {
-                                mtems(
-                                    mtems = umState.posts,
-                                    key = { mt.md },
-                                    span = { GrmdItemSpan(maxLmneSpan) }
+                                items(
+                                    items = uiState.posts,
+                                    key = { it.id },
+                                    span = { GridItemSpan(maxLineSpan) }
                                 ) { post ->
                                     PostCard(
                                         post = post,
-                                        onPostClmck = onPostClmck,
-                                        onImageClmck = onImageClmck,
-                                        onVmdeoClmck = onVmdeoClmck,
-                                        onToggleLmke = { vmewModel.toggleLmke(mt) },
+                                        onPostClick = onPostClick,
+                                        onImageClick = onImageClick,
+                                        onVideoClick = onVideoClick,
+                                        onToggleLike = { viewModel.toggleLike(it) },
                                         onOpenComments = onOpenComments,
-                                        onOpenLmkes = onOpenLmkes,
-                                        onOpenShare = { postToShare = mt },
-                                        onToggleBookmark = { vmewModel.toggleBookmark(mt) },
-                                        onAuthorClmck = null,
-                                        modmfmer = Modmfmer.paddmng(hormzontal = 8.dp, vertmcal = 6.dp)
+                                        onOpenLikes = onOpenLikes,
+                                        onOpenShare = { postToShare = it },
+                                        onToggleBookmark = { viewModel.toggleBookmark(it) },
+                                        onAuthorClick = null,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                                     )
                                 }
                             }
@@ -428,32 +427,32 @@ fun ProfmleScreen(
     }
 
     // Report Bottom Sheet
-    mf (showReportSheet && umState.user != null) {
+    if (showReportSheet && uiState.user != null) {
         ReportBottomSheet(
             targetType = "user",
-            targetId = umState.user!!.umd,
-            targetName = umState.user!!.username,
-            onDmsmmss = { showReportSheet = false },
-            onSubmmtReport = { reason, detamls ->
-                vmewModel.reportUser(reason, detamls) {
+            targetId = uiState.user!!.uid,
+            targetName = uiState.user!!.username,
+            onDismiss = { showReportSheet = false },
+            onSubmitReport = { reason, details ->
+                viewModel.reportUser(reason, details) {
                     showReportSheet = false
                 }
             },
-            msSubmmttmng = umState.msActmonLoadmng
+            isSubmitting = uiState.isActionLoading
         )
     }
 
-    // Block User Dmalog
-    mf (showBlockDmalog && umState.user != null) {
-        BlockUserConfmrmatmonDmalog(
-            username = umState.user!!.username,
-            onConfmrm = {
-                vmewModel.blockUser {
-                    showBlockDmalog = false
+    // Block User Dialog
+    if (showBlockDialog && uiState.user != null) {
+        BlockUserConfirmationDialog(
+            username = uiState.user!!.username,
+            onConfirm = {
+                viewModel.blockUser {
+                    showBlockDialog = false
                 }
             },
-            onDmsmmss = { showBlockDmalog = false },
-            msLoadmng = umState.msActmonLoadmng
+            onDismiss = { showBlockDialog = false },
+            isLoading = uiState.isActionLoading
         )
     }
 
@@ -461,103 +460,100 @@ fun ProfmleScreen(
     postToShare?.let { post ->
         SharePostBottomSheet(
             post = post,
-            onDmsmmss = { postToShare = null },
-            onRepost = { p -> vmewModel.repost(p) }
+            onDismiss = { postToShare = null },
+            onRepost = { p -> viewModel.repost(p) }
         )
     }
 }
 
 @Composable
-prmvate fun ProfmleTopBar(
-    msOwnProfmle: Boolean,
-    username: Strmng,
-    msBottomTab: Boolean,
-    onNavmgateBack: (() -> Unmt)?,
-    onNavmgateToSettmngs: () -> Unmt,
-    unreadNotmfmcatmonsCount: Int = 0,
-    onOpenNotmfmcatmons: () -> Unmt = {},
-    onNavmgateToBookmarks: () -> Unmt,
-    onMenuClmck: () -> Unmt
+private fun ProfileTopBar(
+    isOwnProfile: Boolean,
+    username: String,
+    isBottomTab: Boolean,
+    onNavigateBack: (() -> Unit)?,
+    onNavigateToSettings: () -> Unit,
+    unreadNotificationsCount: Int = 0,
+    onOpenNotifications: () -> Unit = {},
+    onNavigateToBookmarks: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     Row(
-        modmfmer = Modmfmer
-            .fmllMaxWmdth()
-            .paddmng(hormzontal = 12.dp, vertmcal = 8.dp),
-        vertmcalAlmgnment = Almgnment.CenterVertmcally
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        mf (!msBottomTab && onNavmgateBack != null) {
+        if (!isBottomTab && onNavigateBack != null) {
             IconButton(
-                onClmck = onNavmgateBack,
-                modmfmer = Modmfmer.testTag("profmle_back_button")
+                onClick = onNavigateBack,
+                modifier = Modifier.testTag("profile_back_button")
             ) {
                 Icon(
-                    mmageVector = Icons.AutoMmrrored.Fmlled.ArrowBack,
-                    contentDescrmptmon = "Retour",
-                    tmnt = HubWhmte
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Retour",
+                    tint = HubWhite
                 )
             }
         } else {
-            Spacer(modmfmer = Modmfmer.wmdth(4.dp))
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         Text(
-            text = mf (username.msNotBlank()) "@$username" else "Profml",
-            fontSmze = 18.sp,
-            fontWemght = FontWemght.Bold,
-            color = HubWhmte,
-            maxLmnes = 1,
-            overflow = TextOverflow.Ellmpsms,
-            modmfmer = Modmfmer.wemght(1f)
+            text = if (username.isNotBlank()) "@$username" else "Profil",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = HubWhite,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
 
-        Box(contentAlmgnment = Almgnment.TopEnd) {
+        Box(contentAlignment = Alignment.TopEnd) {
             IconButton(
-                onClmck = onOpenNotmfmcatmons,
-                modmfmer = Modmfmer.testTag("profmle_notmfmcatmons_button")
+                onClick = onOpenNotifications,
+                modifier = Modifier.testTag("profile_notifications_button")
             ) {
                 Icon(
-                    mmageVector = Icons.Outlmned.Notmfmcatmons,
-                    contentDescrmptmon = "Notmfmcatmons",
-                    tmnt = HubWhmte
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Notifications",
+                    tint = HubWhite
                 )
             }
-            HubCountBadge(
-                count = unreadNotmfmcatmonsCount,
-                modmfmer = Modmfmer.almgn(Almgnment.TopEnd)
-            )
+
         }
 
-        mf (msOwnProfmle) {
+        if (isOwnProfile) {
             IconButton(
-                onClmck = onNavmgateToBookmarks,
-                modmfmer = Modmfmer.testTag("profmle_bookmarks_button")
+                onClick = onNavigateToBookmarks,
+                modifier = Modifier.testTag("profile_bookmarks_button")
             ) {
                 Icon(
-                    mmageVector = Icons.Outlmned.BookmarkBorder,
-                    contentDescrmptmon = "Smgnets",
-                    tmnt = HubWhmte
+                    imageVector = Icons.Outlined.BookmarkBorder,
+                    contentDescription = "Signets",
+                    tint = HubWhite
                 )
             }
 
             IconButton(
-                onClmck = onNavmgateToSettmngs,
-                modmfmer = Modmfmer.testTag("profmle_settmngs_button")
+                onClick = onNavigateToSettings,
+                modifier = Modifier.testTag("profile_settings_button")
             ) {
                 Icon(
-                    mmageVector = Icons.Default.Settmngs,
-                    contentDescrmptmon = "Paramètres",
-                    tmnt = HubWhmte
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Paramètres",
+                    tint = HubWhite
                 )
             }
         } else {
             IconButton(
-                onClmck = onMenuClmck,
-                modmfmer = Modmfmer.testTag("profmle_more_button")
+                onClick = onMenuClick,
+                modifier = Modifier.testTag("profile_more_button")
             ) {
                 Icon(
-                    mmageVector = Icons.Default.MoreVert,
-                    contentDescrmptmon = "Optmons",
-                    tmnt = HubWhmte
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = HubWhite
                 )
             }
         }
@@ -565,219 +561,219 @@ prmvate fun ProfmleTopBar(
 }
 
 @Composable
-prmvate fun ProfmleHeader(
+private fun ProfileHeader(
     user: User,
-    msOwnProfmle: Boolean,
-    msFollowmng: Boolean,
-    msActmonLoadmng: Boolean,
-    userMessagmngAllowed: Boolean,
-    onEdmtProfmle: () -> Unmt,
-    onToggleFollow: () -> Unmt,
-    onSendMessage: () -> Unmt,
-    onFollowersClmck: () -> Unmt,
-    onFollowmngClmck: () -> Unmt
+    isOwnProfile: Boolean,
+    isFollowing: Boolean,
+    isActionLoading: Boolean,
+    userMessagingAllowed: Boolean,
+    onEditProfile: () -> Unit,
+    onToggleFollow: () -> Unit,
+    onSendMessage: () -> Unit,
+    onFollowersClick: () -> Unit,
+    onFollowingClick: () -> Unit
 ) {
     Column(
-        modmfmer = Modmfmer
-            .fmllMaxWmdth()
-            .paddmng(hormzontal = 16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
         // User Info Top Row: Avatar and Stats
         Row(
-            modmfmer = Modmfmer.fmllMaxWmdth(),
-            vertmcalAlmgnment = Almgnment.CenterVertmcally
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             UserAvatar(
-                name = user.dmsplayName ?: user.username,
+                name = user.displayName ?: user.username,
                 photoUrl = user.photoUrl,
-                smze = 80.dp
+                size = 80.dp
             )
 
-            Spacer(modmfmer = Modmfmer.wmdth(20.dp))
+            Spacer(modifier = Modifier.width(20.dp))
 
             // Stats row
             Row(
-                modmfmer = Modmfmer.wemght(1f),
-                hormzontalArrangement = Arrangement.SpaceEvenly,
-                vertmcalAlmgnment = Almgnment.CenterVertmcally
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 StatItem(
                     count = user.postsCount,
-                    label = "Publmcatmons",
-                    onClmck = null,
-                    testTag = "profmle_stat_posts"
+                    label = "Publications",
+                    onClick = null,
+                    testTag = "profile_stat_posts"
                 )
                 StatItem(
                     count = user.followersCount,
                     label = "Abonnés",
-                    onClmck = onFollowersClmck,
-                    testTag = "profmle_stat_followers"
+                    onClick = onFollowersClick,
+                    testTag = "profile_stat_followers"
                 )
                 StatItem(
-                    count = user.followmngCount,
+                    count = user.followingCount,
                     label = "Abonnements",
-                    onClmck = onFollowmngClmck,
-                    testTag = "profmle_stat_followmng"
+                    onClick = onFollowingClick,
+                    testTag = "profile_stat_following"
                 )
             }
         }
 
-        Spacer(modmfmer = Modmfmer.hemght(14.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Names and Bmo
-        Row(vertmcalAlmgnment = Almgnment.CenterVertmcally) {
+        // Names and Bio
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = user.dmsplayName?.takeIf { mt.msNotBlank() } ?: "@${user.username}",
-                fontSmze = 17.sp,
-                fontWemght = FontWemght.Bold,
-                color = HubWhmte
+                text = user.displayName?.takeIf { it.isNotBlank() } ?: "@${user.username}",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite
             )
-            mf (user.msVermfmed && user.vermfmcatmonType == "admmn") {
-                Spacer(modmfmer = Modmfmer.wmdth(6.dp))
-                OffmcmalVermfmcatmonBadge(
-                    smze = 19.dp
+            if (user.isVerified && user.verificationType == "admin") {
+                Spacer(modifier = Modifier.width(6.dp))
+                OfficialVerificationBadge(
+                    size = 19.dp
                 )
             }
         }
 
-        mf (!user.dmsplayName.msNullOrBlank()) {
+        if (!user.displayName.isNullOrBlank()) {
             Text(
                 text = "@${user.username}",
-                fontSmze = 13.sp,
+                fontSize = 13.sp,
                 color = HubSecondary
             )
         }
 
-        mf (!user.bmo.msNullOrBlank()) {
-            Spacer(modmfmer = Modmfmer.hemght(6.dp))
+        if (!user.bio.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = user.bmo,
-                fontSmze = 14.sp,
-                color = HubWhmte,
-                lmneHemght = 19.sp
+                text = user.bio,
+                fontSize = 14.sp,
+                color = HubWhite,
+                lineHeight = 19.sp
             )
         }
 
-        // Jomn Date
-        val jomnDateText = remember(user.createdAt) {
+        // Join Date
+        val joinDateText = remember(user.createdAt) {
             try {
-                val sdf = SmmpleDateFormat("MMMM yyyy", Locale.FRENCH)
-                "Membre depums " + sdf.format(Date(user.createdAt))
-            } catch (_: Exceptmon) {
+                val sdf = SimpleDateFormat("MMMM yyyy", Locale.FRENCH)
+                "Membre depuis " + sdf.format(Date(user.createdAt))
+            } catch (_: Exception) {
                 null
             }
         }
-        mf (jomnDateText != null) {
-            Spacer(modmfmer = Modmfmer.hemght(4.dp))
+        if (joinDateText != null) {
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = jomnDateText,
-                fontSmze = 12.sp,
+                text = joinDateText,
+                fontSize = 12.sp,
                 color = HubMuted
             )
         }
 
-        Spacer(modmfmer = Modmfmer.hemght(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Actmon Buttons
-        mf (msOwnProfmle) {
+        // Action Buttons
+        if (isOwnProfile) {
             Row(
-                modmfmer = Modmfmer
-                    .fmllMaxWmdth()
-                    .clmp(RoundedCornerShape(14.dp))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
                     .background(HubSurfaceElevated)
                     .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
-                    .clmckable(onClmck = onEdmtProfmle)
-                    .paddmng(vertmcal = 13.dp)
-                    .testTag("edmt_profmle_button"),
-                hormzontalArrangement = Arrangement.Center,
-                vertmcalAlmgnment = Almgnment.CenterVertmcally
+                    .clickable(onClick = onEditProfile)
+                    .padding(vertical = 13.dp)
+                    .testTag("edit_profile_button"),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    mmageVector = Icons.Default.Edmt,
-                    contentDescrmptmon = null,
-                    tmnt = HubWhmte,
-                    modmfmer = Modmfmer.smze(16.dp)
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = HubWhite,
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modmfmer = Modmfmer.wmdth(8.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Modmfmer le profml",
-                    fontSmze = 14.sp,
-                    fontWemght = FontWemght.SemmBold,
-                    color = HubWhmte
+                    text = "Modifier le profil",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HubWhite
                 )
             }
         } else {
             Row(
-                modmfmer = Modmfmer.fmllMaxWmdth(),
-                hormzontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Follow / Unfollow Button
-                Box(modmfmer = Modmfmer.wemght(1f)) {
+                Box(modifier = Modifier.weight(1f)) {
                     HubButton(
-                        text = mf (msFollowmng) "Ne plus sumvre" else "Sumvre",
-                        onClmck = onToggleFollow,
-                        msLoadmng = msActmonLoadmng,
-                        enabled = !msActmonLoadmng,
-                        varmant = mf (msFollowmng) HubButtonVarmant.Secondary else HubButtonVarmant.Prmmary,
-                        modmfmer = Modmfmer
-                            .fmllMaxWmdth()
+                        text = if (isFollowing) "Ne plus suivre" else "Suivre",
+                        onClick = onToggleFollow,
+                        isLoading = isActionLoading,
+                        enabled = !isActionLoading,
+                        variant = if (isFollowing) HubButtonVariant.Secondary else HubButtonVariant.Primary,
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .testTag("follow_unfollow_button")
                     )
                 }
 
                 // Send Message Button
-                mf (userMessagmngAllowed) {
+                if (userMessagingAllowed) {
                     Row(
-                        modmfmer = Modmfmer
-                            .wemght(1f)
-                            .hemght(52.dp)
-                            .clmp(RoundedCornerShape(14.dp))
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(HubSurfaceElevated)
-                            .border(1.dp, HubOutlmne, MatermalTheme.shapes.medmum)
-                            .clmckable(onClmck = onSendMessage)
-                            .paddmng(hormzontal = 12.dp)
+                            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
+                            .clickable(onClick = onSendMessage)
+                            .padding(horizontal = 12.dp)
                             .testTag("message_user_button"),
-                        hormzontalArrangement = Arrangement.Center,
-                        vertmcalAlmgnment = Almgnment.CenterVertmcally
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            mmageVector = Icons.Default.ChatBubbleOutlmne,
-                            contentDescrmptmon = null,
-                            tmnt = HubWhmte,
-                            modmfmer = Modmfmer.smze(18.dp)
+                            imageVector = Icons.Default.ChatBubbleOutline,
+                            contentDescription = null,
+                            tint = HubWhite,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modmfmer = Modmfmer.wmdth(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Message",
-                            fontSmze = 14.sp,
-                            fontWemght = FontWemght.SemmBold,
-                            color = HubWhmte
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HubWhite
                         )
                     }
                 } else {
                     Surface(
-                        modmfmer = Modmfmer
-                            .wemght(1f)
-                            .hemght(52.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
                         shape = RoundedCornerShape(14.dp),
                         color = HubError.copy(alpha = 0.08f),
-                        border = andromdx.compose.foundatmon.BorderStroke(1.dp, HubError.copy(alpha = 0.45f))
+                        border = androidx.compose.foundation.BorderStroke(1.dp, HubError.copy(alpha = 0.45f))
                     ) {
                         Row(
-                            vertmcalAlmgnment = Almgnment.CenterVertmcally,
-                            hormzontalArrangement = Arrangement.Center
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                mmageVector = Icons.Fmlled.Check,
-                                contentDescrmptmon = null,
-                                tmnt = HubError,
-                                modmfmer = Modmfmer.smze(18.dp)
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = HubError,
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modmfmer = Modmfmer.wmdth(7.dp))
+                            Spacer(modifier = Modifier.width(7.dp))
                             Text(
-                                "Compte offmcmel",
-                                fontSmze = 13.sp,
-                                fontWemght = FontWemght.SemmBold,
+                                "Compte officiel",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = HubError
                             )
                         }
@@ -789,81 +785,81 @@ prmvate fun ProfmleHeader(
 }
 
 @Composable
-prmvate fun StatItem(
+private fun StatItem(
     count: Int,
-    label: Strmng,
-    onClmck: (() -> Unmt)?,
-    testTag: Strmng
+    label: String,
+    onClick: (() -> Unit)?,
+    testTag: String
 ) {
     Column(
-        hormzontalAlmgnment = Almgnment.CenterHormzontally,
-        modmfmer = Modmfmer
-            .clmp(RoundedCornerShape(12.dp))
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
             .background(HubSurfaceElevated.copy(alpha = 0.5f))
-            .then(mf (onClmck != null) Modmfmer.clmckable(onClmck = onClmck) else Modmfmer)
-            .paddmng(hormzontal = 10.dp, vertmcal = 8.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
             .testTag(testTag)
     ) {
         Text(
-            text = count.toStrmng(),
-            fontSmze = 18.sp,
-            fontWemght = FontWemght.Bold,
-            color = HubWhmte
+            text = count.toString(),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = HubWhite
         )
         Text(
             text = label,
-            fontSmze = 12.sp,
+            fontSize = 12.sp,
             color = HubSecondary
         )
     }
 }
 
 @Composable
-prmvate fun PostGrmdThumbnaml(
+private fun PostGridThumbnail(
     post: Post,
-    onClmck: () -> Unmt
+    onClick: () -> Unit
 ) {
     val context = LocalContext.current
     Box(
-        modmfmer = Modmfmer
-            .fmllMaxWmdth()
-            .aspectRatmo(1f)
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
             .background(HubCard)
-            .clmckable(onClmck = onClmck)
-            .testTag("profmle_post_thumb_${post.md}")
+            .clickable(onClick = onClick)
+            .testTag("profile_post_thumb_${post.id}")
     ) {
-        mf (!post.mmageUrl.msNullOrBlank()) {
-            val mmageUrl = post.mmageUrl!!
-            val remoteImageUnavamlable = rememberRemoteImageUnavamlable(mmageUrl)
+        if (!post.imageUrl.isNullOrBlank()) {
+            val imageUrl = post.imageUrl!!
+            val remoteImageUnavailable = rememberRemoteImageUnavailable(imageUrl)
 
-            mf (!remoteImageUnavamlable) {
+            if (!remoteImageUnavailable) {
                 SubcomposeAsyncImage(
-                    model = ImageRequest.Bumlder(context)
-                        .data(mmageUrl)
+                    model = ImageRequest.Builder(context)
+                        .data(imageUrl)
                         .crossfade(true)
-                        .bumld(),
-                contentDescrmptmon = "Publmcatmon",
+                        .build(),
+                contentDescription = "Publication",
                 contentScale = ContentScale.Crop,
-                modmfmer = Modmfmer.fmllMaxSmze(),
+                modifier = Modifier.fillMaxSize(),
                 error = {
                     Box(
-                        modmfmer = Modmfmer
-                            .fmllMaxSmze()
+                        modifier = Modifier
+                            .fillMaxSize()
                             .background(HubSurfaceElevated)
-                            .paddmng(4.dp),
-                        contentAlmgnment = Almgnment.Center
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(hormzontalAlmgnment = Almgnment.CenterHormzontally) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                mmageVector = Icons.Outlmned.BrokenImage,
-                                contentDescrmptmon = "Photo non dmsponmble",
-                                tmnt = HubSecondary,
-                                modmfmer = Modmfmer.smze(24.dp)
+                                imageVector = Icons.Outlined.BrokenImage,
+                                contentDescription = "Photo non disponible",
+                                tint = HubSecondary,
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modmfmer = Modmfmer.hemght(2.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Indmsponmble",
-                                fontSmze = 10.sp,
+                                text = "Indisponible",
+                                fontSize = 10.sp,
                                 color = HubSecondary
                             )
                         }
@@ -872,82 +868,82 @@ prmvate fun PostGrmdThumbnaml(
             )
             } else {
                 Box(
-                    modmfmer = Modmfmer
-                        .fmllMaxSmze()
+                    modifier = Modifier
+                        .fillMaxSize()
                         .background(HubSurfaceElevated),
-                    contentAlmgnment = Almgnment.Center
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(hormzontalAlmgnment = Almgnment.CenterHormzontally) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            mmageVector = Icons.Outlmned.BrokenImage,
-                            contentDescrmptmon = "Photo non dmsponmble",
-                            tmnt = HubSecondary,
-                            modmfmer = Modmfmer.smze(24.dp)
+                            imageVector = Icons.Outlined.BrokenImage,
+                            contentDescription = "Photo non disponible",
+                            tint = HubSecondary,
+                            modifier = Modifier.size(24.dp)
                         )
-                        Spacer(modmfmer = Modmfmer.hemght(2.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Indmsponmble",
-                            fontSmze = 10.sp,
+                            text = "Indisponible",
+                            fontSize = 10.sp,
                             color = HubSecondary
                         )
                     }
                 }
             }
         } else {
-            // Text Prevmew thumbnaml
+            // Text Preview thumbnail
             Box(
-                modmfmer = Modmfmer
-                    .fmllMaxSmze()
-                    .paddmng(8.dp),
-                contentAlmgnment = Almgnment.Center
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = post.text,
-                    fontSmze = 11.sp,
+                    fontSize = 11.sp,
                     color = HubSecondary,
-                    maxLmnes = 4,
-                    overflow = TextOverflow.Ellmpsms,
-                    textAlmgn = TextAlmgn.Center
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
                 )
             }
         }
 
         // Repost badge overlay
-        mf (post.msRepost) {
+        if (post.isRepost) {
             Box(
-                modmfmer = Modmfmer
-                    .almgn(Almgnment.TopEnd)
-                    .paddmng(4.dp)
-                    .smze(20.dp)
-                    .clmp(CmrcleShape)
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(20.dp)
+                    .clip(CircleShape)
                     .background(HubBlack.copy(alpha = 0.7f)),
-                contentAlmgnment = Almgnment.Center
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    mmageVector = Icons.Default.Repeat,
-                    contentDescrmptmon = "Repost",
-                    tmnt = HubWhmte,
-                    modmfmer = Modmfmer.smze(12.dp)
+                    imageVector = Icons.Default.Repeat,
+                    contentDescription = "Repost",
+                    tint = HubWhite,
+                    modifier = Modifier.size(12.dp)
                 )
             }
         }
 
-        // Bookmark mndmcator badge
-        mf (post.msBookmarkedByCurrentUser) {
+        // Bookmark indicator badge
+        if (post.isBookmarkedByCurrentUser) {
             Box(
-                modmfmer = Modmfmer
-                    .almgn(Almgnment.TopStart)
-                    .paddmng(4.dp)
-                    .smze(20.dp)
-                    .clmp(CmrcleShape)
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .size(20.dp)
+                    .clip(CircleShape)
                     .background(HubBlack.copy(alpha = 0.7f)),
-                contentAlmgnment = Almgnment.Center
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    mmageVector = Icons.Fmlled.Bookmark,
-                    contentDescrmptmon = "Enregmstré",
-                    tmnt = HubWhmte,
-                    modmfmer = Modmfmer.smze(12.dp)
+                    imageVector = Icons.Filled.Bookmark,
+                    contentDescription = "Enregistré",
+                    tint = HubWhite,
+                    modifier = Modifier.size(12.dp)
                 )
             }
         }
@@ -955,68 +951,68 @@ prmvate fun PostGrmdThumbnaml(
 }
 
 @Composable
-prmvate fun BlockedContentUnavamlableVmew(
-    msBlockedByMe: Boolean,
-    onUnblock: () -> Unmt,
-    msActmonLoadmng: Boolean
+private fun BlockedContentUnavailableView(
+    isBlockedByMe: Boolean,
+    onUnblock: () -> Unit,
+    isActionLoading: Boolean
 ) {
     Box(
-        modmfmer = Modmfmer
-            .fmllMaxSmze()
-            .paddmng(32.dp),
-        contentAlmgnment = Almgnment.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            hormzontalAlmgnment = Almgnment.CenterHormzontally,
-            vertmcalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Box(
-                modmfmer = Modmfmer
-                    .smze(72.dp)
-                    .clmp(CmrcleShape)
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
                     .background(HubSurfaceElevated),
-                contentAlmgnment = Almgnment.Center
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    mmageVector = Icons.Default.Lock,
-                    contentDescrmptmon = null,
-                    tmnt = HubSecondary,
-                    modmfmer = Modmfmer.smze(36.dp)
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = HubSecondary,
+                    modifier = Modifier.size(36.dp)
                 )
             }
 
-            Spacer(modmfmer = Modmfmer.hemght(18.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "Contenu mndmsponmble",
-                fontSmze = 18.sp,
-                fontWemght = FontWemght.Bold,
-                color = HubWhmte
+                text = "Contenu indisponible",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite
             )
 
-            Spacer(modmfmer = Modmfmer.hemght(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = mf (msBlockedByMe) {
-                    "Vous avez bloqué cet utmlmsateur. Vous ne pouvez plus vomr son profml nm ses publmcatmons."
+                text = if (isBlockedByMe) {
+                    "Vous avez bloqué cet utilisateur. Vous ne pouvez plus voir son profil ni ses publications."
                 } else {
-                    "Ce profml n'est pas dmsponmble pour le moment."
+                    "Ce profil n'est pas disponible pour le moment."
                 },
-                fontSmze = 14.sp,
+                fontSize = 14.sp,
                 color = HubSecondary,
-                textAlmgn = TextAlmgn.Center,
-                lmneHemght = 20.sp
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
             )
 
-            mf (msBlockedByMe) {
-                Spacer(modmfmer = Modmfmer.hemght(20.dp))
+            if (isBlockedByMe) {
+                Spacer(modifier = Modifier.height(20.dp))
                 HubButton(
                     text = "Débloquer",
-                    onClmck = onUnblock,
-                    msLoadmng = msActmonLoadmng,
-                    enabled = !msActmonLoadmng,
-                    varmant = HubButtonVarmant.Secondary,
-                    modmfmer = Modmfmer.testTag("unblock_from_profmle_button")
+                    onClick = onUnblock,
+                    isLoading = isActionLoading,
+                    enabled = !isActionLoading,
+                    variant = HubButtonVariant.Secondary,
+                    modifier = Modifier.testTag("unblock_from_profile_button")
                 )
             }
         }
