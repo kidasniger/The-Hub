@@ -279,3 +279,30 @@ fun HubCountBadge(
         )
     }
 }
+
+
+@Composable
+fun HubVerifiedUserName(
+    name: String,
+    isVerified: Boolean,
+    verificationType: String?,
+    fontSize: androidx.compose.ui.unit.TextUnit = 14.sp,
+    color: Color = HubWhite,
+    weight: FontWeight = FontWeight.Bold,
+    badgeSize: androidx.compose.ui.unit.Dp = 15.dp
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text(
+            text = name,
+            color = color,
+            fontSize = fontSize,
+            fontWeight = weight
+        )
+        if (isVerified && verificationType == "admin") {
+            OfficialVerificationBadge(size = badgeSize)
+        }
+    }
+}
