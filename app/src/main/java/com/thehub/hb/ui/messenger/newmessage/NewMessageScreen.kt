@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.User
 import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubMuted
@@ -252,13 +253,14 @@ private fun UserSearchResultItem(
         Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = nameToDisplay,
+            HubVerifiedUserName(
+                name = nameToDisplay,
+                isVerified = user.isVerified,
+                verificationType = user.verificationType,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
                 color = HubWhite,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                weight = FontWeight.SemiBold,
+                badgeSize = 15.dp
             )
 
             if (user.username.isNotBlank()) {
