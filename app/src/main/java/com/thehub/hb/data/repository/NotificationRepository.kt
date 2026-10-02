@@ -80,7 +80,8 @@ class NotificationRepository(
             ?: return@withContext Result.success(Unit)
 
         try {
-            val token = tokenOverride?.trim()?.takeIf { it.isNotBlank() }\n                ?: FirebaseMessaging.getInstance().token.await()
+            val token = tokenOverride?.trim()?.takeIf { it.isNotBlank() }
+                ?: FirebaseMessaging.getInstance().token.await()
             if (auth.currentUser?.uid != uid) {
                 return@withContext Result.success(Unit)
             }
