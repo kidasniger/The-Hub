@@ -43,6 +43,8 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +55,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -151,6 +154,8 @@ fun MainScaffoldScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val feedbackScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(MainTab.FEED.ordinal) }
     val tabHistory = rememberSaveable(
         saver = listSaver(
@@ -185,7 +190,7 @@ fun MainScaffoldScreen(
                 (context as? Activity)?.finish()
             } else {
                 lastBackPressedTime = currentTime
-                Toast.makeText(context, "Appuyez encore une fois pour quitter", Toast.LENGTH_SHORT).show()
+                feedbackScope.launch { snackbarHostState.showSnackbar("Appuyez encore une fois pour quitter") }
             }
         }
     }
@@ -195,6 +200,7 @@ fun MainScaffoldScreen(
             .fillMaxSize()
             .testTag("main_scaffold"),
         containerColor = HubBlack,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             HubBottomNavigationBar(
                 selectedTab = MainTab.entries[selectedTab],
@@ -202,11 +208,7 @@ fun MainScaffoldScreen(
                 onTabSelected = { tab ->
                     when {
                         tab == MainTab.CREATE && !postsEnabled -> {
-                            Toast.makeText(
-                                context,
-                                "La publication est temporairement désactivée.",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            feedbackScope.launch { snackbarHostState.showSnackbar("La publication est temporairement désactivée.") }
                         }
                         selectedTab != tab.ordinal -> {
                             tabHistory.add(selectedTab)
@@ -242,22 +244,14 @@ fun MainScaffoldScreen(
                                 tabHistory.add(selectedTab)
                                 selectedTab = MainTab.CREATE.ordinal
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    "La publication est temporairement désactivée.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                feedbackScope.launch { snackbarHostState.showSnackbar("La publication est temporairement désactivée.") }
                             }
                         },
                         onOpenMessenger = {
                             if (messagingEnabled) {
                                 onOpenMessenger()
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    "La messagerie est temporairement désactivée.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                feedbackScope.launch { snackbarHostState.showSnackbar("La messagerie est temporairement désactivée.") }
                             }
                         },
                         onOpenFriends = onOpenFriends,
