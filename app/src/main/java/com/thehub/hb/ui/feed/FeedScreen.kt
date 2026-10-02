@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,6 +60,8 @@ import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubPill
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.ReportBottomSheet
@@ -99,8 +103,7 @@ fun FeedScreen(
     var postToDelete by remember { mutableStateOf<Post?>(null) }
     var postToReport by remember { mutableStateOf<Post?>(null) }
     var isDeletingPost by remember { mutableStateOf(false) }
-    var isSubmittingReport by remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
+    var isSubmittingReport by remember { mutableStateOf(false) }\n    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.ALL.name) }\n    val activeFeedFilter = remember(feedFilter) { FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.ALL }\n    val listState = rememberLazyListState()
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -157,7 +160,7 @@ fun FeedScreen(
                     IconButton(
                         onClick = onOpenFriends,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .background(HubSurfaceElevated)
                             .testTag("feed_friends_button")
@@ -171,7 +174,7 @@ fun FeedScreen(
                         IconButton(
                             onClick = onOpenMessenger,
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(HubSurfaceElevated)
                                 .testTag("feed_messenger_button")
@@ -317,7 +320,7 @@ fun FeedScreen(
 }
 
 @Composable
-private fun FeedSkeletonList() {
+private enum class FeedFilter(val label: String) { ALL("Tout"), MEDIA("Médias"), REPOSTS("Republications") }\n\n@Composable\nprivate fun FeedSkeletonList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
