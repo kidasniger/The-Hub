@@ -332,6 +332,8 @@ fun MainScaffoldScreen(
                         onNavigateBack = null,
                         onNavigateToEditProfile = onNavigateToEditProfile,
                         onNavigateToSettings = onNavigateToSettings,
+                        unreadNotificationsCount = unreadNotificationsCount,
+                        onOpenNotifications = { selectedTab = MainTab.NOTIFICATIONS.ordinal },
                         onNavigateToBookmarks = onNavigateToBookmarks,
                         onNavigateToFollowers = onNavigateToFollowers,
                         onNavigateToFollowing = onNavigateToFollowing,
