@@ -7,5 +7,7 @@ data class BlockedUser(
     val username: String = "",
     val displayName: String? = null,
     val photoUrl: String? = null,
-    val blockedAt: Timestamp = Timestamp.now()
+    val blockedAt: Timestamp = Timestamp.now(),
+    val isVerified: Boolean = false,
+    val verificationType: String? = null
 )
