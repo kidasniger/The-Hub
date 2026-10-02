@@ -276,7 +276,7 @@ fun HubNavGraph(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return FeedViewModel(appContainer.postRepository, appContainer.messageRepository) as T
+                        return FeedViewModel(appContainer.postRepository, appContainer.messageRepository, appContainer.userRepository) as T
                     }
                 }
             )
