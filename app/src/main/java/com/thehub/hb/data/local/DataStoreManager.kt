@@ -30,6 +30,7 @@ class DataStoreManager(private val context: Context) {
         val KEY_NOTIF_FOLLOWS = booleanPreferencesKey("notif_follows")
         val KEY_NOTIF_MESSAGES = booleanPreferencesKey("notif_messages")
         val KEY_APP_THEME_MODE = stringPreferencesKey("app_theme_mode")
+        val KEY_POST_DRAFT_TEXT = stringPreferencesKey("post_draft_text")
     }
 
     val appThemeMode: Flow<com.thehub.hb.ui.theme.AppThemeMode> = context.dataStore.data.map { preferences ->
@@ -190,6 +191,27 @@ class DataStoreManager(private val context: Context) {
     suspend fun clearSearchHistory() {
         context.dataStore.edit { preferences ->
             preferences.remove(KEY_SEARCH_HISTORY)
+        }
+    }
+
+    val postDraftText: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[KEY_POST_DRAFT_TEXT] ?: ""
+    }
+
+    suspend fun savePostDraft(text: String) {
+        context.dataStore.edit { preferences ->
+            val clean = text.trim()
+            if (clean.isBlank()) {
+                preferences.remove(KEY_POST_DRAFT_TEXT)
+            } else {
+                preferences[KEY_POST_DRAFT_TEXT] = clean
+            }
+        }
+    }
+
+    suspend fun clearPostDraft() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(KEY_POST_DRAFT_TEXT)
         }
     }
 
