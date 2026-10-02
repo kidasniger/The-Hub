@@ -607,7 +607,7 @@ private fun ProfileHeader(
                 fontWeight = FontWeight.Bold,
                 color = HubWhite
             )
-            if (user.isVerified && user.verificationType == "admin") {
+            if (user.verificationType == "admin") {
                 Spacer(modifier = Modifier.width(6.dp))
                 OfficialVerificationBadge(
                     size = 19.dp
