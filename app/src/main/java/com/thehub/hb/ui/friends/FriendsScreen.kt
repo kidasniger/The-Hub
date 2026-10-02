@@ -51,6 +51,7 @@ import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubOutline
@@ -405,13 +406,13 @@ private fun FriendUserRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = liveUser.effectiveName,
+            HubVerifiedUserName(
+                name = liveUser.effectiveName,
+                isVerified = liveUser.isVerified,
+                verificationType = liveUser.verificationType,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
                 color = HubWhite,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                badgeSize = 16.dp
             )
             Text(
                 text = "@${liveUser.username}",
