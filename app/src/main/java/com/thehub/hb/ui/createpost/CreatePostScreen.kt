@@ -95,7 +95,8 @@ fun CreatePostScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val dataStoreManager = remember(context) { DataStoreManager(context) }    val coroutineScope = rememberCoroutineScope()
+    val dataStoreManager = remember(context) { DataStoreManager(context) }
+    val coroutineScope = rememberCoroutineScope()
     val textBringIntoViewRequester = remember { BringIntoViewRequester() }
     var textFieldFocused by remember { mutableStateOf(false) }
     var showVideoDialog by remember { mutableStateOf(false) }
