@@ -1,4 +1,5 @@
 // The Hub shared UI primitives.
+// Android stability pass: push, badges, sign-in.
 package com.thehub.hb.ui.components
 
 import androidx.compose.animation.core.RepeatMode
