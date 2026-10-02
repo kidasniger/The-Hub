@@ -67,7 +67,6 @@ import com.thehub.hb.data.repository.AdminReportRow
 import com.thehub.hb.data.repository.AdminRepository
 import com.thehub.hb.data.repository.AdminStats
 import com.thehub.hb.data.repository.AdminUserRow
-import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.OfficialVerificationBadge
 import com.thehub.hb.ui.theme.HubBlue
 import com.thehub.hb.ui.theme.HubError
