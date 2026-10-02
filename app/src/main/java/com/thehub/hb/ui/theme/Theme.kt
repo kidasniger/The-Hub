@@ -15,11 +15,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 
 // Formes globales Material 3 : arrondies et cohérentes dans les quatre modes.
 val HubShapes = Shapes(
-    extraSmall = RoundedCornerShape(14.dp),
-    small = RoundedCornerShape(20.dp),
-    medium = RoundedCornerShape(28.dp),
-    large = RoundedCornerShape(44.dp),
-    extraLarge = RoundedCornerShape(44.dp)
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )
 
 private fun createDarkColorScheme(palette: HubPalette) = darkColorScheme(
