@@ -288,6 +288,7 @@ fun PostCard(
                     color = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubSecondary,
                     modifier = Modifier
                         .clickable { onOpenLikes(post.id) }
+                        .heightIn(min = 48.dp)
                         .padding(horizontal = 2.dp, vertical = 6.dp)
                 )
             }
@@ -295,7 +296,9 @@ fun PostCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clickable { onOpenComments(post.id) }\n                    .heightIn(min = 48.dp)\n                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .clickable { onOpenComments(post.id) }
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
                     .testTag("action_comment_${post.id}")
             ) {
                 Icon(
