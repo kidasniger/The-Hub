@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -310,6 +311,7 @@ private fun NotificationRow(
             .background(backgroundColor)
             .border(1.dp, borderColor, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
+            .heightIn(min = 68.dp)
             .padding(12.dp)
             .testTag("notification_item_${notification.id}"),
         verticalAlignment = Alignment.CenterVertically
