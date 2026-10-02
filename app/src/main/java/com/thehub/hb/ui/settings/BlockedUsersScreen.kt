@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.BlockedUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubCard
@@ -214,13 +215,13 @@ private fun BlockedUserItemRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = blockedUser.displayName?.takeIf { it.isNotBlank() } ?: "@${blockedUser.username}",
+            HubVerifiedUserName(
+                name = blockedUser.displayName?.takeIf { it.isNotBlank() } ?: "@${blockedUser.username}",
+                isVerified = blockedUser.isVerified,
+                verificationType = blockedUser.verificationType,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
                 color = HubWhite,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                badgeSize = 15.dp
             )
             Text(
                 text = "@${blockedUser.username}",
