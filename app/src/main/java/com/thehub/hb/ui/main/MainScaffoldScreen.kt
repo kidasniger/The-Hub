@@ -525,10 +525,7 @@ fun HubBottomNavigationBar(
                                     tint = if (isSelected) HubWhite else HubMuted,
                                     modifier = Modifier.size(24.dp)
                                 )
-                                com.thehub.hb.ui.components.HubCountBadge(
-                                    count = unreadNotificationsCount,
-                                    modifier = Modifier.align(Alignment.TopEnd)
-                                )
+
                             }
                         } else {
                             Icon(
