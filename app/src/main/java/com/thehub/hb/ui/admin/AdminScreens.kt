@@ -67,6 +67,7 @@ import com.thehub.hb.data.repository.AdminReportRow
 import com.thehub.hb.data.repository.AdminRepository
 import com.thehub.hb.data.repository.AdminStats
 import com.thehub.hb.data.repository.AdminUserRow
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.theme.HubBlue
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubOutline
@@ -494,12 +495,14 @@ private fun AdminUserCard(
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        user.displayName.ifBlank { "Utilisateur" },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                    HubVerifiedUserName(
+                        name = user.displayName.ifBlank { "Utilisateur" },
+                        isVerified = user.isVerified,
+                        verificationType = user.verificationType,
+                        fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        weight = FontWeight.SemiBold,
+                        badgeSize = 18.dp
                     )
                     Text(
                         user.email.ifBlank { "E-mail non renseigné" },
@@ -919,10 +922,14 @@ fun AdminAdminsScreen(repository: AdminRepository) {
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(
-                                        admin.displayName.ifBlank { "Administrateur" },
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
+                                    HubVerifiedUserName(
+                                        name = admin.displayName.ifBlank { "Administrateur" },
+                                        isVerified = admin.isVerified,
+                                        verificationType = admin.verificationType,
+                                        fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        weight = FontWeight.SemiBold,
+                                        badgeSize = 18.dp
                                     )
                                     Text(
                                         admin.email.ifBlank { "E-mail non renseigné" },
