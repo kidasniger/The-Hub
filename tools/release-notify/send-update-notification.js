@@ -105,6 +105,10 @@ async function run() {
 
     const messages = chunk.map((entry) => ({
       token: entry.token,
+      notification: {
+        title,
+        body,
+      },
       data: {
         recipientId: entry.userId,
         type: "app_update",
@@ -119,6 +123,10 @@ async function run() {
       },
       android: {
         priority: "high",
+        notification: {
+          channelId: "hub_social_notifications",
+          sound: "default",
+        },
       },
     }));
 
