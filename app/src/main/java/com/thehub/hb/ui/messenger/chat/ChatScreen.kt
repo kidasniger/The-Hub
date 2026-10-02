@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Message
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.theme.HubBlack
@@ -227,13 +228,13 @@ fun ChatScreen(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = contactName,
+                        HubVerifiedUserName(
+                            name = contactName,
+                            isVerified = liveContact.isVerified,
+                            verificationType = liveContact.verificationType,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
                             color = HubWhite,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            badgeSize = 16.dp
                         )
                         val statusText = when {
                             uiState.isOtherTyping -> "écrit..."
