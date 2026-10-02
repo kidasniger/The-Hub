@@ -119,12 +119,24 @@ fun PostCard(
                         modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "Reposté par ${reposter.effectiveName}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = HubSecondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Reposté par",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HubSecondary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        HubVerifiedUserName(
+                            name = reposter.effectiveName,
+                            isVerified = reposter.isVerified,
+                            verificationType = reposter.verificationType,
+                            fontSize = 11.sp,
+                            color = HubSecondary,
+                            weight = FontWeight.Medium,
+                            badgeSize = 12.dp
+                        )
+                    }
                 }
             }
 
@@ -157,7 +169,7 @@ fun PostCard(
                                 fontWeight = FontWeight.Bold,
                                 color = HubWhite
                             )
-                            if (author.isVerified && author.verificationType == "admin") {
+                            if (author.verificationType == "admin") {
                                 Spacer(modifier = Modifier.width(5.dp))
                                 OfficialVerificationBadge(size = 15.dp)
                             }
