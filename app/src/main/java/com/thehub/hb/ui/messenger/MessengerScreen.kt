@@ -57,6 +57,7 @@ import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.utils.RelativeTime
 
 @Composable
@@ -109,7 +110,7 @@ fun MessengerScreen(
                 IconButton(
                     onClick = onNewMessageClick,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(HubSurfaceElevated)
                         .testTag("new_message_button")
@@ -206,8 +207,8 @@ fun MessengerScreen(
         // Floating Action Button for quick new message
         FloatingActionButton(
             onClick = onNewMessageClick,
-            containerColor = HubWhite,
-            contentColor = HubBlack,
+            containerColor = HubViolet,
+            contentColor = Color.White,
             shape = CircleShape,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -244,6 +245,8 @@ private fun ConversationItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (hasUnread) HubSurfaceElevated.copy(alpha = 0.42f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .testTag("conversation_item_${conversation.id}"),
