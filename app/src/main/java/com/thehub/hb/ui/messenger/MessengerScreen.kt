@@ -49,6 +49,7 @@ import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.theme.HubBlack
@@ -267,14 +268,15 @@ private fun ConversationItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = displayName,
+                HubVerifiedUserName(
+                    name = displayName,
+                    isVerified = liveUser.isVerified,
+                    verificationType = liveUser.verificationType,
+                    modifier = Modifier.weight(1f),
                     fontSize = 15.sp,
-                    fontWeight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
                     color = HubWhite,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    weight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
+                    badgeSize = 15.dp
                 )
 
                 Text(
