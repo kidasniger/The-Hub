@@ -286,12 +286,14 @@ fun HubVerifiedUserName(
     name: String,
     isVerified: Boolean,
     verificationType: String?,
+    modifier: Modifier = Modifier,
     fontSize: androidx.compose.ui.unit.TextUnit = 14.sp,
     color: Color = HubWhite,
     weight: FontWeight = FontWeight.Bold,
     badgeSize: androidx.compose.ui.unit.Dp = 15.dp
 ) {
     Row(
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
