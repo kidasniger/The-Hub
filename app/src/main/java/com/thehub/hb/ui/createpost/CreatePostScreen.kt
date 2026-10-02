@@ -183,8 +183,10 @@ fun CreatePostScreen(
                 Button(
                     onClick = {
                         viewModel.publishPost { newPost ->
-                            dataStoreManager.clearPostDraft()
-                            onPostCreated(newPost)
+                            coroutineScope.launch {
+                                dataStoreManager.clearPostDraft()
+                                onPostCreated(newPost)
+                            }
                         }
                     },
                     enabled = uiState.canPublish && !uiState.isLoading,
@@ -453,8 +455,10 @@ fun CreatePostScreen(
                     TextButton(
                         onClick = {
                             showDiscardDialog = false
-                            coroutineScope.launch { dataStoreManager.clearPostDraft() }
-                            onNavigateBack()
+                            coroutineScope.launch {
+                                dataStoreManager.clearPostDraft()
+                                onNavigateBack()
+                            }
                         },
                         modifier = Modifier.testTag("create_post_discard_confirm")
                     ) {
