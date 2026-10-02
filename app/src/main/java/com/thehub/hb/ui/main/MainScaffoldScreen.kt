@@ -64,6 +64,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -403,24 +407,24 @@ fun HubBottomNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .testTag("hub_bottom_nav_bar")
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .shadow(
-                    elevation = 18.dp,
-                    shape = RoundedCornerShape(44.dp),
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(28.dp),
                     ambientColor = Color.Black.copy(alpha = 0.55f),
                     spotColor = HubViolet.copy(alpha = 0.18f)
                 )
-                .clip(RoundedCornerShape(44.dp))
+                .clip(RoundedCornerShape(28.dp))
                 .background(HubNavigationSurface)
                 .border(
                     width = 1.dp,
                     color = HubOutline,
-                    shape = RoundedCornerShape(44.dp)
+                    shape = RoundedCornerShape(28.dp)
                 )
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
@@ -430,7 +434,7 @@ fun HubBottomNavigationBar(
                 if (tab == MainTab.CREATE) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(58.dp)
                             .shadow(
                                 elevation = 18.dp,
                                 shape = CircleShape,
@@ -491,12 +495,17 @@ fun HubBottomNavigationBar(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isSelected) HubWhite.copy(alpha = 0.08f) else Color.Transparent)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null
                         ) { onTabSelected(tab) }
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .semantics {
+                            role = Role.Tab
+                            selected = isSelected
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                         .testTag(tab.testTag)
                 ) {
                     Box(
@@ -543,7 +552,7 @@ fun HubBottomNavigationBar(
 
                     Text(
                         text = tabTitle,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) HubWhite else HubMuted,
                         modifier = Modifier.graphicsLayer(
