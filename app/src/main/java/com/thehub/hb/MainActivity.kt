@@ -153,6 +153,10 @@ class MainActivity : ComponentActivity() {
             ?: intent?.data
                 ?.toString()
                 ?.takeIf { HubDeepLink.toRoute(it) != null }
+            ?: intent?.extras?.getString("deepLink")
+                ?.takeIf { HubDeepLink.toRoute(it) != null }
+            ?: intent?.extras?.getString("deepLink")
+                ?.takeIf { HubDeepLink.toRoute(it) != null }
 
         if (!deepLink.isNullOrBlank()) {
             if (deepLink == "thehub://update") {
