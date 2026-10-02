@@ -168,6 +168,20 @@ class UserRepository(
         }
     }
 
+    suspend fun getFollowingIds(): Set<String> = withContext(Dispatchers.IO) {
+        val uid = currentUserId ?: return@withContext emptySet()
+        runCatching {
+            firestore.collection("users").document(uid)
+                .collection("following")
+                .get()
+                .await()
+                .documents
+                .map { it.id }
+                .filter { it.isNotBlank() }
+                .toSet()
+        }.getOrDefault(emptySet())
+    }
+
     /**
      * Check if username is taken by another user.
      */
