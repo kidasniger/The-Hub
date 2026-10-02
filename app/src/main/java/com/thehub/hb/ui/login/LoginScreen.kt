@@ -82,7 +82,7 @@ fun LoginScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        val panelShape = RoundedCornerShape(40.dp)
+        val panelShape = RoundedCornerShape(28.dp)
 
         Box(
             modifier = Modifier
@@ -137,8 +137,8 @@ fun LoginScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(126.dp)
-                            .clip(RoundedCornerShape(34.dp))
+                            .size(112.dp)
+                            .clip(RoundedCornerShape(28.dp))
                             .background(
                                 if (colors.isGlass) HubWhite.copy(alpha = 0.08f)
                                 else HubSurfaceElevated
@@ -195,7 +195,7 @@ fun LoginScreen(
                         enabled = !uiState.isGoogleLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(60.dp)
+                            .height(56.dp)
                             .testTag("login_google_button"),
                         shape = RoundedCornerShape(30.dp),
                         colors = ButtonDefaults.buttonColors(
