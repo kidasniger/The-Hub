@@ -1,3 +1,4 @@
+// The Hub shared UI primitives.
 package com.thehub.hb.ui.components
 
 import androidx.compose.animation.core.RepeatMode
