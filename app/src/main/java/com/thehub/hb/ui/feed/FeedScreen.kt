@@ -61,6 +61,7 @@ import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubEmptyState
 import com.thehub.hb.ui.components.HubPill
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.ReportBottomSheet
@@ -319,39 +320,53 @@ fun FeedScreen(
     }
 }
 
+private enum class FeedFilter(val label: String) {
+    ALL("Tout"), MEDIA("Médias"), REPOSTS("Republications")
+}
+
 @Composable
-private enum class FeedFilter(val label: String) { ALL("Tout"), MEDIA("Médias"), REPOSTS("Republications") }\n\n@Composable\nprivate fun FeedSkeletonList() {
+private fun FeedSkeletonList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 0.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         repeat(3) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(170.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(HubSurface)
-                    .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(HubCard)
+                    .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
                     .padding(16.dp)
             ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(40.dp).clip(CircleShape).background(HubDarkGray))
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Box(Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
-                            Spacer(Modifier.height(6.dp))
-                            Box(Modifier.width(60.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(HubBorder))
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(HubDarkGray)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        HubSkeletonLine(height = 13.dp, widthFraction = 0.42f)
+                        Spacer(Modifier.height(7.dp))
+                        HubSkeletonLine(height = 10.dp, widthFraction = 0.28f)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Box(Modifier.fillMaxWidth(0.9f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
-                    Spacer(Modifier.height(8.dp))
-                    Box(Modifier.fillMaxWidth(0.6f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
                 }
+                Spacer(Modifier.height(16.dp))
+                HubSkeletonLine(height = 13.dp, widthFraction = 0.86f)
+                Spacer(Modifier.height(8.dp))
+                HubSkeletonLine(height = 13.dp, widthFraction = 0.58f)
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(HubSurfaceElevated)
+                )
             }
         }
     }
