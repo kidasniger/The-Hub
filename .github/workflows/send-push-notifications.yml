@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: the-hub-push-worker
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   push-worker:
