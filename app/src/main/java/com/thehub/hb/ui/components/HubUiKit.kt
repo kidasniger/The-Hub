@@ -256,32 +256,6 @@ fun HubSkeletonLine(
 }
 
 @Composable
-fun HubCountBadge(
-    count: Int,
-    modifier: Modifier = Modifier
-) {
-    if (count <= 0) return
-
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(HubWhite)
-            .border(1.dp, HubBlack, CircleShape)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = if (count > 99) "99+" else count.toString(),
-            color = Color(0xFF09090B),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1
-        )
-    }
-}
-
-
-@Composable
 fun HubVerifiedUserName(
     name: String,
     isVerified: Boolean,
