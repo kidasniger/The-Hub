@@ -1,6 +1,5 @@
 package com.thehub.hb.ui.comments
 
-import android.widget.Toast
 import com.thehub.hb.ui.theme.HubSurface
 import com.thehub.hb.ui.theme.HubOutline
 import androidx.compose.material3.MaterialTheme
@@ -81,7 +80,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
