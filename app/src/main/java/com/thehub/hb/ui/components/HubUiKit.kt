@@ -277,7 +277,7 @@ fun HubVerifiedUserName(
             fontSize = fontSize,
             fontWeight = weight
         )
-        if (isVerified && verificationType == "admin") {
+        if (verificationType == "admin") {
             OfficialVerificationBadge(size = badgeSize)
         }
     }
