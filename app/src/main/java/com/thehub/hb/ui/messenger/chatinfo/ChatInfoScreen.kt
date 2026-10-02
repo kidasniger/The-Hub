@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Message
 import com.thehub.hb.ui.components.HubTextField
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
@@ -172,12 +173,13 @@ fun ChatInfoScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = displayName,
+                    HubVerifiedUserName(
+                        name = displayName,
+                        isVerified = liveContact.isVerified,
+                        verificationType = liveContact.verificationType,
                         fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
                         color = HubWhite,
-                        textAlign = TextAlign.Center
+                        badgeSize = 19.dp
                     )
 
 
