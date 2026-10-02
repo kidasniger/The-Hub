@@ -829,6 +829,8 @@ class UserRepository(
                     var username = "thehub_user"
                     var displayName: String? = null
                     var photoUrl: String? = null
+                    var isVerified = false
+                    var verificationType: String? = null
 
                     try {
                         val userDoc = firestore.collection("users").document(blockedUid).get().await()
@@ -836,6 +838,8 @@ class UserRepository(
                             username = userDoc.getString("username") ?: username
                             displayName = userDoc.getString("displayName")
                             photoUrl = userDoc.getString("photoUrl")
+                            isVerified = userDoc.getBoolean("isVerified") == true
+                            verificationType = userDoc.getString("verificationType")
                         }
                     } catch (_: Exception) {}
 
@@ -844,7 +848,9 @@ class UserRepository(
                         username = username,
                         displayName = displayName,
                         photoUrl = photoUrl,
-                        blockedAt = blockedAt
+                        blockedAt = blockedAt,
+                        isVerified = isVerified,
+                        verificationType = verificationType
                     )
                 }
             }.awaitAll()
