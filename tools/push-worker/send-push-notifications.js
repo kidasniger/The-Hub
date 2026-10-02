@@ -235,6 +235,10 @@ async function run() {
         const deepLink = buildDeepLink(notif);
         await messaging.send({
           token,
+          notification: {
+            title: content.title,
+            body: content.body,
+          },
           data: {
             notificationId: sanitizeData(doc.id),
             recipientId: sanitizeData(notif.recipientId || ''),
@@ -255,7 +259,13 @@ async function run() {
             messageId: sanitizeData(notif.messageId || ''),
             deepLink: sanitizeData(deepLink),
           },
-          android: { priority: 'high' },
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'hub_social_notifications',
+              sound: 'default',
+            },
+          },
         });
         sentCount += 1;
       } catch (err) {
@@ -271,12 +281,19 @@ async function run() {
       }
     }
 
-    await doc.ref.update({
-      pushSent: true,
-      pushSentAt: FieldValue.serverTimestamp(),
-      pushSentDeviceCount: sentCount,
-      ...(sentCount === 0 && lastError ? { pushSkippedReason: 'send_error' } : {}),
-    });
+    if (sentCount > 0) {
+      await doc.ref.update({
+        pushSent: true,
+        pushSentAt: FieldValue.serverTimestamp(),
+        pushSentDeviceCount: sentCount,
+      });
+    } else if (lastError) {
+      await doc.ref.update({
+        pushSent: false,
+        pushRetryAt: FieldValue.serverTimestamp(),
+        pushSkippedReason: 'send_error',
+      });
+    }
 
     if (sentCount > 0) {
       console.log(`Push envoyé pour la notification ${doc.id} vers ${sentCount} appareil(s).`);
