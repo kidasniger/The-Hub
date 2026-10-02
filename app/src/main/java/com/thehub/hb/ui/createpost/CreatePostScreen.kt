@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Post
+import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.VideoLinkCard
@@ -82,6 +83,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -93,13 +95,27 @@ fun CreatePostScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val dataStoreManager = remember(context) { DataStoreManager(context) }    val coroutineScope = rememberCoroutineScope()
     val textBringIntoViewRequester = remember { BringIntoViewRequester() }
     var textFieldFocused by remember { mutableStateOf(false) }
     var showVideoDialog by remember { mutableStateOf(false) }
     var videoDialogUrl by remember { mutableStateOf("") }
     var videoDialogError by remember { mutableStateOf<String?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!uiState.isEditMode && uiState.text.isBlank()) {
+            val draft = dataStoreManager.postDraftText.first()
+            if (draft.isNotBlank()) viewModel.updateText(draft)
+        }
+    }
+
+    LaunchedEffect(uiState.text, uiState.isEditMode, uiState.isPublished) {
+        if (!uiState.isEditMode && !uiState.isPublished) {
+            delay(500)
+            dataStoreManager.savePostDraft(uiState.text)
+        }
+    }
+
 
     // Native Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -167,6 +183,7 @@ fun CreatePostScreen(
                 Button(
                     onClick = {
                         viewModel.publishPost { newPost ->
+                            dataStoreManager.clearPostDraft()
                             onPostCreated(newPost)
                         }
                     },
@@ -436,6 +453,7 @@ fun CreatePostScreen(
                     TextButton(
                         onClick = {
                             showDiscardDialog = false
+                            coroutineScope.launch { dataStoreManager.clearPostDraft() }
                             onNavigateBack()
                         },
                         modifier = Modifier.testTag("create_post_discard_confirm")
