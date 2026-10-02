@@ -10,6 +10,9 @@ on:
       - "public/**"
       - "firebase.json"
       - "kidas.md"
+      - ".github/push-worker-trigger"
+      - "tools/push-worker/**"
+      - "tools/release-notify/**"
   workflow_dispatch:
     inputs:
       tag_name:
