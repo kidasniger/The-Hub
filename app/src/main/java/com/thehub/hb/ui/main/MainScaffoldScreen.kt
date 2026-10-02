@@ -255,6 +255,13 @@ fun MainScaffoldScreen(
                             }
                         },
                         onOpenFriends = onOpenFriends,
+                        onOpenNotifications = {
+                            if (selectedTab != MainTab.NOTIFICATIONS.ordinal) {
+                                tabHistory.add(selectedTab)
+                                selectedTab = MainTab.NOTIFICATIONS.ordinal
+                            }
+                        },
+                        unreadNotificationsCount = unreadNotificationsCount,
                         onDiscoverUsers = {
                             tabHistory.add(selectedTab)
                             selectedTab = MainTab.SEARCH.ordinal
