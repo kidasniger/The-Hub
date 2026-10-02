@@ -381,11 +381,13 @@ fun PostDetailScreen(
                                         size = 32.dp
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = origAuthor.effectiveName,
+                                    HubVerifiedUserName(
+                                        name = origAuthor.effectiveName,
+                                        isVerified = origAuthor.isVerified,
+                                        verificationType = origAuthor.verificationType,
                                         fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = HubWhite
+                                        color = HubWhite,
+                                        badgeSize = 14.dp
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
@@ -716,11 +718,13 @@ private fun CommentItemPreview(comment: Comment) {
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = commentAuthor.effectiveName,
+                HubVerifiedUserName(
+                    name = commentAuthor.effectiveName,
+                    isVerified = commentAuthor.isVerified,
+                    verificationType = commentAuthor.verificationType,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
+                    color = HubWhite,
+                    badgeSize = 14.dp
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
