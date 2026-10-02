@@ -98,7 +98,9 @@ fun CreatePostScreen(
     var textFieldFocused by remember { mutableStateOf(false) }
     var showVideoDialog by remember { mutableStateOf(false) }
     var videoDialogUrl by remember { mutableStateOf("") }
-    var videoDialogError by remember { mutableStateOf<String?>(null) }\n    var showDiscardDialog by remember { mutableStateOf(false) }\n
+    var videoDialogError by remember { mutableStateOf<String?>(null) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
     // Native Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -138,7 +140,14 @@ fun CreatePostScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(\n                    onClick = {\n                        if (uiState.text.isNotBlank() || uiState.selectedImageUri != null || !uiState.videoUrl.isNullOrBlank()) {\n                            showDiscardDialog = true\n                        } else {\n                            onNavigateBack()\n                        }\n                    },
+                IconButton(
+                    onClick = {
+                        if (uiState.text.isNotBlank() || uiState.selectedImageUri != null || !uiState.videoUrl.isNullOrBlank()) {
+                            showDiscardDialog = true
+                        } else {
+                            onNavigateBack()
+                        }
+                    },
                     modifier = Modifier.testTag("create_post_back_button")
                 ) {
                     Icon(
@@ -170,7 +179,8 @@ fun CreatePostScreen(
                         disabledContentColor = if (uiState.isLoading) HubBlack else HubMuted
                     ),
                     modifier = Modifier
-                        .height(44.dp)\n                        .testTag("create_post_publish_button")
+                        .height(44.dp)
+                        .testTag("create_post_publish_button")
                 ) {
                     if (uiState.isLoading) {
                         AppLogo(
