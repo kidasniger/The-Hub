@@ -245,7 +245,7 @@ fun OnboardingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp),
+                    .padding(top = 4.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -288,8 +288,8 @@ fun OnboardingScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
-                    .shadow(16.dp, RoundedCornerShape(30.dp), clip = false),
+                    .height(56.dp)
+                    .shadow(14.dp, RoundedCornerShape(30.dp), clip = false),
                 shape = RoundedCornerShape(30.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -300,8 +300,8 @@ fun OnboardingScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
-                        .clip(RoundedCornerShape(30.dp))
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(28.dp))
                         .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue))),
                     contentAlignment = Alignment.Center
                 ) {
@@ -342,7 +342,7 @@ private fun OnboardingIllustration(
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        listOf(HubViolet.copy(alpha = if (glass) 0.32f else 0.18f), Color.Transparent)
+                        listOf(HubViolet.copy(alpha = if (glass) 0.22f else 0.12f), Color.Transparent)
                     )
                 )
         )
@@ -354,7 +354,7 @@ private fun OnboardingIllustration(
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        listOf(HubBlue.copy(alpha = if (glass) 0.30f else 0.14f), Color.Transparent)
+                        listOf(HubBlue.copy(alpha = if (glass) 0.20f else 0.10f), Color.Transparent)
                     )
                 )
         )
