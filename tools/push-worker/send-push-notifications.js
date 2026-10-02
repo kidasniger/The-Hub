@@ -263,6 +263,7 @@ async function run() {
             priority: 'high',
             notification: {
               channelId: 'hub_social_notifications',
+              icon: 'ic_stat_hub',
               sound: 'default',
             },
           },
