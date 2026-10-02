@@ -42,9 +42,9 @@ class HubApplication : Application(), ImageLoaderFactory {
                 val currentUserId = firebaseUser?.uid
 
                 if (currentUserId != null) {
-                    repeat(3) { attempt ->
+                    for (attempt in 0 until 3) {
                         val result = container.notificationRepository.registerCurrentFcmToken()
-                        if (result.isSuccess) return@repeat
+                        if (result.isSuccess) break
                         delay(500L * (attempt + 1))
                     }
                 }
