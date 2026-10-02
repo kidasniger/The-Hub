@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -16,6 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material3.Icon
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
@@ -27,6 +34,8 @@ import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
+import com.thehub.hb.ui.theme.HubThemeBackground
+import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubWhite
 
 @Composable
@@ -34,12 +43,15 @@ fun WelcomeScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToTerms: () -> Unit
 ) {
+    HubThemeBackground(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubSurfaceDark)
-            .statusBarsPadding()
-            .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 22.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -51,7 +63,8 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(38.dp))
 
             Text(
-                text = "Bienvenue sur\nThe Hub.",
+                text = "Bienvenue sur
+The Hub.",
                 color = HubWhite,
                 fontSize = 42.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -67,6 +80,12 @@ fun WelcomeScreen(
                 fontSize = 17.sp,
                 lineHeight = 25.sp
             )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            WelcomeFeatureRow(Icons.Outlined.Explore, "Découvrir", "Trouver des personnes et des publications")
+            WelcomeFeatureRow(Icons.Outlined.EditNote, "Publier", "Partager une idée, une photo ou une vidéo")
+            WelcomeFeatureRow(Icons.Outlined.ChatBubbleOutline, "Échanger", "Rester proche de ta communauté")
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -102,4 +121,30 @@ fun WelcomeScreen(
             )
         }
     }
+    }
 }
+
+@Composable
+private fun WelcomeFeatureRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(HubSurfaceDark.copy(alpha = 0.65f))
+            .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 13.dp, vertical = 11.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = HubSecondary, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = HubWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(description, color = HubMuted, fontSize = 11.sp, lineHeight = 16.sp)
+        }
+    }
+}
+
