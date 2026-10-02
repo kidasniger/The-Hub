@@ -16,15 +16,23 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubMuted
@@ -48,17 +56,29 @@ fun HubTextField(
     errorMessage: String? = null,
     testTag: String = "hub_text_field"
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            errorMessage != null -> HubError
+            focused -> HubWhite.copy(alpha = 0.55f)
+            else -> HubBorder
+        },
+        animationSpec = tween(160),
+        label = "hub_text_field_border"
+    )
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(minHeight.dp)
-                .background(HubSurfaceElevated, RoundedCornerShape(16.dp))
+                .height(minHeight.dp.coerceAtLeast(48.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .background(HubSurfaceElevated)
                 .border(
-                    width = 1.dp,
-                    color = if (errorMessage != null) HubError else HubBorder,
+                    width = if (focused || errorMessage != null) 1.5.dp else 1.dp,
+                    color = borderColor,
                     shape = RoundedCornerShape(16.dp)
                 )
+                .onFocusChanged { focused = it.isFocused }
                 .padding(horizontal = 16.dp),
             contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart
         ) {
