@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,11 +32,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +55,7 @@ import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
@@ -70,11 +76,7 @@ fun PostCard(
     onAuthorClick: ((String) -> Unit)? = null,
     onMoreOptionsClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(HubBlack)
+) {\n    val likeScale by animateFloatAsState(\n        targetValue = if (post.isLikedByCurrentUser) 1.12f else 1f,\n        animationSpec = tween(180),\n        label = "post_like_scale"\n    )\n\n    Column(\n        modifier = modifier\n            .fillMaxWidth()\n            .padding(horizontal = 8.dp, vertical = 6.dp)\n            .clip(RoundedCornerShape(20.dp))\n            .background(HubCard)\n            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = HubDarkGray),
@@ -266,8 +268,7 @@ fun PostCard(
                     Icon(
                         imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Aimer",
-                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
-                        modifier = Modifier.size(20.dp)
+                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,\n                        modifier = Modifier\n                            .size(20.dp)\n                            .graphicsLayer(scaleX = likeScale, scaleY = likeScale)
                     )
                 }
                 Text(
@@ -284,8 +285,7 @@ fun PostCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clickable { onOpenComments(post.id) }
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .clickable { onOpenComments(post.id) }\n                    .heightIn(min = 48.dp)\n                    .padding(horizontal = 4.dp, vertical = 2.dp)
                     .testTag("action_comment_${post.id}")
             ) {
                 Icon(
