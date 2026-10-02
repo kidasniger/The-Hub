@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.login
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -197,45 +197,37 @@ fun LoginScreen(
                             .fillMaxWidth()
                             .height(56.dp)
                             .testTag("login_google_button"),
-                        shape = RoundedCornerShape(30.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, HubBorderLight),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = Color.White,
-                            disabledContainerColor = Color.Transparent,
-                            disabledContentColor = Color.White.copy(alpha = 0.75f)
+                            containerColor = Color.White,
+                            contentColor = Color(0xFF202124),
+                            disabledContainerColor = Color.White.copy(alpha = 0.82f),
+                            disabledContentColor = Color(0xFF5F6368)
                         ),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp)
+                        contentPadding = PaddingValues(horizontal = 18.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp)
-                                .clip(RoundedCornerShape(30.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(HubViolet, HubBlue)
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (uiState.isGoogleLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.5.dp,
-                                    color = Color.White
-                                )
-                            } else {
+                        if (uiState.isGoogleLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.5.dp,
+                                color = Color(0xFF5F6368)
+                            )
+                        } else {
+                            androidx.compose.foundation.layout.Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_google_g),
                                     contentDescription = "Logo Google",
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
-
-                                Spacer(modifier = Modifier.size(10.dp))
-
+                                Spacer(Modifier.size(10.dp))
                                 Text(
                                     text = "Continuer avec Google",
-                                    fontSize = 17.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
