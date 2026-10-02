@@ -115,15 +115,15 @@ val HubLightPalette = HubPalette(
 
 // Palette Glass : Effet verre dépoli aéro avec reflets translucides et lueur moderne
 val HubGlassPalette = HubPalette(
-    black = Color(0xCC090D18), // 80% : laisse les halos du fond global transparaître
-    surfaceDark = Color(0x80101A2B), // 50% : surface vitrée légère
-    card = Color(0x2EFFFFFF), // 18% verre dépoli translucide
-    surfaceElevated = Color(0x40FFFFFF), // 25% verre dépoli surélevé
-    border = Color(0x38FFFFFF), // 22% bordure translucide lumineuse
-    borderLight = Color(0x4DFFFFFF), // 30% reflet de lumière sur les contours
-    darkGray = Color(0x507C94B2),
-    muted = Color(0xFF8DA2BC),
-    secondary = Color(0xFFB4C8DF),
+    black = Color(0xD90A0E17), // 80% : laisse les halos du fond global transparaître
+    surfaceDark = Color(0xA4141D2C), // 50% : surface vitrée légère
+    card = Color(0x22FFFFFF), // 18% verre dépoli translucide
+    surfaceElevated = Color(0x30FFFFFF), // 25% verre dépoli surélevé
+    border = Color(0x2AFFFFFF), // 22% bordure translucide lumineuse
+    borderLight = Color(0x36FFFFFF), // 30% reflet de lumière sur les contours
+    darkGray = Color(0x3A7C94B2),
+    muted = Color(0xFF9BAEC3),
+    secondary = Color(0xFFC4D3E3),
     lightGray = Color(0xFFDCE8F7),
     white = Color(0xFFFFFFFF), // Texte et icônes d'un blanc pur éclatant
     error = Color(0xFFFF6B6B),
