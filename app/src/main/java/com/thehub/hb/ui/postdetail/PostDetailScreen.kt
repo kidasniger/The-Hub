@@ -61,6 +61,7 @@ import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
@@ -245,11 +246,13 @@ fun PostDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text(
-                                        text = author.effectiveName,
+                                    HubVerifiedUserName(
+                                        name = author.effectiveName,
+                                        isVerified = author.isVerified,
+                                        verificationType = author.verificationType,
                                         fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = HubWhite
+                                        color = HubWhite,
+                                        badgeSize = 16.dp
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
