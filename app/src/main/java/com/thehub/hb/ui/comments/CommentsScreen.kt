@@ -64,6 +64,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -153,14 +155,14 @@ fun CommentsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     val threads = remember(uiState.comments) {
         buildCommentThreads(uiState.comments)
     }
 
     LaunchedEffect(uiState.actionFeedbackMessage) {
         uiState.actionFeedbackMessage?.let { msg ->
-            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            snackbarHostState.showSnackbar(msg)
             viewModel.clearFeedbackMessage()
         }
     }
