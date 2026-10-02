@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubCard
@@ -353,12 +354,14 @@ private fun ConversationShareRow(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = otherInfo.displayName ?: otherInfo.username.ifBlank { "Conversation" },
-                color = HubWhite,
+            HubVerifiedUserName(
+                name = otherInfo.displayName ?: otherInfo.username.ifBlank { "Conversation" },
+                isVerified = otherInfo.isVerified,
+                verificationType = otherInfo.verificationType,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
+                color = HubWhite,
+                weight = FontWeight.SemiBold,
+                badgeSize = 15.dp
             )
             Text(
                 text = if (conversation.lastMessageText.isBlank()) "Aucun message" else conversation.lastMessageText,
