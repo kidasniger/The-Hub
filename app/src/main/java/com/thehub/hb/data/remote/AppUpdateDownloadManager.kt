@@ -456,7 +456,7 @@ class AppUpdateDownloadManager(
             context,
             UPDATE_NOTIFICATION_CHANNEL_ID
         )
-            .setSmallIcon(R.drawable.ic_stat_hub)
+            .setSmallIcon(R.drawable.ic_hub_logo)
             .setContentTitle("Mise à jour prête")
             .setContentText("Appuyez pour ouvrir l'installation de la nouvelle version")
             .setContentIntent(pendingIntent)
