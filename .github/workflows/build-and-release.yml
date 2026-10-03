@@ -24,7 +24,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: the-hub-release-v2
+  group: the-hub-release-v3
   cancel-in-progress: true
 
 jobs:
