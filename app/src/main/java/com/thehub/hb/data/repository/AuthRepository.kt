@@ -316,15 +316,6 @@ class AuthRepository(
                     shouldCompleteProfile = userData.username.isBlank() || userData.displayName.isNullOrBlank()
                 }
 
-                try {
-                    NotificationRepository(firestore, auth).registerCurrentFcmToken()
-                } catch (e: Exception) {
-                    android.util.Log.w(
-                        "AuthRepository",
-                        "Could not register FCM token after Google sign-in: " + e.message
-                    )
-                }
-
                 GoogleSignInResult.Success(
                     shouldCompleteProfile = shouldCompleteProfile,
                     user = firebaseUser
