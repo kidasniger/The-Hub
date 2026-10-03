@@ -7,6 +7,7 @@ import com.thehub.hb.HubApplication
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.data.repository.PostRepository
+import com.thehub.hb.data.repository.UserRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.sync.Mutex
@@ -33,6 +34,7 @@ sealed interface FeedUiState {
 class FeedViewModel(
     private val postRepository: PostRepository,
     private val messageRepository: MessageRepository? = null,
+    private val userRepository: UserRepository? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
