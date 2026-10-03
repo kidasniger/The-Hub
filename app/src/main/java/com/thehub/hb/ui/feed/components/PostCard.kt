@@ -1,6 +1,5 @@
 package com.thehub.hb.ui.feed.components
 
-import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.OfficialVerificationBadge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,24 +31,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
-import com.thehub.hb.data.model.UserInfo
-import com.thehub.hb.data.repository.UserCacheRepository
+import com.thehub.hb.data.repository.rememberLiveUser
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
@@ -58,7 +50,6 @@ import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubBorder
 import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
@@ -80,19 +71,10 @@ fun PostCard(
     onMoreOptionsClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val likeScale by animateFloatAsState(
-        targetValue = if (post.isLikedByCurrentUser) 1.12f else 1f,
-        animationSpec = tween(180),
-        label = "post_like_scale"
-    )
-
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(HubCard)
-            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
+            .background(HubBlack)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = HubDarkGray),
@@ -100,12 +82,7 @@ fun PostCard(
             )
             .testTag("post_card_${post.id}")
     ) {
-        val usersCache = UserCacheRepository.getInstance().usersCache.collectAsState().value
-        val author = usersCache[post.authorId] ?: UserInfo(
-            uid = post.authorId,
-            username = post.authorUsername,
-            photoUrl = post.authorPhotoUrl
-        )
+        val author = rememberLiveUser(userId = post.authorId)
 
         Column(
             modifier = Modifier
@@ -113,7 +90,7 @@ fun PostCard(
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             if (post.isRepost) {
-                val reposter = author
+                val reposter = rememberLiveUser(userId = post.authorId)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -127,24 +104,12 @@ fun PostCard(
                         modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Reposté par",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = HubSecondary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        HubVerifiedUserName(
-                            name = reposter.effectiveName,
-                            isVerified = reposter.isVerified,
-                            verificationType = reposter.verificationType,
-                            fontSize = 11.sp,
-                            color = HubSecondary,
-                            weight = FontWeight.Medium,
-                            badgeSize = 12.dp
-                        )
-                    }
+                    Text(
+                        text = "Reposté par ${reposter.effectiveName}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = HubSecondary
+                    )
                 }
             }
 
@@ -302,9 +267,7 @@ fun PostCard(
                         imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Aimer",
                         tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .graphicsLayer(scaleX = likeScale, scaleY = likeScale)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Text(
@@ -314,7 +277,6 @@ fun PostCard(
                     color = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubSecondary,
                     modifier = Modifier
                         .clickable { onOpenLikes(post.id) }
-                        .heightIn(min = 48.dp)
                         .padding(horizontal = 2.dp, vertical = 6.dp)
                 )
             }
@@ -323,7 +285,6 @@ fun PostCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clickable { onOpenComments(post.id) }
-                    .heightIn(min = 48.dp)
                     .padding(horizontal = 4.dp, vertical = 2.dp)
                     .testTag("action_comment_${post.id}")
             ) {
@@ -387,11 +348,8 @@ private fun EmbeddedOriginalPost(
     onVideoClick: ((String) -> Unit)?,
     onPostClick: (String) -> Unit
 ) {
-    val usersCache = UserCacheRepository.getInstance().usersCache.collectAsState().value
-    val origAuthor = usersCache[originalPost.authorId] ?: UserInfo(
-        uid = originalPost.authorId,
-        username = originalPost.authorUsername,
-        photoUrl = originalPost.authorPhotoUrl
+    val origAuthor = rememberLiveUser(
+        userId = originalPost.authorId
     )
 
     Column(
