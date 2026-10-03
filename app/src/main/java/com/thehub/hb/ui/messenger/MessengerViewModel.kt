@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.repository.MessageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -52,6 +53,16 @@ class MessengerViewModel(
             searchQuery = query,
             currentUserId = currentUserId
         )
+    }.catch { throwable ->
+        val message = when {
+            throwable.message?.contains("PERMISSION_DENIED", ignoreCase = true) == true ->
+                "Accès refusé à vos conversations."
+            throwable.message?.isNotBlank() == true ->
+                "Impossible de charger vos conversations."
+            else ->
+                "Impossible de charger vos conversations. Vérifiez votre connexion."
+        }
+        emit(MessengerUiState.Error(message))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
