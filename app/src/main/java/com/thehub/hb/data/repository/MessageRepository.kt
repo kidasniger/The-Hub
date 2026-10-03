@@ -58,13 +58,14 @@ class MessageRepository(
             .whereArrayContains("participantIds", uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    // A listener can report a later network/cache/rules error after
-                    // successfully delivering cached data. Never turn that event
-                    // into an empty list, otherwise conversations visibly disappear.
-                    android.util.Log.w(
+                    android.util.Log.e(
                         "MessageRepository",
-                        "Conversation listener error: " + error.message
+                        "Conversation listener error: " + error.message,
+                        error
                     )
+                    // Propagate the listener failure so the ViewModel can expose
+                    // an Error state instead of leaving the screen on Loading.
+                    close(error)
                     return@addSnapshotListener
                 }
 
