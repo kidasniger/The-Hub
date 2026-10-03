@@ -1,5 +1,6 @@
 package com.thehub.hb.ui.feed.components
 
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.OfficialVerificationBadge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
