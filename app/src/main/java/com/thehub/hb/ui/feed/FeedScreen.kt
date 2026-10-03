@@ -1,5 +1,3 @@
-// Feed crash isolation verified.
-// Feed runtime stability pass.
 package com.thehub.hb.ui.feed
 
 import android.widget.Toast
@@ -60,7 +58,6 @@ import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.ReportBottomSheet
@@ -160,7 +157,7 @@ fun FeedScreen(
                     IconButton(
                         onClick = onOpenFriends,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(HubSurfaceElevated)
                             .testTag("feed_friends_button")
@@ -174,7 +171,7 @@ fun FeedScreen(
                         IconButton(
                             onClick = onOpenMessenger,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(38.dp)
                                 .clip(CircleShape)
                                 .background(HubSurfaceElevated)
                                 .testTag("feed_messenger_button")
@@ -324,44 +321,34 @@ private fun FeedSkeletonList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 0.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         repeat(3) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(HubCard)
-                    .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
+                    .height(170.dp)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(HubSurface)
+                    .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
                     .padding(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(HubDarkGray)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        HubSkeletonLine(height = 13.dp, widthFraction = 0.42f)
-                        Spacer(Modifier.height(7.dp))
-                        HubSkeletonLine(height = 10.dp, widthFraction = 0.28f)
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(40.dp).clip(CircleShape).background(HubDarkGray))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Box(Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                            Spacer(Modifier.height(6.dp))
+                            Box(Modifier.width(60.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(HubBorder))
+                        }
                     }
+                    Spacer(Modifier.height(16.dp))
+                    Box(Modifier.fillMaxWidth(0.9f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth(0.6f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
                 }
-                Spacer(Modifier.height(16.dp))
-                HubSkeletonLine(height = 13.dp, widthFraction = 0.86f)
-                Spacer(Modifier.height(8.dp))
-                HubSkeletonLine(height = 13.dp, widthFraction = 0.58f)
-                Spacer(Modifier.height(14.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(110.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(HubSurfaceElevated)
-                )
             }
         }
     }
