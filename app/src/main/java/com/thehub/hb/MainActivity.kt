@@ -19,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.Modifier
 import com.thehub.hb.data.repository.MessageRepository
@@ -154,8 +153,6 @@ class MainActivity : ComponentActivity() {
             ?: intent?.data
                 ?.toString()
                 ?.takeIf { HubDeepLink.toRoute(it) != null }
-            ?: intent?.extras?.getString("deepLink")
-                ?.takeIf { HubDeepLink.toRoute(it) != null }
 
         if (!deepLink.isNullOrBlank()) {
             if (deepLink == "thehub://update") {
@@ -178,13 +175,7 @@ class MainActivity : ComponentActivity() {
         if (permissionGranted) return
 
         val prefs = getSharedPreferences(PUSH_PERMISSION_PREFS, MODE_PRIVATE)
-        val prompted = prefs.getBoolean(PUSH_PERMISSION_PROMPTED, false)
-        val canExplain = ActivityCompat.shouldShowRequestPermissionRationale(
-            this,
-            Manifest.permission.POST_NOTIFICATIONS
-        )
-        if (prompted && !canExplain) return
-
+        if (prefs.getBoolean(PUSH_PERMISSION_PROMPTED, false)) return
         prefs.edit().putBoolean(PUSH_PERMISSION_PROMPTED, true).apply()
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
