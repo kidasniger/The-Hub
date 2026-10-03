@@ -1,3 +1,4 @@
+// Feed crash isolation verified.
 // Feed runtime stability pass.
 package com.thehub.hb.ui.feed
 
