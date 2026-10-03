@@ -155,17 +155,10 @@ fun HubNavGraph(
     LaunchedEffect(pendingNotificationDeepLink, currentUser?.uid) {
         val rawDeepLink = pendingNotificationDeepLink
         if (!rawDeepLink.isNullOrBlank() && currentUser?.uid != null) {
-            runCatching {
-                HubDeepLink.toRoute(rawDeepLink)?.let { route ->
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                    }
+            HubDeepLink.toRoute(rawDeepLink)?.let { route ->
+                navController.navigate(route) {
+                    launchSingleTop = true
                 }
-            }.onFailure { error ->
-                android.util.Log.w(
-                    "HubNavGraph",
-                    "Ignoring invalid notification deep link: ${error.message}"
-                )
             }
             onNotificationDeepLinkConsumed()
         }
