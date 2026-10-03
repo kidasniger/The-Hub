@@ -23,7 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.tasks.await
 
 // Push isolation: validate every incoming notification against the active Firebase UID.
@@ -38,16 +37,10 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override fun onDestroy() {
-        serviceScope.cancel()
-        super.onDestroy()
-    }
-
-
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         serviceScope.launch {
-            NotificationRepository().registerCurrentFcmToken(token)
+            NotificationRepository().registerCurrentFcmToken()
         }
     }
 
@@ -325,7 +318,7 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_hub)
+            .setSmallIcon(R.drawable.ic_hub_logo)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -333,7 +326,6 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             .setShowWhen(true)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setNumber(1)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(
                 if (deepLink == "thehub://update") {
@@ -361,7 +353,6 @@ class HubFirebaseMessagingService : FirebaseMessagingService() {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = CHANNEL_DESCRIPTION
-            setShowBadge(true)
         }
         manager.createNotificationChannel(channel)
     }
