@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 
 sealed interface MessengerUiState {
@@ -33,7 +34,7 @@ class MessengerViewModel(
     val searchQuery: StateFlow<String> = _searchQuery
 
     val uiState: StateFlow<MessengerUiState> = combine(
-        messageRepository.getConversations(),
+        messageRepository.getConversations().onStart { emit(emptyList()) },
         _searchQuery
     ) { conversations, query ->
         val filtered = if (query.isBlank()) {
@@ -52,7 +53,7 @@ class MessengerViewModel(
             filteredConversations = filtered,
             searchQuery = query,
             currentUserId = currentUserId
-        )
+        ) as MessengerUiState
     }.catch { throwable ->
         val message = when {
             throwable.message?.contains("PERMISSION_DENIED", ignoreCase = true) == true ->
