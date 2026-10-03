@@ -36,6 +36,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -48,7 +49,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
-import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.data.model.UserInfo
+import com.thehub.hb.data.repository.UserCacheRepository
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
@@ -98,7 +100,12 @@ fun PostCard(
             )
             .testTag("post_card_${post.id}")
     ) {
-        val author = rememberLiveUser(userId = post.authorId)
+        val usersCache = UserCacheRepository.getInstance().usersCache.collectAsState().value
+        val author = usersCache[post.authorId] ?: UserInfo(
+            uid = post.authorId,
+            username = post.authorUsername,
+            photoUrl = post.authorPhotoUrl
+        )
 
         Column(
             modifier = Modifier
@@ -106,7 +113,7 @@ fun PostCard(
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             if (post.isRepost) {
-                val reposter = rememberLiveUser(userId = post.authorId)
+                val reposter = author
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
