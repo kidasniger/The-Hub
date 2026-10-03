@@ -387,8 +387,11 @@ private fun EmbeddedOriginalPost(
     onVideoClick: ((String) -> Unit)?,
     onPostClick: (String) -> Unit
 ) {
-    val origAuthor = rememberLiveUser(
-        userId = originalPost.authorId
+    val usersCache = UserCacheRepository.getInstance().usersCache.collectAsState().value
+    val origAuthor = usersCache[originalPost.authorId] ?: UserInfo(
+        uid = originalPost.authorId,
+        username = originalPost.authorUsername,
+        photoUrl = originalPost.authorPhotoUrl
     )
 
     Column(
