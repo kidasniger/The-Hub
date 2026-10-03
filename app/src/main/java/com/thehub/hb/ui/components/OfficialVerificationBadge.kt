@@ -69,3 +69,5 @@ fun OfficialVerificationBadge(
         )
     }
 }
+
+// Feed crash fix validation marker.
