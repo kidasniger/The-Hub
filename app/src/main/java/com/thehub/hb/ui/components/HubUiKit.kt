@@ -1,3 +1,4 @@
+// Build validation: notification subsystem restored from v1.0.180.
 // The Hub shared UI primitives.
 // Android stability pass: push, badges, sign-in.
 package com.thehub.hb.ui.components
