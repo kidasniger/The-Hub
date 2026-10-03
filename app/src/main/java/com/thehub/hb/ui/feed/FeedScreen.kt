@@ -42,7 +42,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,8 +58,6 @@ import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubEmptyState
-import com.thehub.hb.ui.components.HubPill
 import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
@@ -104,11 +101,6 @@ fun FeedScreen(
     var postToReport by remember { mutableStateOf<Post?>(null) }
     var isDeletingPost by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
-    var feedFilter by rememberSaveable { mutableStateOf(FeedFilter.FOR_YOU.name) }
-    val activeFeedFilter = remember(feedFilter) {
-        FeedFilter.entries.firstOrNull { it.name == feedFilter } ?: FeedFilter.FOR_YOU
-    }
-    var followingIds by remember { mutableStateOf<Set<String>?>(null) }
     val listState = rememberLazyListState()
 
     val shouldLoadMore by remember {
@@ -116,12 +108,6 @@ fun FeedScreen(
             val totalItems = listState.layoutInfo.totalItemsCount
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             totalItems > 0 && lastVisibleItem >= totalItems - 3
-        }
-    }
-
-    LaunchedEffect(activeFeedFilter) {
-        if (activeFeedFilter == FeedFilter.FOLLOWING && followingIds == null) {
-            followingIds = viewModel.getFollowingIds()
         }
     }
 
@@ -329,12 +315,6 @@ fun FeedScreen(
             )
         }
     }
-}
-
-private enum class FeedFilter(val label: String) {
-    FOR_YOU("Pour toi"),
-    FOLLOWING("Abonnements"),
-    RECENT("Récent")
 }
 
 @Composable
