@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>États & composants · The Hub — Maquette Glass</title>
+<link rel="stylesheet" href="assets/glass.css">
+<link rel="icon" type="image/svg+xml" href="icones/icone-principale.svg">
+</head>
+<body>
+<div class="pagebar" style="max-width:1240px;margin:0 auto">
+  <a class="linkback" href="index.html" style="pointer-events:auto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg> Galerie</a>
+  <div class="crumb"><span class="dot"></span>États & composants</div>
+  <div class="themeswitch" role="group" aria-label="Thème">
+    <button id="tb-dark" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5Z"/></svg> Dark glass</button>
+    <button id="tb-light" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M18.6 5.4l-1.4 1.4M6.8 17.2l-1.4 1.4"/></svg> Light glass</button>
+  </div>
+</div>
+
+<div class="ds-wrap">
+  <span class="kicker pill acc" style="font-size:11px;letter-spacing:1.5px">ÉTATS & COMPOSANTS</span>
+  <h1>Tous les états, <span class="grad-text">pensés en verre</span></h1>
+  <p class="lead">Chaque écran prévoit son chargement, son vide, son erreur et ses confirmations — le verre transmet la profondeur,
+  les toasts et banners utilisent les teintes sémantiques (succès, danger, alerte, info).</p>
+  <div class="state-grid" style="margin-top:36px"><div class="state-cell glass"><div class="st">Chargement · skeleton</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div style="display:flex;gap:10px;align-items:center;padding:12px 14px"><span class="avatar av-g1" style="width:26px;height:26px;font-size:9px">AM</span><span class="skel" style="width:90px;height:9px"></span></div>
+      <span class="skel" style="margin:2px 14px 10px;height:9px"></span>
+      <span class="skel" style="margin:0 14px 12px;height:9px;width:70%"></span>
+      <span class="skel" style="margin:0 14px 16px;height:110px;border-radius:16px"></span>
+      <div style="display:flex;gap:10px;align-items:center;padding:12px 14px"><span class="avatar av-g2" style="width:26px;height:26px;font-size:9px">KD</span><span class="skel" style="width:80px;height:9px"></span></div>
+      <span class="skel" style="margin:0 14px 10px;height:9px"></span>
+      <span class="skel" style="margin:0 14px 12px;height:9px;width:60%"></span></div></div></div></div><div class="state-cell glass"><div class="st">Fil vide</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div class="empty" style="flex:1;justify-content:center">
+        <span class="eic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M18.6 5.4l-1.4 1.4M6.8 17.2l-1.4 1.4"/></svg></span>
+        <div style="font-size:11px;font-weight:800">Ton fil est calme</div>
+        <div style="font-size:9px;color:var(--text-3);line-height:1.5;max-width:120px">Suis des personnes pour voir leurs publications apparaître ici.</div>
+        <button class="btn btn-primary xs" style="margin-top:6px">Découvrir</button>
+      </div></div></div></div></div><div class="state-cell glass"><div class="st">Messagerie vide</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div class="empty" style="flex:1;justify-content:center">
+        <span class="eic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 3.6 3.8 10.2c-.9.35-.85 1.6.05 1.9l6.3 2 2 6.3c.3.9 1.55.95 1.9.05L20.4 3.6Z"/><path d="m10.2 14 4.5-4.6"/></svg></span>
+        <div style="font-size:11px;font-weight:800">Aucun message</div>
+        <div style="font-size:9px;color:var(--text-3);line-height:1.5;max-width:120px">Démarre une conversation avec ta communauté.</div>
+        <button class="btn btn-glass xs" style="margin-top:6px;color:var(--text)">Écrire</button>
+      </div></div></div></div></div><div class="state-cell glass"><div class="st">Aucun résultat</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div class="empty" style="flex:1;justify-content:center">
+        <span class="eic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></svg></span>
+        <div style="font-size:11px;font-weight:800">Aucun résultat</div>
+        <div style="font-size:9px;color:var(--text-3);line-height:1.5;max-width:130px">Essaie « design », « niger » ou un pseudo.</div>
+      </div></div></div></div></div><div class="state-cell glass"><div class="st">Hors connexion</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--scrim);backdrop-filter:blur(3px);padding:12px">
+        <div class="glass" style="border-radius:18px;padding:14px;text-align:center;width:100%">
+          <span style="color:var(--danger)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4l18 18"/><path d="M8.5 12.6a6.4 6.4 0 0 1 4-1.4M5 9.5a11 11 0 0 1 4-2.3M15.5 8.5a11 11 0 0 1 3.5 2M19 13.5a12 12 0 0 0-1.6-1.5"/><circle cx="12" cy="17.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>
+          <div style="font-size:11px;font-weight:800;margin-top:7px">Pas de connexion Internet</div>
+          <div style="font-size:8.5px;color:var(--text-3);line-height:1.5;margin-top:4px">The Hub a besoin d'une connexion réellement validée. Reessaie quand tu es en ligne.</div>
+          <button class="btn btn-primary xs" style="margin-top:9px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3.5V7h-3.5"/></svg> Réessayer</button>
+        </div>
+      </div></div></div></div></div><div class="state-cell glass"><div class="st">Déconnexion</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--scrim);backdrop-filter:blur(3px);padding:12px">
+        <div class="glass" style="border-radius:18px;padding:14px;width:100%">
+          <div style="font-size:11.5px;font-weight:800">Se déconnecter ?</div>
+          <div style="font-size:9px;color:var(--text-2);line-height:1.5;margin-top:5px">Tu devras te reconnecter pour accéder à ton fil et à tes messages.</div>
+          <div style="display:flex;gap:8px;margin-top:11px"><button class="btn btn-glass xs" style="flex:1;color:var(--text)">Annuler</button><button class="btn btn-danger xs" style="flex:1">Déconnexion</button></div>
+        </div>
+      </div></div></div></div></div><div class="state-cell glass"><div class="st">Suppression de compte</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--scrim);backdrop-filter:blur(3px);padding:12px">
+        <div class="glass" style="border-radius:18px;padding:14px;width:100%;border-color:color-mix(in srgb,var(--danger) 40%,transparent)">
+          <div style="font-size:11.5px;font-weight:800;color:var(--danger)">Supprimer mon compte</div>
+          <div style="font-size:9px;color:var(--text-2);line-height:1.5;margin-top:5px">Action irréversible : publications, messages et abonnés seront effacés. Tape <b>SUPPRIMER</b> pour confirmer.</div>
+          <div class="input" style="padding:8px 11px;margin-top:9px;border-color:color-mix(in srgb,var(--danger) 40%,transparent)"><span style="font-size:9px;color:var(--text-3);letter-spacing:2px">SUPPRIMER</span></div>
+          <button class="btn btn-danger xs" style="margin-top:9px">Supprimer définitivement</button>
+        </div>
+      </div></div></div></div></div><div class="state-cell glass"><div class="st">Bottom sheet · options</div><div class="mini-phone"><div class="mini-screen" style="background:radial-gradient(120% 78% at 88% -12%, var(--glow1) 0%, transparent 56%), radial-gradient(105% 70% at -14% 22%, var(--glow2) 0%, transparent 52%), linear-gradient(160deg, var(--bg0), var(--bg1))"><div class="app">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;background:var(--scrim);backdrop-filter:blur(2px)">
+        <div class="glass" style="border-radius:22px 22px 0 0;padding:8px 12px 14px">
+          <span style="display:block;width:34px;height:4px;border-radius:3px;background:var(--text-3);margin:2px auto 9px;opacity:.6"></span>
+          <div class="row" style="padding:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 4.5h11A0 0 0 0 1 17.5 4.5V20l-5.5-3.6L6.5 20Z"/></svg> <span style="font-size:9.5px;font-weight:700;flex:1">Ajouter aux favoris</span></div>
+          <div class="row" style="padding:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 3.6 3.8 10.2c-.9.35-.85 1.6.05 1.9l6.3 2 2 6.3c.3.9 1.55.95 1.9.05L20.4 3.6Z"/><path d="m10.2 14 4.5-4.6"/></svg> <span style="font-size:9.5px;font-weight:700;flex:1">Partager via un lien public</span></div>
+          <div class="row" style="padding:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6.5 17.5 10.5M5 19l.9-4L15.7 5.2a1.8 1.8 0 0 1 2.6 0l.5.5a1.8 1.8 0 0 1 0 2.6L9 18.1 5 19Z"/></svg> <span style="font-size:9.5px;font-weight:700;flex:1">Modifier la publication</span></div>
+          <div class="row" style="padding:8px;color:var(--danger)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 21V4.5"/><path d="M5.5 5c4.5-2.2 8.5 2.2 13 0v8.5c-4.5 2.2-8.5-2.2-13 0"/></svg> <span style="font-size:9.5px;font-weight:700;flex:1">Signaler</span></div>
+        </div>
+      </div></div></div></div></div></div>
+  <div class="ds-sec"><h2>Toasts & bannières</h2>
+    <div class="state-grid" style="margin-top:16px">
+      <div class="state-cell glass">
+        <div class="glass" style="width:100%;padding:11px 14px;border-radius:14px;display:flex;gap:9px;align-items:center;font-size:11.5px;font-weight:700">
+          <span style="color:var(--success)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="m8.4 12.4 2.5 2.5 4.8-5.2"/></svg></span> Publication partagée ✓</div>
+        <span class="st">Toast de succès</span>
+      </div>
+      <div class="state-cell glass">
+        <div class="glass" style="width:100%;padding:11px 14px;border-radius:14px;display:flex;gap:9px;align-items:center;font-size:11.5px;font-weight:700;border-color:color-mix(in srgb,var(--danger) 40%,transparent)">
+          <span style="color:var(--danger)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 19.5h18.4Z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></span> Échec de l'envoi — réessaie</div>
+        <span class="st">Toast d'erreur</span>
+      </div>
+      <div class="state-cell glass">
+        <div class="glass" style="width:100%;padding:11px 14px;border-radius:14px;display:flex;gap:9px;align-items:center;font-size:11.5px;font-weight:700;border-color:color-mix(in srgb,var(--warning) 45%,transparent)">
+          <span style="color:var(--warning)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/></svg></span> Connexion instable…</div>
+        <span class="st">Toast d'avertissement</span>
+      </div>
+      <div class="state-cell glass">
+        <div class="glass" style="width:100%;padding:11px 14px;border-radius:14px;font-size:11.5px;font-weight:700">
+          <div style="display:flex;gap:9px;align-items:center"><span style="color:var(--accent)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4l3 .5V9.5Zm0 4 .8 5.2a1.5 1.5 0 0 0 1.5 1.3h.9M7 9.5l11-5v15l-11-5"/><path d="M20.5 10.5v3" stroke-opacity=".6"/></svg></span> v1.0.174 disponible</div>
+          <div class="progress" style="margin-top:9px"><i style="width:42%"></i></div></div>
+        <span class="st">Bannière de mise à jour</span>
+      </div>
+    </div></div>
+</div>
+
+<script>
+(function(){
+  try { if (window.self !== window.top) { var p=document.querySelector('.pagebar'); if(p) p.style.display='none';
+    document.querySelector('.stage').style.padding='0'; } } catch(e){}
+})();
+</script>
+<script>
+(function(){
+  var t = localStorage.getItem('hubTheme') || 'dark';
+  document.documentElement.dataset.theme = t;
+  function sync(){ var t2=document.documentElement.dataset.theme;
+    document.getElementById('tb-dark').classList.toggle('on', t2==='dark');
+    document.getElementById('tb-light').classList.toggle('on', t2==='light'); }
+  document.getElementById('tb-dark').onclick=function(){ document.documentElement.dataset.theme='dark'; localStorage.setItem('hubTheme','dark'); sync(); try{window.dispatchEvent(new Event('hubtheme'))}catch(e){} };
+  document.getElementById('tb-light').onclick=function(){ document.documentElement.dataset.theme='light'; localStorage.setItem('hubTheme','light'); sync(); try{window.dispatchEvent(new Event('hubtheme'))}catch(e){} };
+  sync();
+})();
+</script>
+</body>
+</html>
