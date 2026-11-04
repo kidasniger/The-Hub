@@ -60,6 +60,7 @@ import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +83,7 @@ fun BookmarksScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("bookmarks_screen")
     ) {

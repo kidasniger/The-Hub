@@ -118,7 +118,7 @@ fun CompleteProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubSurfaceDark)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())

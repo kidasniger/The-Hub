@@ -114,7 +114,7 @@ fun PostDetailScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("post_detail_screen")
     ) {

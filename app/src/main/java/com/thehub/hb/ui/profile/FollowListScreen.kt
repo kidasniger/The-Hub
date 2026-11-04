@@ -61,6 +61,7 @@ import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun FollowListScreen(
@@ -73,7 +74,7 @@ fun FollowListScreen(
     val title = if (uiState.type == FollowListType.FOLLOWERS) "Abonnés" else "Abonnements"
 
     Scaffold(
-        containerColor = HubBlack,
+        containerColor = Color.Transparent,
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()

@@ -115,7 +115,7 @@ fun SettingsScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = HubBlack,
+        containerColor = Color.Transparent,
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()

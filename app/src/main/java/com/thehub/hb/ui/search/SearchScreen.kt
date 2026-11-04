@@ -85,6 +85,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 enum class BlankSearchTab(val title: String) {
     TRENDING("Tendances"),
@@ -118,7 +119,7 @@ fun SearchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("search_screen")
     ) {
@@ -436,7 +437,7 @@ private fun SearchModeTabs(
 
     TabRow(
         selectedTabIndex = selectedIndex,
-        containerColor = HubBlack,
+        containerColor = Color.Transparent,
         contentColor = HubWhite,
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
@@ -762,7 +763,7 @@ private fun BlankSearchTabs(
 
     TabRow(
         selectedTabIndex = selectedIndex,
-        containerColor = HubBlack,
+        containerColor = Color.Transparent,
         contentColor = HubWhite,
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(

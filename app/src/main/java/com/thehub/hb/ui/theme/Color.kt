@@ -27,25 +27,38 @@ data class HubPalette(
     val isLight: Boolean = false
 )
 
-// Palette Premium Dark — The Hub
+// Palette Aurora Glass — The Hub (conforme à la maquette glassmorphism)
+// Nuit aurora : base indigo profond avec halos violet/bleu, cartes translucides.
+val AuroraNightBase = Color(0xFF0E0B28)
+val AuroraNightTop = Color(0xFF171045)
+val AuroraNightBottom = Color(0xFF0B0920)
+val AuroraGlowViolet = Color(0xFF8B5CF6)
+val AuroraGlowBlue = Color(0xFF3B82F6)
+val AuroraGlowPink = Color(0xFFEC4899)
+
+// Jour « verre lait » : dégradé crée/violet très doux avec orbes pastel.
+val AuroraLightTop = Color(0xFFEEF0FF)
+val AuroraLightBottom = Color(0xFFFDF3FF)
+
+// Palette Aurora Glass sombre (défaut, identique à la maquette Dark glass)
 val HubDarkPalette = HubPalette(
-    black = Color(0xFF0B0B0F),
-    surfaceDark = Color(0xFF0B0B0F),
-    card = Color(0xFF17171C),
-    surfaceElevated = Color(0xFF1E1E22),
+    black = AuroraNightBase,
+    surfaceDark = Color(0xFF140F33),
+    card = Color(0x16FFFFFF),        // verre ~9 % — translucide sur l'aurora
+    surfaceElevated = Color(0x23FFFFFF), // verre ~14 %
 
-    border = Color(0xFF25252D),
-    borderLight = Color.White.copy(alpha = 0.06f),
+    border = Color(0x29FFFFFF),      // liseré ~16 %
+    borderLight = Color(0x52FFFFFF), // reflet haut de carte ~32 %
 
-    darkGray = Color(0xFF25252D),
-    muted = Color(0xFF9CA3AF),
-    secondary = Color(0xFF9CA3AF),
+    darkGray = Color(0xFF241E4E),
+    muted = Color(0xFFA8A3CC),
+    secondary = Color(0xFFCFCBEF),
 
-    lightGray = Color(0xFFEDEDED),
+    lightGray = Color(0xFFEDEBFA),
     white = Color(0xFFFFFFFF),
 
-    error = Color(0xFFFF5A5A),
-    success = Color(0xFF22C55E),
+    error = Color(0xFFFF6B81),
+    success = Color(0xFF34D399),
 
     isGlass = false,
     isLight = false
@@ -89,45 +102,50 @@ fun hubPrimaryGradient(): Brush {
     )
 }
 
-// Palette Claire : Toile lumineuse épurée, cartes blanches, texte sombre contrasté
+// Palette Claire « Light glass » — fond lait, cartes blanches translucides
 val HubLightPalette = HubPalette(
-    black = Color(0xFFF4F5F7),
-    surfaceDark = Color(0xFFF4F5F7),
-    card = Color(0xFFFFFFFF),
-    surfaceElevated = Color(0xFFFFFFFF),
+    black = Color(0xFFF2F1FC),
+    surfaceDark = Color(0xFFF2F1FC),
+    card = Color(0xC9FFFFFF),        // blanc ~79 % sur dégradé pastel
+    surfaceElevated = Color(0xE6FFFFFF),
 
-    border = Color(0xFFE2E8F0),
-    borderLight = Color(0xFFE2E8F0),
+    border = Color(0xFFE2DEF4),
+    borderLight = Color(0xFFFFFFFF),
 
-    darkGray = Color(0xFFE2E8F0),
-    muted = Color(0xFF64748B),
-    secondary = Color(0xFF64748B),
+    darkGray = Color(0xFFE2DEF4),
+    muted = Color(0xFF6E6A96),
+    secondary = Color(0xFF565180),
 
-    lightGray = Color(0xFF1E293B),
-    white = Color(0xFF0F172A),
+    lightGray = Color(0xFF3B3663),
+    white = Color(0xFF241F52),       // « white » = couleur de texte principale en clair
 
-    error = Color(0xFFEF4444),
-    success = Color(0xFF22C55E),
+    error = Color(0xFFE11D48),
+    success = Color(0xFF059669),
 
     isGlass = false,
     isLight = true
 )
 
-// Palette Glass : Effet verre dépoli aéro avec reflets translucides et lueur moderne
+// Palette Glass : aurora nuit maximale — verre fin, halos bien visibles
 val HubGlassPalette = HubPalette(
-    black = Color(0xD90A0E17), // 80% : laisse les halos du fond global transparaître
-    surfaceDark = Color(0xA4141D2C), // 50% : surface vitrée légère
-    card = Color(0x22FFFFFF), // 18% verre dépoli translucide
-    surfaceElevated = Color(0x30FFFFFF), // 25% verre dépoli surélevé
-    border = Color(0x2AFFFFFF), // 22% bordure translucide lumineuse
-    borderLight = Color(0x36FFFFFF), // 30% reflet de lumière sur les contours
-    darkGray = Color(0x3A7C94B2),
-    muted = Color(0xFF9BAEC3),
-    secondary = Color(0xFFC4D3E3),
-    lightGray = Color(0xFFDCE8F7),
-    white = Color(0xFFFFFFFF), // Texte et icônes d'un blanc pur éclatant
-    error = Color(0xFFFF6B6B),
-    success = Color(0xFF4ECCA3),
+    black = Color(0xB30E0B28), // base nuit ~70 % : laisse transparaître les halos
+    surfaceDark = Color(0x80140F33),
+    card = Color(0x12FFFFFF),        // verre ~7 %
+    surfaceElevated = Color(0x1FFFFFFF), // verre ~12 %
+
+    border = Color(0x2EFFFFFF),
+    borderLight = Color(0x59FFFFFF),
+
+    darkGray = Color(0x3A8C86C4),
+    muted = Color(0xFFB4AFD6),
+    secondary = Color(0xFFD9D5F2),
+
+    lightGray = Color(0xFFEDEBFA),
+    white = Color(0xFFFFFFFF),
+
+    error = Color(0xFFFF7A8E),
+    success = Color(0xFF4ADE80),
+
     isGlass = true,
     isLight = false
 )

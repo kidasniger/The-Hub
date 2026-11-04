@@ -5,16 +5,31 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "hub_settings")
 
 class DataStoreManager(private val context: Context) {
+
+    /**
+     * Flux DataStore blindé : en cas de fichier corrompu ou illisible (IOException,
+     * CorruptionException), on repart de préférences vides au lieu de faire planter
+     * l'application dès le lancement (le fameux crash au démarrage).
+     */
+    private fun safeData(): Flow<Preferences> = context.dataStore.data.catch { throwable ->
+        if (throwable is java.io.IOException) {
+            emit(emptyPreferences())
+        } else {
+            throw throwable
+        }
+    }
 
     companion object {
         val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_vu")
@@ -33,7 +48,7 @@ class DataStoreManager(private val context: Context) {
         val KEY_POST_DRAFT_TEXT = stringPreferencesKey("post_draft_text")
     }
 
-    val appThemeMode: Flow<com.thehub.hb.ui.theme.AppThemeMode> = context.dataStore.data.map { preferences ->
+    val appThemeMode: Flow<com.thehub.hb.ui.theme.AppThemeMode> = safeData().map { preferences ->
         val raw = preferences[KEY_APP_THEME_MODE]
         com.thehub.hb.ui.theme.AppThemeMode.fromKey(raw)
     }
@@ -44,19 +59,19 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    val notifLikesEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    val notifLikesEnabled: Flow<Boolean> = safeData().map { preferences ->
         preferences[KEY_NOTIF_LIKES] ?: true
     }
 
-    val notifCommentsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    val notifCommentsEnabled: Flow<Boolean> = safeData().map { preferences ->
         preferences[KEY_NOTIF_COMMENTS] ?: true
     }
 
-    val notifFollowsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    val notifFollowsEnabled: Flow<Boolean> = safeData().map { preferences ->
         preferences[KEY_NOTIF_FOLLOWS] ?: true
     }
 
-    val notifMessagesEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    val notifMessagesEnabled: Flow<Boolean> = safeData().map { preferences ->
         preferences[KEY_NOTIF_MESSAGES] ?: true
     }
 
@@ -82,7 +97,7 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    val searchHistory: Flow<List<String>> = context.dataStore.data.map { preferences ->
+    val searchHistory: Flow<List<String>> = safeData().map { preferences ->
         val raw = preferences[KEY_SEARCH_HISTORY] ?: ""
         if (raw.isBlank()) {
             emptyList()
@@ -101,23 +116,23 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    val isOnboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    val isOnboardingCompleted: Flow<Boolean> = safeData().map { preferences ->
         preferences[KEY_ONBOARDING_COMPLETED] ?: false
     }
 
-    val lastUserEmail: Flow<String?> = context.dataStore.data.map { preferences ->
+    val lastUserEmail: Flow<String?> = safeData().map { preferences ->
         preferences[KEY_LAST_USER_EMAIL]
     }
 
-    val lastUserName: Flow<String?> = context.dataStore.data.map { preferences ->
+    val lastUserName: Flow<String?> = safeData().map { preferences ->
         preferences[KEY_LAST_USER_NAME]
     }
 
-    val lastUsername: Flow<String?> = context.dataStore.data.map { preferences ->
+    val lastUsername: Flow<String?> = safeData().map { preferences ->
         preferences[KEY_LAST_USERNAME]
     }
 
-    val lastPhotoUrl: Flow<String?> = context.dataStore.data.map { preferences ->
+    val lastPhotoUrl: Flow<String?> = safeData().map { preferences ->
         preferences[KEY_LAST_PHOTO_URL]
     }
 
@@ -194,7 +209,7 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    val postDraftText: Flow<String> = context.dataStore.data.map { preferences ->
+    val postDraftText: Flow<String> = safeData().map { preferences ->
         preferences[KEY_POST_DRAFT_TEXT] ?: ""
     }
 
@@ -215,7 +230,7 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    val bookmarkedPostIds: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+    val bookmarkedPostIds: Flow<Set<String>> = safeData().map { preferences ->
         preferences[KEY_BOOKMARKED_POSTS] ?: emptySet()
     }
 
@@ -249,7 +264,7 @@ class DataStoreManager(private val context: Context) {
         return isBookmarked
     }
 
-    val likedCommentIds: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+    val likedCommentIds: Flow<Set<String>> = safeData().map { preferences ->
         preferences[KEY_LIKED_COMMENTS] ?: emptySet()
     }
 

@@ -54,6 +54,7 @@ import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun LikesListScreen(
@@ -68,7 +69,7 @@ fun LikesListScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("likes_list_screen")
     ) {

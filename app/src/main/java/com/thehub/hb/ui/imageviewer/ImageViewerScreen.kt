@@ -65,7 +65,7 @@ fun ImageViewerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubBackground)
+            .background(Color.Black)
             .testTag("image_viewer_screen")
     ) {
         // Zoomable & Pannable Image

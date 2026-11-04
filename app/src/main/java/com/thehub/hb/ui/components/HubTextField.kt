@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.onFocusChanged
@@ -34,9 +35,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import com.thehub.hb.ui.theme.HubBorder
+import com.thehub.hb.ui.theme.HubBlue
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.ui.theme.HubWhite
 
 @Composable
@@ -75,7 +78,12 @@ fun HubTextField(
                 .background(HubSurfaceElevated)
                 .border(
                     width = if (focused || errorMessage != null) 1.5.dp else 1.dp,
-                    color = borderColor,
+                    brush = if (focused && errorMessage == null) {
+                        // Focus signature maquette : liseré dégradé violet → bleu
+                        Brush.linearGradient(listOf(HubViolet, HubBlue))
+                    } else {
+                        SolidColor(borderColor)
+                    },
                     shape = RoundedCornerShape(16.dp)
                 )
                 .onFocusChanged { focused = it.isFocused }

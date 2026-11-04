@@ -82,7 +82,7 @@ fun NotificationsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("notifications_screen")
     ) {

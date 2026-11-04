@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.navigation.HubDeepLink
 import com.thehub.hb.navigation.HubNavGraph
@@ -110,7 +111,7 @@ class MainActivity : ComponentActivity() {
                     HubThemeBackground {
                         Surface(
                             modifier = Modifier.fillMaxSize(),
-                            color = HubBackground,
+                            color = Color.Transparent, // laisse passer le fond aurora
                             contentColor = HubTextPrimary
                         ) {
                             HubNavGraph(

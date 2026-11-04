@@ -72,6 +72,7 @@ import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +121,7 @@ fun FeedScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .testTag("feed_screen")
     ) {
         Column(Modifier.fillMaxSize()) {

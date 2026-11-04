@@ -108,6 +108,7 @@ import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.RelativeTime
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.ui.graphics.Color
 
 private data class CommentThread(
     val rootComment: Comment,
@@ -169,7 +170,7 @@ fun CommentsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .imePadding()
             .testTag("comments_screen")

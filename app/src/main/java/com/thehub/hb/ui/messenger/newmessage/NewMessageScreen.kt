@@ -43,6 +43,7 @@ import com.thehub.hb.ui.theme.HubBlack
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun NewMessageScreen(
@@ -57,7 +58,7 @@ fun NewMessageScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("new_message_screen")
     ) {

@@ -37,14 +37,20 @@ class HubApplication : Application(), ImageLoaderFactory {
         }
 
         applicationScope.launch {
-            container.authRepository.currentUserFlow.collect { firebaseUser ->
-                val currentUserId = firebaseUser?.uid
+            // Blindage : toute exception ici (Firebase, réseau, GMS absent) ne doit
+            // JAMAIS tuer le processus au lancement — on journalise et on continue.
+            try {
+                container.authRepository.currentUserFlow.collect { firebaseUser ->
+                    val currentUserId = firebaseUser?.uid
 
-                if (currentUserId != null) {
-                    container.notificationRepository.registerCurrentFcmToken()
+                    if (currentUserId != null) {
+                        runCatching { container.notificationRepository.registerCurrentFcmToken() }
+                    }
+
+                    pushRegistrationUserId = currentUserId
                 }
-
-                pushRegistrationUserId = currentUserId
+            } catch (e: Exception) {
+                Log.w("HubApplication", "Suivi de session/push interrompu: ${e.message}")
             }
         }
     }

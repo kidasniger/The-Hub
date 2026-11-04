@@ -198,7 +198,7 @@ fun MainScaffoldScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("main_scaffold"),
-        containerColor = HubBlack,
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             HubBottomNavigationBar(
@@ -357,7 +357,7 @@ private fun SystemMaintenanceNotice(message: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding(),
         contentAlignment = Alignment.Center
     ) {

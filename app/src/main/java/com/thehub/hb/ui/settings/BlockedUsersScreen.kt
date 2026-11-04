@@ -56,6 +56,7 @@ import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun BlockedUsersScreen(
@@ -75,7 +76,7 @@ fun BlockedUsersScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = HubBlack,
+        containerColor = Color.Transparent,
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()

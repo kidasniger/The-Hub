@@ -5,8 +5,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.thehub.hb.ui.theme.HubBackground
+import androidx.compose.ui.graphics.Color
 
+/**
+ * Conteneur d'écran standard. Transparent volontairement :
+ * le fond « Aurora Glass » (halos violet/bleu) est peint une seule fois
+ * par HubThemeBackground dans MainActivity, derrière toute la navigation.
+ */
 @Composable
 fun HubScreen(
     modifier: Modifier = Modifier,
@@ -15,7 +20,7 @@ fun HubScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBackground)
+            .background(Color.Transparent)
     ) {
         content()
     }

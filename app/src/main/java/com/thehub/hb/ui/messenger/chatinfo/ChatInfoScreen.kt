@@ -70,6 +70,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.utils.RelativeTime
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun ChatInfoScreen(
@@ -116,7 +117,7 @@ fun ChatInfoScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HubBlack)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("chat_info_screen")
     ) {

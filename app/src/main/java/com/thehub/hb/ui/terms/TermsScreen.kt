@@ -35,6 +35,7 @@ import com.thehub.hb.ui.theme.HubSecondary
 import com.thehub.hb.ui.theme.HubSurfaceDark
 import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun TermsScreen(
@@ -43,7 +44,7 @@ fun TermsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(HubSurfaceDark)
+            .background(Color.Transparent)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {

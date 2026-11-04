@@ -1,6 +1,7 @@
 package com.thehub.hb.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -11,6 +12,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +26,7 @@ import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
 import com.thehub.hb.ui.theme.HubBlue
 import com.thehub.hb.ui.theme.HubViolet
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 
 enum class HubButtonVariant {
     Primary,
@@ -45,18 +48,28 @@ fun HubButton(
 
     when (variant) {
         HubButtonVariant.Primary -> {
+            // Bouton signature de la maquette : dégradé violet → bleu + lueur portée
+            val active = enabled && !isLoading
+            val brush = if (active) {
+                Brush.verticalGradient(listOf(HubViolet, HubBlue))
+            } else {
+                Brush.verticalGradient(
+                    listOf(HubSurfaceElevated, HubSurfaceElevated)
+                )
+            }
             Button(
                 onClick = onClick,
                 modifier = modifier
                     .fillMaxWidth()
                     .height(52.dp)
+                    .background(brush = brush, shape = shape)
                     .testTag(testTag),
                 shape = shape,
-                enabled = enabled && !isLoading,
+                enabled = active,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = HubViolet,
+                    containerColor = Color.Transparent,
                     contentColor = Color.White,
-                    disabledContainerColor = HubSurfaceElevated,
+                    disabledContainerColor = Color.Transparent,
                     disabledContentColor = HubMuted
                 )
             ) {

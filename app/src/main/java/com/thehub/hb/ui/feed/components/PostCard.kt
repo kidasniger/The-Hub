@@ -74,7 +74,7 @@ fun PostCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(HubBlack)
+            .background(Color.Transparent) // l'aurora et le verre global restent visibles
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = HubDarkGray),
