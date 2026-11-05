@@ -1,5 +1,7 @@
 package com.thehub.hb.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -23,25 +25,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubBlue
+import com.thehub.hb.ui.theme.HubAccent
 import com.thehub.hb.ui.theme.HubError
-import com.thehub.hb.ui.theme.HubMuted
-import com.thehub.hb.ui.theme.HubSurfaceElevated
-import com.thehub.hb.ui.theme.HubViolet
+import com.thehub.hb.ui.theme.HubField
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
 
+/**
+ * Champ de saisie « Aurora Glass » (.input de glass.css) :
+ * fond --field, contour --stroke-soft 1 px, rayon --r-md 18, texte 14/500 ;
+ * focus → contour --accent 65 % + halo extérieur 3.5 px --accent 18 %
+ * (box-shadow 0 0 0 3.5px color-mix(in srgb, var(--accent) 18%, transparent)).
+ */
 @Composable
 fun HubTextField(
     value: String,
@@ -55,16 +65,17 @@ fun HubTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = true,
     maxLines: Int = 1,
-    minHeight: Int = 52,
+    minHeight: Int = 48,
     errorMessage: String? = null,
     testTag: String = "hub_text_field"
 ) {
     var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(18.dp)
     val borderColor by animateColorAsState(
         targetValue = when {
             errorMessage != null -> HubError
-            focused -> HubWhite.copy(alpha = 0.55f)
-            else -> HubBorder
+            focused -> HubAccent.copy(alpha = 0.65f)
+            else -> HubStrokeSoft
         },
         animationSpec = tween(160),
         label = "hub_text_field_border"
@@ -74,17 +85,29 @@ fun HubTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(minHeight.dp.coerceAtLeast(48.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .background(HubSurfaceElevated)
+                .clip(shape)
+                .background(HubField)
                 .border(
-                    width = if (focused || errorMessage != null) 1.5.dp else 1.dp,
-                    brush = if (focused && errorMessage == null) {
-                        // Focus signature maquette : liseré dégradé violet → bleu
-                        Brush.linearGradient(listOf(HubViolet, HubBlue))
+                    width = 1.dp,
+                    brush = SolidColor(borderColor),
+                    shape = shape
+                )
+                .then(
+                    if (focused && errorMessage == null) {
+                        Modifier.drawBehind {
+                            // Halo de focus 3.5 px entièrement à l'extérieur du contour.
+                            val ring = 3.5.dp.toPx()
+                            drawRoundRect(
+                                color = HubAccent.copy(alpha = 0.18f),
+                                topLeft = Offset(-ring, -ring),
+                                size = Size(size.width + 2 * ring, size.height + 2 * ring),
+                                cornerRadius = CornerRadius(21.5.dp.toPx()),
+                                style = Stroke(width = ring)
+                            )
+                        }
                     } else {
-                        SolidColor(borderColor)
-                    },
-                    shape = RoundedCornerShape(16.dp)
+                        Modifier
+                    }
                 )
                 .onFocusChanged { focused = it.isFocused }
                 .padding(horizontal = 16.dp),
@@ -105,9 +128,9 @@ fun HubTextField(
                     if (value.isEmpty()) {
                         Text(
                             text = placeholder,
-                            color = HubMuted,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Normal
+                            color = HubTextTertiary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                     BasicTextField(
@@ -118,10 +141,10 @@ fun HubTextField(
                             .testTag(testTag),
                         textStyle = TextStyle(
                             color = HubWhite,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Normal
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
                         ),
-                        cursorBrush = SolidColor(HubWhite),
+                        cursorBrush = SolidColor(HubAccent),
                         visualTransformation = visualTransformation,
                         keyboardOptions = keyboardOptions,
                         keyboardActions = keyboardActions,

@@ -1,47 +1,41 @@
 package com.thehub.hb.ui.theme
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.draw.drawBehind
+import com.thehub.hb.ui.components.AuroraBackground
 
-// Formes globales Material 3 : arrondies et cohérentes dans les quatre modes.
+// Formes globales Material 3 — rayons EXACTS de la maquette glass.css :
+// --r-xs 10 · --r-sm 14 · --r-md 18 · --r-lg 24 · --r-xl 30 (px ≡ dp).
 val HubShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(30.dp)
 )
 
 private fun createDarkColorScheme(palette: HubPalette) = darkColorScheme(
     primary = HubViolet,
     onPrimary = Color.White,
     primaryContainer = Color(0xFF35256B),
-    onPrimaryContainer = palette.white,
+    onPrimaryContainer = palette.textPrimary,
     secondary = HubBlue,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFF1B2C5E),
-    onSecondaryContainer = palette.white,
+    onSecondaryContainer = palette.textPrimary,
     tertiary = HubViolet,
     onTertiary = Color.White,
-    background = Color.Transparent, // le fond aurora est peint par HubThemeBackground
-    onBackground = palette.white,
+    background = Color.Transparent, // le fond aurora est peint une seule fois par HubThemeBackground
+    onBackground = palette.textPrimary,
     surface = palette.card,
-    onSurface = palette.white,
+    onSurface = palette.textPrimary,
     surfaceVariant = palette.surfaceElevated,
-    onSurfaceVariant = palette.secondary,
+    onSurfaceVariant = palette.textSecondary,
     surfaceContainer = palette.card,
     surfaceContainerHigh = palette.surfaceElevated,
     surfaceContainerHighest = palette.surfaceElevated,
@@ -62,12 +56,12 @@ private fun createLightColorScheme(palette: HubPalette) = lightColorScheme(
     onSecondaryContainer = Color(0xFF172554),
     tertiary = HubViolet,
     onTertiary = Color.White,
-    background = Color.Transparent, // le fond pastel est peint par HubThemeBackground
-    onBackground = palette.white,
+    background = Color.Transparent, // le fond pastel est peint une seule fois par HubThemeBackground
+    onBackground = palette.textPrimary,
     surface = palette.card,
-    onSurface = palette.white,
+    onSurface = palette.textPrimary,
     surfaceVariant = palette.surfaceElevated,
-    onSurfaceVariant = palette.secondary,
+    onSurfaceVariant = palette.textSecondary,
     surfaceContainer = palette.card,
     surfaceContainerHigh = palette.surfaceElevated,
     surfaceContainerHighest = palette.surfaceElevated,
@@ -89,6 +83,8 @@ fun TheHubTheme(
         else -> themeMode
     }
 
+    // AppThemeMode.DARK / AppThemeMode.GLASS → « Dark glass » de la maquette ;
+    // AppThemeMode.LIGHT → « Light glass » ; les palettes portent les tokens exacts.
     val palette = when (effectiveMode) {
         AppThemeMode.LIGHT -> HubLightPalette
         AppThemeMode.GLASS -> HubGlassPalette
@@ -114,132 +110,16 @@ fun TheHubTheme(
 }
 
 /**
- * Arrière-plan global « Aurora Glass », identique à la maquette :
- * - nuit : base indigo profond + halos radiaux violet / bleu / rose
- * - jour : dégradé crée-violet très doux + orbes pastel
+ * Arrière-plan global « Aurora Glass », conforme à la maquette (.screen de glass.css) :
+ * dégradé de base 160° (#06060F → #0E0B28 55 % → #120F33), trois lueurs radiales
+ * elliptiques (violet haut-droite, bleu gauche, rose bas-centre) et grain subtil.
+ * Le délégué [AuroraBackground] porte l'implémentation ; la signature publique
+ * reste inchangée pour tous les appelants existants.
  */
 @Composable
 fun HubThemeBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val palette = LocalHubColors.current
-    val isLight = palette.isLight
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .drawBehind {
-                // Base : dégradé vertical
-                if (isLight) {
-                    drawRect(
-                        Brush.verticalGradient(
-                            colors = listOf(AuroraLightTop, AuroraLightBottom)
-                        )
-                    )
-                } else {
-                    drawRect(
-                        Brush.verticalGradient(
-                            colors = listOf(AuroraNightTop, AuroraNightBase, AuroraNightBottom)
-                        )
-                    )
-                }
-
-                val w = size.width
-                val h = size.height
-
-                if (isLight) {
-                    // Orbes pastel : violet en haut à gauche, bleu en bas à droite
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AuroraGlowViolet.copy(alpha = 0.20f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 0.10f, h * 0.04f),
-                            radius = w * 0.75f
-                        ),
-                        radius = w * 0.75f,
-                        center = Offset(w * 0.10f, h * 0.04f)
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AuroraGlowBlue.copy(alpha = 0.16f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 1.02f, h * 0.38f),
-                            radius = w * 0.62f
-                        ),
-                        radius = w * 0.62f,
-                        center = Offset(w * 1.02f, h * 0.38f)
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AuroraGlowPink.copy(alpha = 0.10f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 0.72f, h * 1.05f),
-                            radius = w * 0.55f
-                        ),
-                        radius = w * 0.55f,
-                        center = Offset(w * 0.72f, h * 1.05f)
-                    )
-                } else {
-                    // Nuit aurora : halo violet dominant + bleu + touche rose
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AuroraGlowViolet.copy(alpha = 0.30f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 0.06f, h * 0.00f),
-                            radius = w * 0.95f
-                        ),
-                        radius = w * 0.95f,
-                        center = Offset(w * 0.06f, h * 0.00f)
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AuroraGlowBlue.copy(alpha = 0.24f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 1.05f, h * 0.32f),
-                            radius = w * 0.85f
-                        ),
-                        radius = w * 0.85f,
-                        center = Offset(w * 1.05f, h * 0.32f)
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AuroraGlowPink.copy(alpha = 0.13f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 0.78f, h * 1.04f),
-                            radius = w * 0.60f
-                        ),
-                        radius = w * 0.60f,
-                        center = Offset(w * 0.78f, h * 1.04f)
-                    )
-                    // Lueur blanche discrète en haut, comme le reflet de la maquette
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.05f),
-                                Color.Transparent
-                            ),
-                            center = Offset(w * 0.25f, h * -0.05f),
-                            radius = w * 0.55f
-                        ),
-                        radius = w * 0.55f,
-                        center = Offset(w * 0.25f, h * -0.05f)
-                    )
-                }
-            }
-    ) {
-        content()
-    }
+    AuroraBackground(modifier = modifier, content = content)
 }
