@@ -80,6 +80,8 @@ fun HubTextField(
         animationSpec = tween(160),
         label = "hub_text_field_border"
     )
+    // Capture hors lambda : HubAccent est un getter @Composable (utilisé dans drawBehind).
+    val accentGlow = HubAccent.copy(alpha = 0.18f)
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
@@ -98,7 +100,7 @@ fun HubTextField(
                             // Halo de focus 3.5 px entièrement à l'extérieur du contour.
                             val ring = 3.5.dp.toPx()
                             drawRoundRect(
-                                color = HubAccent.copy(alpha = 0.18f),
+                                color = accentGlow,
                                 topLeft = Offset(-ring, -ring),
                                 size = Size(size.width + 2 * ring, size.height + 2 * ring),
                                 cornerRadius = CornerRadius(21.5.dp.toPx()),

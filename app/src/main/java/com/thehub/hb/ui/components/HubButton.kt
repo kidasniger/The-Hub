@@ -123,6 +123,8 @@ fun HubButton(
         HubButtonVariant.Secondary -> {
             // .btn-glass : verre + contour --stroke + ombre douce + reflet interne.
             val active = enabled && !isLoading
+            // Capture hors lambda : HubHighlight est un getter @Composable.
+            val highlight = HubHighlight
             Button(
                 onClick = onClick,
                 modifier = modifier
@@ -138,7 +140,7 @@ fun HubButton(
                     .background(HubGlass, HubButtonShape)
                     .drawBehind {
                         drawRect(
-                            color = HubHighlight,
+                            color = highlight,
                             topLeft = Offset(0f, 0f),
                             size = Size(size.width, 1.dp.toPx())
                         )
