@@ -1,9 +1,6 @@
 package com.thehub.hb.ui.components
 
 import android.content.ClipData
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
@@ -47,18 +44,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubGlassStrong
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
 
 /**
- * Bottom Sheet displaying context options for a Post.
- * - Own post: "Modifier" (edit text only), "Supprimer" (delete post, subcollections, decrement postsCount).
- * - Other user's post: "Signaler" (report flow), "Copier le lien".
+ * Bottom Sheet « Aurora Glass » des options d'une publication.
+ * - Propre publication : « Modifier » (texte seul), « Supprimer ».
+ * - Publication d'autrui : « Signaler », « Copier le lien ».
+ * Feuille sur fond bg1 (base du verre), poignée stroke, icônes en pastilles verre.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,12 +72,14 @@ fun PostOptionsBottomSheet(
     },
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val isMyPost = currentUserId != null && currentUserId == post.authorId
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = palette.bg1,
         contentColor = HubWhite,
         dragHandle = {
             Box(
@@ -88,7 +88,7 @@ fun PostOptionsBottomSheet(
                     .width(40.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(HubDarkGray)
+                    .background(palette.stroke)
             )
         }
     ) {
@@ -99,10 +99,11 @@ fun PostOptionsBottomSheet(
                 .testTag("post_options_bottom_sheet")
         ) {
             Text(
-                text = "Options de la publication",
+                text = strings.postOptionsTitle,
                 fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = HubWhite,
+                letterSpacing = (-0.2).sp,
                 modifier = Modifier.padding(bottom = 16.dp, start = 4.dp)
             )
 
@@ -110,8 +111,8 @@ fun PostOptionsBottomSheet(
                 // Modifier
                 PostOptionRow(
                     icon = Icons.Outlined.Edit,
-                    label = "Modifier",
-                    sublabel = "Modifier le texte de votre publication",
+                    label = strings.editPostOption,
+                    sublabel = strings.editPostOptionSub,
                     color = HubWhite,
                     testTag = "post_option_edit",
                     onClick = {
@@ -125,8 +126,8 @@ fun PostOptionsBottomSheet(
                 // Supprimer
                 PostOptionRow(
                     icon = Icons.Outlined.Delete,
-                    label = "Supprimer",
-                    sublabel = "Supprimer définitivement cette publication",
+                    label = strings.deletePostOption,
+                    sublabel = strings.deletePostOptionSub,
                     color = HubError,
                     testTag = "post_option_delete",
                     onClick = {
@@ -138,8 +139,8 @@ fun PostOptionsBottomSheet(
                 // Copier le lien
                 PostOptionRow(
                     icon = Icons.Outlined.ContentCopy,
-                    label = "Copier le lien",
-                    sublabel = "Partager le lien vers cette publication",
+                    label = strings.copyLinkOption,
+                    sublabel = strings.copyLinkOptionSub,
                     color = HubWhite,
                     testTag = "post_option_copy_link",
                     onClick = {
@@ -153,8 +154,8 @@ fun PostOptionsBottomSheet(
                 // Signaler
                 PostOptionRow(
                     icon = Icons.Outlined.Flag,
-                    label = "Signaler",
-                    sublabel = "Signaler un contenu inapproprié ou abusif",
+                    label = strings.reportPost,
+                    sublabel = strings.reportPostOptionSub,
                     color = HubError,
                     testTag = "post_option_report",
                     onClick = {
@@ -169,6 +170,7 @@ fun PostOptionsBottomSheet(
     }
 }
 
+/** Rangée d'option : pastille de verre 42 + label 15/700 + sous-label 12. */
 @Composable
 private fun PostOptionRow(
     icon: ImageVector,
@@ -178,6 +180,7 @@ private fun PostOptionRow(
     testTag: String,
     onClick: () -> Unit
 ) {
+    val isDanger = color == HubError
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -191,7 +194,9 @@ private fun PostOptionRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(if (color == HubError) HubError.copy(alpha = 0.12f) else HubSurfaceElevated),
+                .background(
+                    if (isDanger) HubError.copy(alpha = 0.12f) else HubGlassStrong
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -222,7 +227,7 @@ private fun PostOptionRow(
 }
 
 /**
- * Confirmation dialog shown before deleting a post.
+ * Dialogue de confirmation avant suppression d'une publication.
  */
 @Composable
 fun DeletePostConfirmationDialog(
@@ -231,24 +236,25 @@ fun DeletePostConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
     if (!isOpen) return
 
     AlertDialog(
         onDismissRequest = {
             if (!isDeleting) onDismiss()
         },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = LocalHubColors.current.bg1,
         title = {
             Text(
-                text = "Supprimer la publication ?",
+                text = strings.deletePostDialogTitle,
                 color = HubWhite,
                 fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
         },
         text = {
             Text(
-                text = "Cette action est irréversible. La publication, ses commentaires et ses mentions J'aime seront définitivement supprimés.",
+                text = strings.deletePostDialogMessage,
                 color = HubSecondary,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
@@ -271,7 +277,7 @@ fun DeletePostConfirmationDialog(
                     )
                 } else {
                     Text(
-                        text = "Supprimer",
+                        text = strings.deletePostOption,
                         fontWeight = FontWeight.Bold,
                         color = HubError
                     )
@@ -288,7 +294,7 @@ fun DeletePostConfirmationDialog(
                 modifier = Modifier.testTag("cancel_delete_post_button")
             ) {
                 Text(
-                    text = "Annuler",
+                    text = strings.dialogCancel,
                     color = HubMuted
                 )
             }
@@ -299,10 +305,15 @@ fun DeletePostConfirmationDialog(
 
 /**
  * Utility helper to copy a post's link to the Android clipboard.
+ * [copiedMessage] est le libellé du toast, fourni par Strings.kt depuis l'appelant.
  */
-fun copyPostLinkToClipboard(context: Context, postId: String) {
+fun copyPostLinkToClipboard(
+    context: Context,
+    postId: String,
+    copiedMessage: String = "Lien copié dans le presse-papiers"
+) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("Lien de la publication", "https://thehub.app/post/$postId")
     clipboard.setPrimaryClip(clip)
-    Toast.makeText(context, "Lien copié dans le presse-papiers", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
 }

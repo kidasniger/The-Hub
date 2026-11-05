@@ -1,9 +1,6 @@
 package com.thehub.hb.ui.components
 
 import android.content.Intent
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -44,12 +42,13 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.thehub.hb.data.remote.LinkPreviewData
 import com.thehub.hb.data.remote.LinkPreviewService
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
+import com.thehub.hb.ui.theme.HubAccent
+import com.thehub.hb.ui.theme.HubGlassSoft
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStrokeSoft
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.utils.extractFirstHttpUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -57,15 +56,22 @@ import kotlinx.coroutines.withContext
 
 private val linkPreviewService = LinkPreviewService()
 
+/**
+ * Aperçu de lien « Aurora Glass » : verre doux (.glass-soft) rayon --r-sm 14,
+ * icône de lien en accent (comme la rangée « Lien détecté » de la maquette 07),
+ * états chargement / indisponible du lot « États ».
+ */
 @Composable
 fun LinkPreviewCard(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
     val url = remember(text) { extractFirstHttpUrl(text) } ?: return
     val context = LocalContext.current
     var preview by remember(url) { mutableStateOf<LinkPreviewData?>(null) }
     var isLoading by remember(url) { mutableStateOf(true) }
+    val shape = RoundedCornerShape(14.dp)
 
     LaunchedEffect(url) {
         isLoading = true
@@ -78,23 +84,24 @@ fun LinkPreviewCard(
     }
 
     if (isLoading && preview == null) {
+        // État « chargement » : verre doux + spinner accent.
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(HubCard)
-                .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+                .clip(shape)
+                .background(HubGlassSoft)
+                .border(1.dp, HubStrokeSoft, shape)
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
-                color = HubWhite,
+                color = HubAccent,
                 strokeWidth = 2.dp
             )
             Text(
-                text = "Chargement de l’aperçu…",
+                text = strings.linkPreviewLoading,
                 color = HubSecondary,
                 fontSize = 12.sp
             )
@@ -105,8 +112,8 @@ fun LinkPreviewCard(
     val data = preview ?: LinkPreviewData(
         originalUrl = url,
         finalUrl = url,
-        title = "Aperçu indisponible",
-        description = "Le site n’autorise pas la récupération de ses métadonnées. Ouvrez le lien pour consulter son contenu.",
+        title = strings.previewUnavailableTitle,
+        description = strings.previewUnavailableDesc,
         imageUrl = null,
         siteName = Uri.parse(url).host?.removePrefix("www.").orEmpty(),
         httpStatus = 0
@@ -115,9 +122,9 @@ fun LinkPreviewCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(HubSurfaceElevated)
-            .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
+            .clip(shape)
+            .background(HubGlassSoft)
+            .border(1.dp, HubStrokeSoft, shape)
             .clickable {
                 runCatching {
                     context.startActivity(
@@ -131,7 +138,7 @@ fun LinkPreviewCard(
             if (!data.imageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = data.imageUrl,
-                    contentDescription = data.title ?: "Aperçu du lien",
+                    contentDescription = data.title ?: strings.linkImageDesc,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(168.dp),
@@ -148,23 +155,24 @@ fun LinkPreviewCard(
                     Icon(
                         imageVector = Icons.Outlined.Link,
                         contentDescription = null,
-                        tint = HubSecondary,
-                        modifier = Modifier.size(18.dp)
+                        tint = HubAccent,
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = data.siteName ?: Uri.parse(data.finalUrl).host.orEmpty(),
-                        color = HubSecondary,
-                        fontSize = 12.sp,
+                        color = HubAccent,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                     Icon(
                         imageVector = Icons.Outlined.OpenInNew,
-                        contentDescription = "Ouvrir le lien",
+                        contentDescription = strings.openLinkDesc,
                         tint = HubMuted,
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
 
@@ -173,7 +181,7 @@ fun LinkPreviewCard(
                     Text(
                         text = it,
                         color = HubWhite,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -195,7 +203,8 @@ fun LinkPreviewCard(
                 Text(
                     text = data.finalUrl,
                     color = HubMuted,
-                    fontSize = 11.sp,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -203,7 +212,7 @@ fun LinkPreviewCard(
                 if (data.httpStatus == 404 || data.httpStatus == 410) {
                     Spacer(modifier = Modifier.height(7.dp))
                     Text(
-                        text = "Lien indisponible",
+                        text = strings.linkUnavailable,
                         color = HubSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -213,4 +222,3 @@ fun LinkPreviewCard(
         }
     }
 }
-

@@ -3,9 +3,11 @@ package com.thehub.hb.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -20,26 +22,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
-import com.thehub.hb.ui.theme.HubBorder
+import com.thehub.hb.ui.theme.HubGlassStrong
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
-import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 import com.thehub.hb.utils.VideoLinkDetector
 
 /**
- * Inline video preview used by Feed/Profile/Post Detail.
- *
- * The video itself is not played inside the card. The card renders a thumbnail
- * and opens the full VideoViewer only when the user taps it.
+ * Aperçu vidéo en ligne « Aurora Glass » (Feed / Détail / Profil) : miniature
+ * rayon 20, scrim palette, pastille fournisseur sur scrim, bouton lecture en
+ * dégradé de marque avec lueur --fab-glow. La lecture s'ouvre dans le viewer.
  */
 @Composable
 fun VideoLinkCard(
@@ -47,6 +51,8 @@ fun VideoLinkCard(
     onClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val provider = VideoLinkDetector.providerLabel(videoUrl)
     val thumbnailUrl = VideoLinkDetector.thumbnailUrl(videoUrl)
     val isShort = VideoLinkDetector.isYouTubeShorts(videoUrl)
@@ -64,7 +70,8 @@ fun VideoLinkCard(
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
             .clip(shape)
-            .background(Color.Black)
+            .background(palette.bg1)
+            .testTag("video_link_card")
             .then(
                 if (onClick != null) {
                     Modifier.clickable { onClick(videoUrl) }
@@ -76,14 +83,14 @@ fun VideoLinkCard(
         if (thumbnailUrl != null) {
             SubcomposeAsyncImage(
                 model = thumbnailUrl,
-                contentDescription = "Aperçu vidéo $provider",
+                contentDescription = strings.videoPreviewDescFormat.format(provider),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 loading = {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(HubSurfaceElevated),
+                            .background(HubGlassStrong),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
@@ -113,25 +120,23 @@ fun VideoLinkCard(
             )
         }
 
-        // Subtle readability scrim.
+        // Scrim de lisibilité (palette --scrim).
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.20f))
+                .background(palette.scrim.copy(alpha = palette.scrim.alpha * 0.45f))
         )
 
-        // Provider label.
+        // Pastille fournisseur.
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(10.dp)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.68f))
+                .background(palette.scrim)
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
-            androidx.compose.foundation.layout.Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Outlined.VideoLibrary,
                     contentDescription = null,
@@ -141,46 +146,51 @@ fun VideoLinkCard(
                 Text(
                     text = provider,
                     color = HubWhite,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 6.dp)
                 )
             }
         }
 
-        // Main play button.
+        // Bouton lecture — dégradé de marque + lueur FAB de la maquette.
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(if (isShort) 62.dp else 58.dp)
+                .shadow(
+                    elevation = 14.dp,
+                    shape = CircleShape,
+                    clip = false,
+                    ambientColor = Color.Transparent,
+                    spotColor = palette.fabGlow
+                )
                 .clip(CircleShape)
-                .background(
-                    HubViolet.copy(alpha = 0.92f)
-                ),
+                .background(brush = hubPrimaryGradient()),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
-                contentDescription = "Lire la vidéo",
+                contentDescription = strings.playVideoDesc,
                 tint = Color.White,
                 modifier = Modifier.size(if (isShort) 34.dp else 32.dp)
             )
         }
 
-        // Short label helps the viewer understand the vertical format.
+        // Pastille « Shorts » pour le format vertical.
         if (isShort) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.68f))
+                    .background(palette.scrim)
                     .padding(horizontal = 9.dp, vertical = 5.dp)
             ) {
                 Text(
-                    text = "Shorts",
+                    text = strings.shortsLabel,
                     color = HubWhite,
-                    fontSize = 11.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -193,17 +203,12 @@ private fun VideoThumbnailFallback(
     provider: String,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
     Box(
-        modifier = modifier
-            .background(HubSurfaceElevated)
-            .then(
-                Modifier
-            ),
+        modifier = modifier.background(HubGlassStrong),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.foundation.layout.Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = Icons.Outlined.VideoLibrary,
                 contentDescription = null,
@@ -218,7 +223,7 @@ private fun VideoThumbnailFallback(
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
-                text = "Aperçu indisponible",
+                text = strings.previewUnavailableTitle,
                 color = HubMuted,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp)

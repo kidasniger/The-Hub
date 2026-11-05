@@ -1,12 +1,9 @@
 package com.thehub.hb.ui.feed
 
 import android.widget.Toast
-import com.thehub.hb.ui.theme.HubOutline
-import com.thehub.hb.ui.theme.HubSurface
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,13 +24,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -47,32 +46,42 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.AppLogo
 import com.thehub.hb.ui.components.DeletePostConfirmationDialog
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.HubDimens
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.copyPostLinkToClipboard
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
-import androidx.compose.ui.graphics.Color
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +102,8 @@ fun FeedScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val uiState by viewModel.uiState.collectAsState()
     val unreadConversationsCount by viewModel.unreadConversationsCount.collectAsState()
     var postToShare by remember { mutableStateOf<Post?>(null) }
@@ -121,15 +132,15 @@ fun FeedScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .testTag("feed_screen")
     ) {
         Column(Modifier.fillMaxSize()) {
+            // .appbar — logo 36 + wordmark « The Hub » (fin en dégradé), iconbtns verre 40/14.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -142,61 +153,111 @@ fun FeedScreen(
                             .testTag("feed_logo_button"),
                         contentAlignment = Alignment.Center
                     ) {
-                        AppLogo(size = 32.dp, animated = false)
+                        AppLogo(size = 36.dp, animated = false)
                     }
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        text = "The Hub",
-                        fontSize = 20.sp,
+                        text = buildAnnotatedString {
+                            append("The ")
+                            withStyle(SpanStyle(brush = hubPrimaryGradient())) {
+                                append("Hub")
+                            }
+                        },
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = HubWhite,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = (-0.2).sp,
+                        color = HubWhite
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
+                    GlassIconButton(
                         onClick = onOpenFriends,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(HubSurfaceElevated)
-                            .testTag("feed_friends_button")
+                        modifier = Modifier.testTag("feed_friends_button")
                     ) {
-                        Icon(Icons.Outlined.People, "Amis", tint = HubWhite, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Outlined.People,
+                            contentDescription = strings.friendsDesc,
+                            tint = HubWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
 
                     Spacer(Modifier.width(10.dp))
 
                     Box(contentAlignment = Alignment.TopEnd) {
-                        IconButton(
+                        GlassIconButton(
                             onClick = onOpenMessenger,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(HubSurfaceElevated)
-                                .testTag("feed_messenger_button")
+                            modifier = Modifier.testTag("feed_messenger_button")
                         ) {
-                            Icon(Icons.Outlined.Email, "Messagerie", tint = HubWhite, modifier = Modifier.size(20.dp))
+                            Icon(
+                                Icons.Outlined.Email,
+                                contentDescription = strings.messengerDesc,
+                                tint = HubWhite,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                         if (unreadConversationsCount > 0) {
+                            // Badge .bdg — dégradé de marque, liseré fond, 10/800.
                             Box(
                                 modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(HubWhite)
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    .align(Alignment.TopEnd)
+                                    .offset(y = (-4).dp)
+                                    .background(
+                                        brush = hubPrimaryGradient(),
+                                        shape = RoundedCornerShape(9.dp)
+                                    )
+                                    .border(
+                                        1.5.dp,
+                                        palette.black.copy(alpha = 0.65f),
+                                        RoundedCornerShape(9.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
                                     .testTag("feed_messenger_badge")
                             ) {
                                 Text(
                                     text = if (unreadConversationsCount > 99) "99+" else unreadConversationsCount.toString(),
-                                    color = HubBlack,
+                                    color = HubWhite,
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.ExtraBold
                                 )
                             }
                         }
                     }
                 }
+            }
+
+            // .tabs soulignés de la maquette (Pour vous actif) + icône tendance.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(26.dp)
+            ) {
+                FeedTabLabel(text = strings.forYou, selected = true)
+                FeedTabLabel(text = strings.following, selected = false)
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Outlined.TrendingUp,
+                    contentDescription = strings.feedTrendsDesc,
+                    tint = HubTextTertiary,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+
+            // .chips de la maquette (✦ Tout actif, hashtags de démonstration).
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FeedChip(text = strings.feedChipAll, selected = true)
+                FeedChip(text = strings.feedChipTheHub, selected = false)
+                FeedChip(text = strings.feedChipNigerTech, selected = false)
+                FeedChip(text = strings.feedChipDesignSystem, selected = false)
             }
 
             PullToRefreshBox(
@@ -214,8 +275,8 @@ fun FeedScreen(
                     is FeedUiState.Success -> {
                         LazyColumn(
                             state = listState,
-                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(0.dp),
+                            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 90.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(state.posts, key = { it.id }) { post ->
@@ -241,11 +302,13 @@ fun FeedScreen(
                                             .padding(vertical = 16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(color = HubWhite, modifier = Modifier.size(24.dp))
+                                        CircularProgressIndicator(
+                                            color = palette.accent,
+                                            modifier = Modifier.size(24.dp)
+                                        )
                                     }
                                 }
                             }
-                            item { Spacer(Modifier.height(72.dp)) }
                         }
                     }
                 }
@@ -269,7 +332,7 @@ fun FeedScreen(
                 onEdit = onEditPost,
                 onDelete = { postToDelete = it },
                 onReport = { postToReport = it },
-                onCopyLink = { copyPostLinkToClipboard(context, it.id) }
+                onCopyLink = { copyPostLinkToClipboard(context, it.id, strings.linkCopiedToast) }
             )
         }
 
@@ -284,7 +347,7 @@ fun FeedScreen(
                     postToDelete = null
                     Toast.makeText(
                         context,
-                        if (success) "Publication supprimée" else (errorMsg ?: "Erreur de suppression"),
+                        if (success) strings.postDeletedToast else (errorMsg ?: strings.deleteErrorToast),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -296,7 +359,7 @@ fun FeedScreen(
             ReportBottomSheet(
                 targetType = "post",
                 targetId = post.id,
-                targetName = if (post.authorUsername.isNotBlank()) "@${post.authorUsername}" else "cette publication",
+                targetName = if (post.authorUsername.isNotBlank()) "@${post.authorUsername}" else strings.thisPostLabel,
                 onDismiss = { postToReport = null },
                 onSubmitReport = { reason, details ->
                     isSubmittingReport = true
@@ -305,8 +368,7 @@ fun FeedScreen(
                         postToReport = null
                         Toast.makeText(
                             context,
-                            if (success) "Signalement envoyé. Merci de nous aider à garder The Hub sûr."
-                            else (errorMsg ?: "Erreur lors du signalement"),
+                            if (success) strings.reportSentToast else (errorMsg ?: strings.reportErrorToast),
                             if (success) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -317,38 +379,120 @@ fun FeedScreen(
     }
 }
 
+/** Iconbtn verre de la maquette : 40 dp, rayon 14, verre + contour. */
+@Composable
+private fun GlassIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(HubGlass)
+            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+/** Onglet souligné .tabs — actif : texte plein + barre dégradée 3 dp. */
+@Composable
+private fun FeedTabLabel(text: String, selected: Boolean) {
+    Column(
+        modifier = Modifier.padding(top = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = text,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) HubWhite else HubMuted
+        )
+        Spacer(Modifier.height(13.dp))
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(CircleShape)
+                    .background(brush = hubPrimaryGradient())
+            )
+        } else {
+            Spacer(Modifier.height(3.dp))
+        }
+    }
+}
+
+/** Chip .chip de la maquette — pilule, sélection = dégradé de marque. */
+@Composable
+private fun FeedChip(text: String, selected: Boolean) {
+    val shape = RoundedCornerShape(percent = 50)
+    Text(
+        text = text,
+        fontSize = 12.5.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = if (selected) HubWhite else HubSecondary,
+        modifier = Modifier
+            .clip(shape)
+            .then(
+                if (selected) {
+                    Modifier.background(brush = hubPrimaryGradient(), shape = shape)
+                } else {
+                    Modifier
+                        .background(HubGlassStrong, shape)
+                        .border(1.dp, HubStrokeSoft, shape)
+                }
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
+}
+
+/** État « chargement » : cartes de publication squelettes (verre + shimmer). */
 @Composable
 private fun FeedSkeletonList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 0.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         repeat(3) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(170.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(HubSurface)
-                    .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-                    .padding(16.dp)
+            GlassSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(HubDimens.CardRadius),
+                variant = GlassVariant.Card
             ) {
-                Column {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(40.dp).clip(CircleShape).background(HubDarkGray))
-                        Spacer(Modifier.width(12.dp))
+                        Box(
+                            Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(HubGlassStrong)
+                        )
+                        Spacer(Modifier.width(11.dp))
                         Column {
-                            Box(Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                            HubSkeletonLine(height = 13.dp, widthFraction = 0.35f)
                             Spacer(Modifier.height(6.dp))
-                            Box(Modifier.width(60.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(HubBorder))
+                            HubSkeletonLine(height = 11.dp, widthFraction = 0.25f)
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Box(Modifier.fillMaxWidth(0.9f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                    Spacer(Modifier.height(14.dp))
+                    HubSkeletonLine(height = 14.dp, widthFraction = 0.9f)
                     Spacer(Modifier.height(8.dp))
-                    Box(Modifier.fillMaxWidth(0.6f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(HubDarkGray))
+                    HubSkeletonLine(height = 14.dp, widthFraction = 0.6f)
+                    Spacer(Modifier.height(14.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(HubGlassStrong)
+                    )
                 }
             }
         }
@@ -357,38 +501,18 @@ private fun FeedSkeletonList() {
 
 @Composable
 private fun FeedEmptyState(onCreatePost: () -> Unit, onDiscoverUsers: () -> Unit) {
-    val strings = com.thehub.hb.ui.theme.LocalHubStrings.current
+    val strings = LocalHubStrings.current
     Box(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(HubSurfaceElevated),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.DynamicFeed, null, tint = HubSecondary, modifier = Modifier.size(40.dp))
-            }
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = strings.noPostsYet,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite,
-                textAlign = TextAlign.Center
+            HubEmptyState(
+                title = strings.noPostsYet,
+                description = strings.noPostsDescription,
+                icon = Icons.Outlined.DynamicFeed
             )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                strings.noPostsDescription,
-                fontSize = 14.sp,
-                color = HubSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 21.sp
-            )
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(8.dp))
             HubButton(
                 text = strings.tabCreate,
                 onClick = onCreatePost,
@@ -409,18 +533,14 @@ private fun FeedEmptyState(onCreatePost: () -> Unit, onDiscoverUsers: () -> Unit
 
 @Composable
 private fun FeedErrorState(message: String, onRetry: () -> Unit) {
+    val strings = LocalHubStrings.current
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Oups !", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = HubError)
-            Spacer(Modifier.height(8.dp))
-            Text(message, fontSize = 14.sp, color = HubSecondary, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(20.dp))
-            HubButton(
-                text = "Réessayer",
-                onClick = onRetry,
-                variant = HubButtonVariant.Secondary,
-                modifier = Modifier.width(180.dp)
-            )
-        }
+        HubEmptyState(
+            title = strings.oopsLabel,
+            description = message,
+            icon = Icons.Outlined.CloudOff,
+            actionLabel = strings.retryLabel,
+            onAction = onRetry
+        )
     }
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,21 +30,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,25 +63,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.local.DataStoreManager
+import com.thehub.hb.data.model.Post
 import com.thehub.hb.ui.components.AppLogo
+import com.thehub.hb.ui.components.HubErrorBanner
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.VideoLinkCard
-import com.thehub.hb.utils.VideoLinkDetector
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubDarkGray
 import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassSoft
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
 import com.thehub.hb.ui.theme.HubWhite
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
+import com.thehub.hb.utils.VideoLinkDetector
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -95,6 +95,8 @@ fun CreatePostScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val dataStoreManager = remember(context) { DataStoreManager(context) }
     val coroutineScope = rememberCoroutineScope()
     val textBringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -103,6 +105,7 @@ fun CreatePostScreen(
     var videoDialogUrl by remember { mutableStateOf("") }
     var videoDialogError by remember { mutableStateOf<String?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         if (!uiState.isEditMode && uiState.text.isBlank()) {
             val draft = dataStoreManager.postDraftText.first()
@@ -117,7 +120,6 @@ fun CreatePostScreen(
         }
     }
 
-
     // Native Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -128,7 +130,7 @@ fun CreatePostScreen(
                 if (bytes != null) {
                     viewModel.setImage(uri, bytes)
                 } else {
-                    viewModel.showErrorMessage("Impossible de lire ou de préparer cette image.")
+                    viewModel.showErrorMessage(strings.imagePrepareError)
                 }
             }
         }
@@ -144,106 +146,105 @@ fun CreatePostScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
+            .imePadding()
             .testTag("create_post_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
+            // .appbar — fermer (verre 40/14), titre 16.5/800, bouton primaire sm.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                GlassIconBox(
+                    modifier = Modifier.testTag("create_post_back_button"),
                     onClick = {
                         if (uiState.text.isNotBlank() || uiState.selectedImageUri != null || !uiState.videoUrl.isNullOrBlank()) {
                             showDiscardDialog = true
                         } else {
                             onNavigateBack()
                         }
-                    },
-                    modifier = Modifier.testTag("create_post_back_button")
+                    }
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Retour",
-                        tint = HubWhite
+                        imageVector = Icons.Default.Close,
+                        contentDescription = strings.dialogClose,
+                        tint = HubWhite,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
+                Spacer(Modifier.width(12.dp))
+
                 Text(
-                    text = if (uiState.isEditMode) "Modifier la publication" else "Nouvelle publication",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = if (uiState.isEditMode) strings.editPostTitle else strings.newPostTitle,
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.3).sp,
                     color = HubWhite
                 )
 
-                Button(
-                    onClick = {
-                        viewModel.publishPost { newPost ->
-                            coroutineScope.launch {
-                                dataStoreManager.clearPostDraft()
-                                onPostCreated(newPost)
+                Spacer(Modifier.weight(1f))
+
+                // .btn.btn-primary.sm — dégradé de marque, rayon 12, 12.5/700 ;
+                // désactivé : verre doux, texte atténué.
+                val canPublish = uiState.canPublish && !uiState.isLoading
+                Row(
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .then(
+                            if (canPublish) {
+                                Modifier.background(brush = hubPrimaryGradient())
+                            } else {
+                                Modifier
+                                    .background(HubGlassSoft)
+                                    .border(1.dp, HubStrokeSoft, RoundedCornerShape(12.dp))
+                            }
+                        )
+                        .clickable(
+                            enabled = canPublish
+                        ) {
+                            viewModel.publishPost { newPost ->
+                                coroutineScope.launch {
+                                    dataStoreManager.clearPostDraft()
+                                    onPostCreated(newPost)
+                                }
                             }
                         }
-                    },
-                    enabled = uiState.canPublish && !uiState.isLoading,
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = HubWhite,
-                        contentColor = HubBlack,
-                        disabledContainerColor = if (uiState.isLoading) HubWhite else HubSurfaceElevated,
-                        disabledContentColor = if (uiState.isLoading) HubBlack else HubMuted
-                    ),
-                    modifier = Modifier
-                        .height(44.dp)
-                        .testTag("create_post_publish_button")
+                        .padding(horizontal = 18.dp)
+                        .testTag("create_post_publish_button"),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (uiState.isLoading) {
-                        AppLogo(
-                            size = 24.dp,
-                            animated = true
-                        )
+                        AppLogo(size = 22.dp, animated = true)
                     } else {
                         Text(
-                            text = if (uiState.isEditMode) "Enregistrer" else "Publier",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            text = if (uiState.isEditMode) strings.saveLabel else strings.publish,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (canPublish) Color.White else HubMuted
                         )
                     }
                 }
             }
 
-            // Scrollable Content
+            // .app-scroll — 6 20 24, gap 15.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                // Error message banner
                 if (uiState.errorMessage != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                            .background(HubError.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
-                            .border(1.dp, HubError.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = uiState.errorMessage ?: "",
-                            color = HubError,
-                            fontSize = 13.sp
-                        )
-                    }
+                    HubErrorBanner(message = uiState.errorMessage ?: "")
                 }
 
-                // Text Input Area
+                // Zone de texte — 15.5 / 1.55, compteur 10.5.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -251,9 +252,9 @@ fun CreatePostScreen(
                 ) {
                     if (uiState.text.isEmpty()) {
                         Text(
-                            text = "Quoi de neuf ?",
+                            text = strings.whatOnYourMind,
                             color = HubMuted,
-                            fontSize = 18.sp,
+                            fontSize = 15.5.sp,
                             lineHeight = 24.sp
                         )
                     }
@@ -268,75 +269,56 @@ fun CreatePostScreen(
                             .testTag("create_post_text_field"),
                         textStyle = TextStyle(
                             color = HubWhite,
-                            fontSize = 18.sp,
+                            fontSize = 15.5.sp,
                             lineHeight = 24.sp
                         ),
-                        cursorBrush = SolidColor(HubWhite)
+                        cursorBrush = SolidColor(palette.accent)
                     )
                 }
 
-                if (uiState.text.isNotBlank() && uiState.videoUrl.isNullOrBlank()) {
-                    LinkPreviewCard(
-                        text = uiState.text,
-                        modifier = Modifier.padding(top = 10.dp)
-                    )
-                }
-
-                // Informational character count; The Hub does not impose an application-defined post length cap.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     Text(
-                        text = if (uiState.charCount == 0) "Prêt à publier" else "${uiState.charCount} caractères",
-                        fontSize = 12.sp,
+                        text = if (uiState.charCount == 0) strings.readyToPublish else strings.charCountFormat.format(uiState.charCount),
+                        fontSize = 10.5.sp,
                         color = HubMuted,
-                        fontWeight = FontWeight.Normal,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.testTag("create_post_char_counter")
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                if (uiState.text.isNotBlank() && uiState.videoUrl.isNullOrBlank()) {
+                    LinkPreviewCard(text = uiState.text)
+                }
 
-                // Image Preview Card (if selected)
+                // Aperçu image — rayon 20, pastille de fermeture scrim.
                 if (uiState.selectedImageUri != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(HubSurfaceElevated)
-                            .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .testTag("create_post_image_preview")
                     ) {
                         AsyncImage(
                             model = uiState.selectedImageUri,
-                            contentDescription = "Aperçu de l'image sélectionnée",
+                            contentDescription = strings.selectedImageDesc,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp)),
+                                .clip(RoundedCornerShape(20.dp)),
                             contentScale = ContentScale.FillWidth
                         )
 
-                        // Remove Image Button
-                        IconButton(
+                        CloseOverlayButton(
                             onClick = { viewModel.clearImage() },
+                            contentDescription = strings.removeImageDesc,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(10.dp)
-                                .size(32.dp)
-                                .background(Color(0x99000000), CircleShape)
                                 .testTag("create_post_remove_image")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Retirer l'image",
-                                tint = HubWhite,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 if (!uiState.videoUrl.isNullOrBlank()) {
@@ -349,104 +331,81 @@ fun CreatePostScreen(
                             videoUrl = uiState.videoUrl!!,
                             onClick = null
                         )
-                        IconButton(
+                        CloseOverlayButton(
                             onClick = { viewModel.clearVideoUrl() },
+                            contentDescription = strings.removeVideoDesc,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(32.dp)
-                                .background(Color(0x99000000), CircleShape)
+                                .padding(10.dp)
                                 .testTag("create_post_remove_video")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Retirer la vidéo",
-                                tint = HubWhite,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
 
-            // Bottom Attachment Bar
+            // Barre d'attachements — chips verre de la maquette (Photo / Vidéo).
             if (!uiState.isEditMode) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(HubSurfaceElevated)
-                        .border(width = 1.dp, color = HubBorder)
-                        .imePadding()
+                        .navigationBarsPadding()
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(HubDarkGray)
-                            .clickable {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                            .testTag("create_post_pick_image_button"),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Image,
-                            contentDescription = "Ajouter une image",
-                            tint = HubWhite,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (uiState.selectedImageUri != null) "Changer la photo" else "Ajouter une photo",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = HubWhite
-                        )
-                    }
+                    AttachmentChip(
+                        modifier = Modifier.testTag("create_post_pick_image_button"),
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Image,
+                                contentDescription = null,
+                                tint = HubWhite,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
+                        label = if (uiState.selectedImageUri != null) strings.changePhotoLabel else strings.addPhoto
+                    )
 
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(HubDarkGray)
-                            .clickable {
-                                videoDialogUrl = uiState.videoUrl.orEmpty()
-                                videoDialogError = null
-                                showVideoDialog = true
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                            .testTag("create_post_add_video_link_button"),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.VideoLibrary,
-                            contentDescription = "Ajouter un lien vidéo",
-                            tint = HubWhite,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Vidéo par lien",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = HubWhite
-                        )
-                    }
+                    AttachmentChip(
+                        modifier = Modifier.testTag("create_post_add_video_link_button"),
+                        onClick = {
+                            videoDialogUrl = uiState.videoUrl.orEmpty()
+                            videoDialogError = null
+                            showVideoDialog = true
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Outlined.VideoLibrary,
+                                contentDescription = strings.addVideoLinkDesc,
+                                tint = HubWhite,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
+                        label = strings.addVideoLinkLabel
+                    )
                 }
             }
+        }
+
         if (showDiscardDialog) {
             AlertDialog(
                 onDismissRequest = { showDiscardDialog = false },
-                title = { Text("Quitter sans publier ?", color = HubWhite) },
+                containerColor = palette.bg1,
+                title = {
+                    Text(
+                        strings.discardTitle,
+                        color = HubWhite,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                },
                 text = {
                     Text(
-                        "Ta publication en cours sera perdue si tu quittes maintenant.",
+                        strings.discardMessage,
                         color = HubSecondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
@@ -463,26 +422,32 @@ fun CreatePostScreen(
                         },
                         modifier = Modifier.testTag("create_post_discard_confirm")
                     ) {
-                        Text("Quitter", color = HubError, fontWeight = FontWeight.Bold)
+                        Text(strings.leaveLabel, color = HubError, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDiscardDialog = false }) {
-                        Text("Continuer", color = HubWhite)
+                        Text(strings.continueLabel, color = HubWhite)
                     }
-                },
-                containerColor = HubSurfaceElevated
+                }
             )
         }
 
         if (showVideoDialog) {
             AlertDialog(
                 onDismissRequest = { showVideoDialog = false },
-                title = { Text("Ajouter une vidéo", color = HubWhite) },
+                containerColor = palette.bg1,
+                title = {
+                    Text(
+                        strings.addVideoTitle,
+                        color = HubWhite,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                },
                 text = {
                     Column {
                         Text(
-                            text = "Colle le lien d'une vidéo YouTube, TikTok, Instagram, Facebook, Vimeo, Dailymotion, Twitch ou une URL vidéo directe.",
+                            text = strings.addVideoHelp,
                             color = HubSecondary,
                             fontSize = 13.sp
                         )
@@ -494,11 +459,19 @@ fun CreatePostScreen(
                                 videoDialogError = null
                             },
                             singleLine = true,
-                            label = { Text("Lien vidéo") },
+                            label = { Text(strings.videoLinkLabel) },
                             isError = videoDialogError != null,
                             supportingText = {
                                 videoDialogError?.let { Text(it, color = HubError) }
                             },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = HubWhite,
+                                unfocusedTextColor = HubWhite,
+                                focusedBorderColor = palette.accent,
+                                unfocusedBorderColor = HubStrokeSoft,
+                                focusedLabelColor = palette.accent,
+                                unfocusedLabelColor = HubMuted
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("create_post_video_link_input")
@@ -510,7 +483,7 @@ fun CreatePostScreen(
                         onClick = {
                             val normalized = VideoLinkDetector.normalizeManualUrl(videoDialogUrl)
                             if (normalized == null) {
-                                videoDialogError = "Entre une URL http:// ou https:// valide."
+                                videoDialogError = strings.invalidVideoUrl
                             } else {
                                 viewModel.setVideoUrl(normalized)
                                 showVideoDialog = false
@@ -518,27 +491,87 @@ fun CreatePostScreen(
                         },
                         modifier = Modifier.testTag("create_post_video_link_confirm")
                     ) {
-                        Text("Ajouter", color = HubWhite)
+                        Text(strings.addLabel, color = palette.accent, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showVideoDialog = false }) {
-                        Text("Annuler", color = HubSecondary)
+                        Text(strings.dialogCancel, color = HubMuted)
                     }
-                },
-                containerColor = HubSurfaceElevated
+                }
             )
         }
     }
+}
+
+/** Iconbtn verre 40/14 de la maquette (.appbar .iconbtn). */
+@Composable
+private fun GlassIconBox(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(HubGlass)
+            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
 
-private suspend fun readBytesFromUri(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
-    try {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            inputStream.readBytes()
-        }
-    } catch (_: Exception) {
-        null
+/** Pastille de fermeture sur média : scrim + blur visuel (maquette 07). */
+@Composable
+private fun CloseOverlayButton(
+    onClick: () -> Unit,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(LocalHubColors.current.scrim)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = contentDescription,
+            tint = HubWhite,
+            modifier = Modifier.size(14.dp)
+        )
+    }
+}
+
+/** Chip d'attachement .chip : pilule verre, icône + label 12.5/600. */
+@Composable
+private fun AttachmentChip(
+    onClick: () -> Unit,
+    label: String,
+    icon: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(HubGlassSoft)
+            .border(1.dp, HubStrokeSoft, RoundedCornerShape(percent = 50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        icon()
+        Text(
+            text = label,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = HubWhite
+        )
     }
 }

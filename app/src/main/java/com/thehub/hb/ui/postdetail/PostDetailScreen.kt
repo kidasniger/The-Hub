@@ -1,9 +1,7 @@
 package com.thehub.hb.ui.postdetail
 
+import android.widget.Toast
 import androidx.compose.foundation.background
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,18 +23,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,46 +46,43 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
-import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.DeletePostConfirmationDialog
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubDimens
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
 import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.components.PostOptionsBottomSheet
-import com.thehub.hb.ui.components.DeletePostConfirmationDialog
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.copyPostLinkToClipboard
-import android.widget.Toast
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import com.thehub.hb.utils.ImageSaver
-import com.thehub.hb.ui.theme.HubDarkGray
-import androidx.compose.material3.ExperimentalMaterial3Api
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassSoft
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubInfo
 import com.thehub.hb.ui.theme.HubError
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubSuccess
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.utils.RelativeTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +100,8 @@ fun PostDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val uiState by viewModel.uiState.collectAsState()
     var postToShare by remember { mutableStateOf<Post?>(null) }
     var showOptionsMenu by remember { mutableStateOf(false) }
@@ -114,51 +113,74 @@ fun PostDetailScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
+            .navigationBarsPadding()
             .testTag("post_detail_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
+            // .appbar — retour (verre), titre 16.5/800, partage + options (verre).
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                DetailGlassIcon(
                     onClick = onNavigateBack,
                     modifier = Modifier.testTag("post_detail_back_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Retour",
-                        tint = HubWhite
+                        contentDescription = strings.back,
+                        tint = HubWhite,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
+                Spacer(Modifier.width(12.dp))
+
                 Text(
-                    text = "Publication",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = strings.postDetailTitle,
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.3).sp,
                     color = HubWhite,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.weight(1f)
                 )
+
+                when (val state = uiState) {
+                    is PostDetailUiState.Success -> {
+                        DetailGlassIcon(
+                            onClick = { postToShare = state.post },
+                            modifier = Modifier.testTag("post_detail_share_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Share,
+                                contentDescription = strings.shareDesc,
+                                tint = HubWhite,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        DetailGlassIcon(
+                            onClick = { showOptionsMenu = true },
+                            modifier = Modifier.testTag("post_detail_options_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = strings.postOptionsDesc,
+                                tint = HubWhite,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                    else -> Unit
+                }
             }
 
             when (val state = uiState) {
                 is PostDetailUiState.Loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
+                    PostDetailSkeleton()
                 }
 
                 is PostDetailUiState.Error -> {
@@ -169,16 +191,13 @@ fun PostDetailScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = state.message, color = HubError, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HubButton(
-                                text = "Réessayer",
-                                onClick = { viewModel.loadPostDetail() },
-                                variant = HubButtonVariant.Secondary,
-                                modifier = Modifier.width(160.dp)
-                            )
-                        }
+                        HubEmptyState(
+                            title = strings.oopsLabel,
+                            description = state.message,
+                            icon = Icons.Outlined.CloudOff,
+                            actionLabel = strings.retryLabel,
+                            onAction = { viewModel.loadPostDetail() }
+                        )
                     }
                 }
 
@@ -189,436 +208,458 @@ fun PostDetailScreen(
                             .fillMaxWidth()
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val author = rememberLiveUser(
-                            userId = post.authorId
-                        )
+                        val author = rememberLiveUser(userId = post.authorId)
 
-                        // Repost indication
-                        if (post.isRepost) {
-                            val reposter = rememberLiveUser(
-                                userId = post.authorId
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Repeat,
-                                    contentDescription = "Repost",
-                                    tint = HubSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Reposté par ${reposter.effectiveName}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = HubSecondary
-                                )
-                            }
-                        }
-
-                        // Author Profile Header
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(HubDimens.CardRadius),
+                            variant = GlassVariant.Card
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .then(
-                                        if (onAuthorClick != null) {
-                                            Modifier.clickable { onAuthorClick(post.authorId) }
-                                        } else {
-                                            Modifier
-                                        }
-                                    )
-                            ) {
-                                UserAvatar(
-                                    name = author.effectiveName,
-                                    photoUrl = author.photoUrl,
-                                    size = 48.dp
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    HubVerifiedUserName(
-                                        name = author.effectiveName,
-                                        isVerified = author.isVerified,
-                                        verificationType = author.verificationType,
-                                        fontSize = 16.sp,
-                                        color = HubWhite,
-                                        badgeSize = 16.dp
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = RelativeTime.format(post.createdAt),
-                                        fontSize = 13.sp,
-                                        color = HubMuted
-                                    )
-                                }
-                            }
-
-                            // Follow / Unfollow Button
-                            val detailState = uiState as? PostDetailUiState.Success
-                            val currentUid = detailState?.currentUserId
-                            if (currentUid != null && currentUid != post.authorId) {
-                                val isFollowing = detailState.isFollowingAuthor
-                                val isFollowLoading = detailState.isFollowActionLoading
-                                Button(
-                                    onClick = { viewModel.toggleFollowAuthor() },
-                                    enabled = !isFollowLoading,
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = if (isFollowing) {
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = HubSurfaceElevated,
-                                            contentColor = HubWhite
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                if (post.isRepost) {
+                                    val reposter = rememberLiveUser(userId = post.authorId)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Repeat,
+                                            contentDescription = null,
+                                            tint = HubSecondary,
+                                            modifier = Modifier.size(15.dp)
                                         )
-                                    } else {
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = HubWhite,
-                                            contentColor = HubBlack
-                                        )
-                                    },
-                                    modifier = Modifier
-                                        .height(36.dp)
-                                        .testTag("post_detail_follow_button")
-                                ) {
-                                    if (isFollowLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            color = if (isFollowing) HubWhite else HubBlack,
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
+                                        Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = if (isFollowing) "Abonné" else "S'abonner",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold
+                                            text = strings.repostedByFormat.format(reposter.effectiveName),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = HubSecondary
+                                        )
+                                    }
+                                }
+
+                                // .phead — avatar 46, meta @handle · heure · visibilité.
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = 14.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(
+                                                if (onAuthorClick != null) {
+                                                    Modifier.clickable { onAuthorClick(post.authorId) }
+                                                } else {
+                                                    Modifier
+                                                }
+                                            )
+                                    ) {
+                                        UserAvatar(
+                                            name = author.effectiveName,
+                                            photoUrl = author.photoUrl,
+                                            size = 46.dp
+                                        )
+                                        Spacer(Modifier.width(11.dp))
+                                        Column {
+                                            HubVerifiedUserName(
+                                                name = author.effectiveName,
+                                                isVerified = author.isVerified,
+                                                verificationType = author.verificationType,
+                                                fontSize = 13.5.sp,
+                                                color = HubWhite,
+                                                badgeSize = 15.dp
+                                            )
+                                            Spacer(Modifier.height(1.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = buildString {
+                                                        if (author.username.isNotBlank()) append("@${author.username} · ")
+                                                        append(RelativeTime.format(post.createdAt))
+                                                        append(" · ${strings.publicLabel}")
+                                                    },
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = HubMuted
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    val detailState = uiState as? PostDetailUiState.Success
+                                    val currentUid = detailState?.currentUserId
+                                    if (currentUid != null && currentUid != post.authorId) {
+                                        val isFollowing = detailState.isFollowingAuthor
+                                        val isFollowLoading = detailState.isFollowActionLoading
+                                        // .btn.xs — primaire (S'abonner) ou verre (Abonné).
+                                        DetailFollowButton(
+                                            isFollowing = isFollowing,
+                                            isLoading = isFollowLoading,
+                                            followLabel = strings.follow,
+                                            followingLabel = strings.unfollow,
+                                            onClick = { viewModel.toggleFollowAuthor() },
+                                            modifier = Modifier.testTag("post_detail_follow_button")
+                                        )
+                                    }
+                                }
+
+                                // .ptext 15 / 1.55.
+                                if (post.text.isNotBlank()) {
+                                    Spacer(Modifier.height(11.dp))
+                                    Text(
+                                        text = post.text,
+                                        fontSize = 15.sp,
+                                        lineHeight = 23.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = HubWhite,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                    if (post.videoUrl.isNullOrBlank()) {
+                                        LinkPreviewCard(
+                                            text = post.text,
+                                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                                        )
+                                    }
+                                }
+
+                                if (!post.imageUrl.isNullOrBlank()) {
+                                    Spacer(Modifier.height(13.dp))
+                                    Box(Modifier.padding(horizontal = 14.dp)) {
+                                        PostMediaImage(
+                                            imageUrl = post.imageUrl,
+                                            contentDescription = strings.postImageDesc,
+                                            cornerRadius = 20.dp,
+                                            showSaveButton = true,
+                                            saveButtonTag = "post_detail_save_image_button",
+                                            onImageClick = onImageClick,
+                                            maxHeight = 360.dp
+                                        )
+                                    }
+                                }
+
+                                if (!post.imageUrl.isNullOrBlank() && !post.videoUrl.isNullOrBlank()) {
+                                    Spacer(Modifier.height(10.dp))
+                                    Box(Modifier.padding(horizontal = 14.dp)) {
+                                        VideoLinkCard(
+                                            videoUrl = post.videoUrl!!,
+                                            onClick = onVideoClick
+                                        )
+                                    }
+                                }
+
+                                if (post.isRepost && post.originalPost != null) {
+                                    val orig = post.originalPost
+                                    val origAuthor = rememberLiveUser(userId = orig.authorId)
+                                    Spacer(Modifier.height(12.dp))
+                                    Box(Modifier.padding(horizontal = 14.dp)) {
+                                        GlassSurface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(14.dp),
+                                            variant = GlassVariant.Soft
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    UserAvatar(
+                                                        name = origAuthor.effectiveName,
+                                                        photoUrl = origAuthor.photoUrl,
+                                                        size = 32.dp
+                                                    )
+                                                    Spacer(Modifier.width(10.dp))
+                                                    HubVerifiedUserName(
+                                                        name = origAuthor.effectiveName,
+                                                        isVerified = origAuthor.isVerified,
+                                                        verificationType = origAuthor.verificationType,
+                                                        fontSize = 13.sp,
+                                                        color = HubWhite,
+                                                        badgeSize = 14.dp
+                                                    )
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Text(
+                                                        text = "· ${RelativeTime.format(orig.createdAt)}",
+                                                        fontSize = 11.5.sp,
+                                                        color = HubMuted
+                                                    )
+                                                }
+                                                if (orig.text.isNotBlank()) {
+                                                    Spacer(Modifier.height(8.dp))
+                                                    Text(
+                                                        text = orig.text,
+                                                        color = HubSecondary,
+                                                        fontSize = 13.5.sp,
+                                                        lineHeight = 20.sp
+                                                    )
+                                                }
+                                                if (!orig.imageUrl.isNullOrBlank()) {
+                                                    Spacer(Modifier.height(8.dp))
+                                                    PostMediaImage(
+                                                        imageUrl = orig.imageUrl,
+                                                        contentDescription = strings.repostImageDesc,
+                                                        cornerRadius = 12.dp,
+                                                        showSaveButton = false,
+                                                        onImageClick = onImageClick
+                                                    )
+                                                }
+                                                if (!orig.videoUrl.isNullOrBlank()) {
+                                                    Spacer(Modifier.height(8.dp))
+                                                    VideoLinkCard(
+                                                        videoUrl = orig.videoUrl!!,
+                                                        onClick = onVideoClick
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // .pactions bordées (border-top stroke-soft).
+                                Spacer(Modifier.height(11.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(HubStrokeSoft)
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .clickable { viewModel.toggleLike() },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                                contentDescription = if (post.isLikedByCurrentUser) strings.unlikeDesc else strings.likeDesc,
+                                                tint = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = strings.likesCountFormat.format(post.likesCount),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
+                                            modifier = Modifier
+                                                .clickable { onOpenLikes(post.id) }
+                                                .padding(horizontal = 4.dp, vertical = 6.dp)
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable { onOpenComments(post.id) }
+                                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                                            contentDescription = strings.commentsDesc,
+                                            tint = HubInfo,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = strings.commentsCountFormat.format(state.totalCommentsCount),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = HubInfo
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .clickable { postToShare = post }
+                                            .testTag("action_share_${post.id}"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Share,
+                                            contentDescription = strings.shareDesc,
+                                            tint = HubSuccess,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .clickable { viewModel.toggleBookmark() }
+                                            .testTag("action_bookmark_${post.id}"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                            contentDescription = if (post.isBookmarkedByCurrentUser) strings.bookmarkRemoveDesc else strings.bookmarkAddDesc,
+                                            tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubTextTertiary,
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
                             }
-
-                            Spacer(modifier = Modifier.width(4.dp))
-                            IconButton(
-                                onClick = { showOptionsMenu = true },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .testTag("post_detail_options_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Options de la publication",
-                                    tint = HubSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
                         }
 
-                        // Full Post Text
-                        if (post.text.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = post.text,
-                                fontSize = 17.sp,
-                                lineHeight = 26.sp,
-                                color = HubWhite,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            if (post.videoUrl.isNullOrBlank()) {
-                                LinkPreviewCard(
-                                    text = post.text,
-                                    modifier = Modifier.padding(top = 10.dp)
-                                )
-                            }
-                        }
-
-                        // Full Post Image
-                        if (!post.imageUrl.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            PostMediaImage(
-                                imageUrl = post.imageUrl,
-                                contentDescription = "Image de la publication",
-                                cornerRadius = 14.dp,
-                                showSaveButton = true,
-                                saveButtonTag = "post_detail_save_image_button",
-                                onImageClick = onImageClick
-                            )
-
-                            if (!post.videoUrl.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                VideoLinkCard(
-                                    videoUrl = post.videoUrl!!,
-                                    onClick = onVideoClick
-                                )
-                            }
-                        }
-
-                        // Original Post if Repost
-                        if (post.isRepost && post.originalPost != null) {
-                            val orig = post.originalPost
-                            val origAuthor = rememberLiveUser(
-                                userId = orig.authorId
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(HubSurface)
-                                    .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-                                    .padding(14.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    UserAvatar(
-                                        name = origAuthor.effectiveName,
-                                        photoUrl = origAuthor.photoUrl,
-                                        size = 32.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    HubVerifiedUserName(
-                                        name = origAuthor.effectiveName,
-                                        isVerified = origAuthor.isVerified,
-                                        verificationType = origAuthor.verificationType,
-                                        fontSize = 14.sp,
-                                        color = HubWhite,
-                                        badgeSize = 14.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "· ${RelativeTime.format(orig.createdAt)}",
-                                        fontSize = 12.sp,
-                                        color = HubMuted
-                                    )
-                                }
-                                if (orig.text.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(text = orig.text, color = HubWhite, fontSize = 15.sp)
-                                }
-                                if (!orig.imageUrl.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    PostMediaImage(
-                                        imageUrl = orig.imageUrl,
-                                        contentDescription = "Image repostée",
-                                        cornerRadius = 8.dp,
-                                        showSaveButton = false,
-                                        onImageClick = onImageClick
-                                    )
-                                }
-
-                                if (!orig.videoUrl.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    VideoLinkCard(
-                                        videoUrl = orig.videoUrl!!,
-                                        onClick = onVideoClick
-                                    )
-                                }
-                            }
-                        }
-
-                        // Divider & Action Bar
-                        Spacer(modifier = Modifier.height(20.dp))
-                        HorizontalDivider(color = HubBorder, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(8.dp))
-
+                        // Section commentaires — titre + aperçu en .row.
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Like
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { viewModel.toggleLike() },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                        contentDescription = "Aimer",
-                                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                                Text(
-                                    text = "${post.likesCount} J'aime",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubSecondary,
-                                    modifier = Modifier
-                                        .clickable { onOpenLikes(post.id) }
-                                        .padding(4.dp)
-                                )
-                            }
-
-                            // Comments
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clickable { onOpenComments(post.id) }
-                                    .padding(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                                    contentDescription = "Commentaires",
-                                    tint = HubMuted,
-                                    modifier = Modifier.size(21.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "${state.totalCommentsCount} Commentaires",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = HubSecondary
-                                )
-                            }
-
-                            // Share
-                            IconButton(
-                                onClick = { postToShare = post },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("action_share_${post.id}")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Share,
-                                    contentDescription = "Partager",
-                                    tint = HubMuted,
-                                    modifier = Modifier.size(21.dp)
-                                )
-                            }
-
-                            // Bookmark
-                            IconButton(
-                                onClick = { viewModel.toggleBookmark() },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("action_bookmark_${post.id}")
-                            ) {
-                                Icon(
-                                    imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                    contentDescription = if (post.isBookmarkedByCurrentUser) "Retirer des signets" else "Enregistrer",
-                                    tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubMuted,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider(color = HubBorder, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Comments Preview Section
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Commentaires",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = strings.comments,
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = HubWhite
                             )
-
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "· ${state.totalCommentsCount}",
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = HubMuted
+                            )
+                            Spacer(Modifier.weight(1f))
                             if (state.totalCommentsCount > 0) {
                                 Text(
-                                    text = "Voir tout (${state.totalCommentsCount})",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = HubSecondary,
+                                    text = strings.viewAllFormat.format(state.totalCommentsCount),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = palette.accent,
                                     modifier = Modifier
+                                        .clip(RoundedCornerShape(percent = 50))
                                         .clickable { onOpenComments(post.id) }
-                                        .padding(4.dp)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(14.dp))
 
                         if (state.commentsPreview.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(HubSurfaceElevated)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(HubGlassSoft)
                                     .padding(20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Aucun commentaire pour l'instant.\nSoyez le premier à commenter !",
+                                    text = strings.noCommentsYetDesc,
                                     color = HubMuted,
-                                    fontSize = 14.sp,
+                                    fontSize = 13.5.sp,
                                     lineHeight = 20.sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 state.commentsPreview.forEach { comment ->
-                                    CommentItemPreview(comment = comment)
+                                    CommentItemPreview(comment = comment, onOpenComments = { onOpenComments(post.id) })
                                 }
                             }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = strings.viewAllFormat.format(state.totalCommentsCount),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = HubMuted,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onOpenComments(post.id) }
+                                    .padding(vertical = 8.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
                         }
 
-                        Spacer(modifier = Modifier.height(30.dp))
+                        Spacer(Modifier.height(8.dp))
                     }
 
-                    // Sticky Bottom Bar for Adding Comment
+                    // .composer verre — pastille de saisie + bouton d'envoi dégradé.
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(HubSurfaceElevated)
-                            .border(width = 1.dp, color = HubBorder)
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(HubSurface)
-                                .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-                                .clickable { onOpenComments(post.id) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            variant = GlassVariant.Card
                         ) {
-                            Text(
-                                text = "Écrire un commentaire...",
-                                color = HubMuted,
-                                fontSize = 14.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                imageVector = Icons.Outlined.ChatBubbleOutline,
-                                contentDescription = null,
-                                tint = HubSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(percent = 50))
+                                        .background(HubGlass)
+                                        .border(1.dp, HubStroke, RoundedCornerShape(percent = 50))
+                                        .clickable { onOpenComments(post.id) }
+                                        .padding(horizontal = 15.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = strings.addCommentPlaceholder,
+                                        color = HubMuted,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Spacer(Modifier.width(9.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(brush = com.thehub.hb.ui.theme.hubPrimaryGradient())
+                                        .clickable { onOpenComments(post.id) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Outlined.Send,
+                                        contentDescription = strings.send,
+                                        tint = HubWhite,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Share Post Bottom Sheet
         postToShare?.let { post ->
             SharePostBottomSheet(
                 post = post,
                 onDismiss = { postToShare = null },
-                onRepost = { p ->
-                    viewModel.repost()
-                }
+                onRepost = { viewModel.repost() }
             )
         }
 
         val detailSuccessState = uiState as? PostDetailUiState.Success
         val currentPost = detailSuccessState?.post
 
-        // Post Options Bottom Sheet ("⋮")
         if (showOptionsMenu && currentPost != null) {
             PostOptionsBottomSheet(
                 post = currentPost,
@@ -634,12 +675,11 @@ fun PostDetailScreen(
                     showReportSheet = true
                 },
                 onCopyLink = { post ->
-                    copyPostLinkToClipboard(context, post.id)
+                    copyPostLinkToClipboard(context, post.id, strings.linkCopiedToast)
                 }
             )
         }
 
-        // Delete Confirmation Dialog
         DeletePostConfirmationDialog(
             isOpen = showDeleteConfirmation,
             isDeleting = isDeletingPost,
@@ -649,10 +689,10 @@ fun PostDetailScreen(
                     isDeletingPost = false
                     showDeleteConfirmation = false
                     if (success) {
-                        Toast.makeText(context, "Publication supprimée", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, strings.postDeletedToast, Toast.LENGTH_SHORT).show()
                         onPostDeleted()
                     } else {
-                        Toast.makeText(context, errorMsg ?: "Erreur de suppression", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, errorMsg ?: strings.deleteErrorToast, Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -663,12 +703,11 @@ fun PostDetailScreen(
             }
         )
 
-        // Report Bottom Sheet
         if (showReportSheet && currentPost != null) {
             ReportBottomSheet(
                 targetType = "post",
                 targetId = currentPost.id,
-                targetName = if (currentPost.authorUsername.isNotBlank()) "@${currentPost.authorUsername}" else "cette publication",
+                targetName = if (currentPost.authorUsername.isNotBlank()) "@${currentPost.authorUsername}" else strings.thisPostLabel,
                 onDismiss = { showReportSheet = false },
                 onSubmitReport = { reason, details ->
                     isSubmittingReport = true
@@ -676,15 +715,11 @@ fun PostDetailScreen(
                         isSubmittingReport = false
                         showReportSheet = false
                         if (success) {
-                            Toast.makeText(
-                                context,
-                                "Signalement envoyé. Merci de nous aider à garder The Hub sûr.",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            Toast.makeText(context, strings.reportSentToast, Toast.LENGTH_LONG).show()
                         } else {
                             Toast.makeText(
                                 context,
-                                errorMsg ?: "Erreur lors du signalement",
+                                errorMsg ?: strings.reportErrorToast,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -696,49 +731,162 @@ fun PostDetailScreen(
     }
 }
 
+/** Iconbtn verre 40/14 de l'appbar détail. */
 @Composable
-private fun CommentItemPreview(comment: Comment) {
-    val commentAuthor = rememberLiveUser(
-        userId = comment.authorId
-    )
+private fun DetailGlassIcon(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(HubGlass)
+            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+/** .btn.xs — primaire dégradé (S'abonner) ou verre (Abonné), 11.5/700, rayon 10. */
+@Composable
+private fun DetailFollowButton(
+    isFollowing: Boolean,
+    isLoading: Boolean,
+    followLabel: String,
+    followingLabel: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (!isFollowing) {
+                    Modifier.background(brush = com.thehub.hb.ui.theme.hubPrimaryGradient(), shape = shape)
+                } else {
+                    Modifier
+                        .background(HubGlass, shape)
+                        .border(1.dp, HubStroke, shape)
+                }
+            )
+            .clickable(enabled = !isLoading, onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 7.dp)
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                color = HubWhite,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text(
+                text = if (isFollowing) followingLabel else followLabel,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite
+            )
+        }
+    }
+}
+
+/** État « chargement » : carte de publication squelette. */
+@Composable
+private fun PostDetailSkeleton() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(HubDimens.CardRadius),
+            variant = GlassVariant.Card
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(HubGlassStrong)
+                    )
+                    Spacer(Modifier.width(11.dp))
+                    Column {
+                        HubSkeletonLine(height = 13.dp, widthFraction = 0.4f)
+                        Spacer(Modifier.height(6.dp))
+                        HubSkeletonLine(height = 11.dp, widthFraction = 0.3f)
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                HubSkeletonLine(height = 14.dp, widthFraction = 0.92f)
+                Spacer(Modifier.height(8.dp))
+                HubSkeletonLine(height = 14.dp, widthFraction = 0.75f)
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(205.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(HubGlassStrong)
+                )
+            }
+        }
+    }
+}
+
+/** Aperçu de commentaire en .row (avatar 42, titre 13.5/700, texte 12.5). */
+@Composable
+private fun CommentItemPreview(
+    comment: Comment,
+    onOpenComments: () -> Unit
+) {
+    val strings = LocalHubStrings.current
+    val commentAuthor = rememberLiveUser(userId = comment.authorId)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(HubSurfaceElevated)
-            .padding(12.dp),
-        verticalAlignment = Alignment.Top
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { onOpenComments() }
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         UserAvatar(
             name = commentAuthor.effectiveName,
             photoUrl = commentAuthor.photoUrl,
-            size = 32.dp
+            size = 42.dp
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 HubVerifiedUserName(
                     name = commentAuthor.effectiveName,
                     isVerified = commentAuthor.isVerified,
                     verificationType = commentAuthor.verificationType,
-                    fontSize = 13.sp,
+                    fontSize = 13.5.sp,
                     color = HubWhite,
-                    badgeSize = 14.dp
+                    badgeSize = 15.dp
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(
                     text = "· ${RelativeTime.format(comment.createdAt)}",
-                    fontSize = 11.sp,
+                    fontSize = 11.5.sp,
                     color = HubMuted
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = comment.text,
-                fontSize = 14.sp,
-                lineHeight = 19.sp,
-                color = HubWhite
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp,
+                color = HubSecondary,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

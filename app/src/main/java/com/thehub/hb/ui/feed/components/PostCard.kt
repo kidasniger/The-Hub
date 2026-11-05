@@ -1,8 +1,6 @@
 package com.thehub.hb.ui.feed.components
 
-import com.thehub.hb.ui.components.OfficialVerificationBadge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,26 +14,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,19 +39,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubDimens
 import com.thehub.hb.ui.components.PostMediaImage
 import com.thehub.hb.ui.components.VideoLinkCard
 import com.thehub.hb.ui.components.LinkPreviewCard
+import com.thehub.hb.ui.components.OfficialVerificationBadge
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubInfo
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubSuccess
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.utils.RelativeTime
 
+/**
+ * Carte de publication « Aurora Glass » — reproduit .post.glass de la maquette
+ * (écran 06) : verre Card rayon --r-xl 30, en-tête avatar 42, texte 14/1.55,
+ * média rayon 20, barre d'actions .pa (hot danger / cool info / share success).
+ */
 @Composable
 fun PostCard(
     post: Post,
@@ -71,41 +77,39 @@ fun PostCard(
     onMoreOptionsClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    val strings = LocalHubStrings.current
+    val author = rememberLiveUser(userId = post.authorId)
+
+    GlassSurface(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.Transparent) // l'aurora et le verre global restent visibles
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(color = HubDarkGray),
+                indication = ripple(color = HubMuted),
                 onClick = { onPostClick(post.id) }
             )
-            .testTag("post_card_${post.id}")
+            .testTag("post_card_${post.id}"),
+        shape = RoundedCornerShape(HubDimens.CardRadius), // .post — var(--r-xl) 30
+        variant = GlassVariant.Card
     ) {
-        val author = rememberLiveUser(userId = post.authorId)
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             if (post.isRepost) {
                 val reposter = rememberLiveUser(userId = post.authorId)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 6.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Repeat,
-                        contentDescription = "Repost",
+                        contentDescription = null,
                         tint = HubSecondary,
                         modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(5.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Reposté par ${reposter.effectiveName}",
+                        text = strings.repostedByFormat.format(reposter.effectiveName),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = HubSecondary
@@ -113,9 +117,12 @@ fun PostCard(
                 }
             }
 
+            // .post .phead — 14 16 0, avatar 42, écart 11.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 10.dp, top = 14.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -129,16 +136,16 @@ fun PostCard(
                     UserAvatar(
                         name = author.effectiveName,
                         photoUrl = author.photoUrl,
-                        size = 36.dp
+                        size = 42.dp
                     )
 
-                    Spacer(modifier = Modifier.width(9.dp))
+                    Spacer(modifier = Modifier.width(11.dp))
 
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = author.effectiveName,
-                                fontSize = 14.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = HubWhite
                             )
@@ -147,21 +154,22 @@ fun PostCard(
                                 OfficialVerificationBadge(size = 15.dp)
                             }
                         }
+                        Spacer(modifier = Modifier.height(1.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (author.username.isNotBlank()) {
                                 Text(
                                     text = "@${author.username}",
-                                    fontSize = 11.sp,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Medium,
                                     color = HubMuted,
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("·", fontSize = 11.sp, color = HubMuted)
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(" · ", fontSize = 11.5.sp, color = HubMuted)
                             }
                             Text(
                                 text = RelativeTime.format(post.createdAt),
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = HubMuted
                             )
                         }
@@ -169,16 +177,19 @@ fun PostCard(
                 }
 
                 if (onMoreOptionsClick != null) {
-                    IconButton(
-                        onClick = { onMoreOptionsClick(post) },
+                    // Maquette : iconbtn « nu » (border:0;background:transparent;box-shadow:none).
+                    Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .testTag("post_options_button_${post.id}")
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .clickable { onMoreOptionsClick(post) }
+                            .testTag("post_options_button_${post.id}"),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options de la publication",
-                            tint = HubMuted,
+                            contentDescription = strings.postOptionsDesc,
+                            tint = HubTextTertiary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -189,155 +200,173 @@ fun PostCard(
             val textIsOnlyVideoUrl = hasVideo &&
                 post.text.trim().equals(post.videoUrl?.trim(), ignoreCase = true)
 
+            // .post .ptext — 11 16 0, 14 / 1.55 / 450.
             if (post.text.isNotBlank() && !textIsOnlyVideoUrl) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(11.dp))
                 Text(
                     text = post.text,
                     fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Medium,
                     color = HubWhite,
+                    modifier = Modifier.padding(horizontal = 16.dp),
                     maxLines = 6,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (!hasVideo) {
                     LinkPreviewCard(
                         text = post.text,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
                     )
                 }
             }
-        }
 
-        if (!post.imageUrl.isNullOrBlank()) {
-            PostMediaImage(
-                imageUrl = post.imageUrl,
-                contentDescription = "Image de la publication",
-                cornerRadius = 0.dp,
-                showSaveButton = true,
-                saveButtonTag = "post_card_save_image_button",
-                onImageClick = onImageClick,
-                maxHeight = 360.dp
-            )
-        }
-
-        if (!post.videoUrl.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                VideoLinkCard(
-                    videoUrl = post.videoUrl!!,
-                    onClick = onVideoClick
-                )
+            // .post .pmedia — marges 13 14 0, rayon 20.
+            if (!post.imageUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(13.dp))
+                Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+                    PostMediaImage(
+                        imageUrl = post.imageUrl,
+                        contentDescription = strings.postImageDesc,
+                        cornerRadius = 20.dp,
+                        showSaveButton = true,
+                        saveButtonTag = "post_card_save_image_button",
+                        onImageClick = onImageClick,
+                        maxHeight = 360.dp
+                    )
+                }
             }
-        }
 
-        if (post.isRepost && post.originalPost != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                EmbeddedOriginalPost(
-                    originalPost = post.originalPost,
-                    onImageClick = onImageClick,
-                    onVideoClick = onVideoClick,
-                    onPostClick = onPostClick
-                )
+            if (!post.videoUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(13.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp)
+                ) {
+                    VideoLinkCard(
+                        videoUrl = post.videoUrl!!,
+                        onClick = onVideoClick
+                    )
+                }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+            if (post.isRepost && post.originalPost != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp)
+                ) {
+                    EmbeddedOriginalPost(
+                        originalPost = post.originalPost,
+                        onImageClick = onImageClick,
+                        onVideoClick = onVideoClick,
+                        onPostClick = onPostClick
+                    )
+                }
+            }
+
+            // .post .pactions — 12 18 14, .pa 12/700 (hot danger · cool info · share success).
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.testTag("action_like_${post.id}")
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
-                    onClick = { onToggleLike(post.id) },
-                    modifier = Modifier.size(40.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.testTag("action_like_${post.id}")
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable { onToggleLike(post.id) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (post.isLikedByCurrentUser) strings.unlikeDesc else strings.likeDesc,
+                            tint = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                    Text(
+                        text = "${post.likesCount}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
+                        modifier = Modifier
+                            .clickable { onOpenLikes(post.id) }
+                            .padding(horizontal = 2.dp, vertical = 6.dp)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onOpenComments(post.id) }
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .testTag("action_comment_${post.id}")
                 ) {
                     Icon(
-                        imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "Aimer",
-                        tint = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubMuted,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = strings.commentsDesc,
+                        tint = HubInfo,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${post.commentsCount}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HubInfo
                     )
                 }
-                Text(
-                    text = "${post.likesCount}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (post.isLikedByCurrentUser) Color(0xFFE0245E) else HubSecondary,
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .clickable { onOpenLikes(post.id) }
-                        .padding(horizontal = 2.dp, vertical = 6.dp)
-                )
-            }
+                        .clip(CircleShape)
+                        .clickable { onOpenShare(post) }
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .testTag("action_share_${post.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Share,
+                        contentDescription = strings.shareDesc,
+                        tint = HubSuccess,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${post.repostsCount}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HubSuccess
+                    )
+                }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable { onOpenComments(post.id) }
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                    .testTag("action_comment_${post.id}")
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                    contentDescription = "Commentaires",
-                    tint = HubMuted,
-                    modifier = Modifier.size(19.dp)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = "${post.commentsCount}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = HubSecondary
-                )
-            }
-
-            IconButton(
-                onClick = { onOpenShare(post) },
-                modifier = Modifier
-                    .size(40.dp)
-                    .testTag("action_share_${post.id}")
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Share,
-                    contentDescription = "Partager",
-                    tint = HubMuted,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
-
-            IconButton(
-                onClick = { onToggleBookmark?.invoke(post.id) },
-                modifier = Modifier
-                    .size(40.dp)
-                    .testTag("action_bookmark_${post.id}")
-            ) {
-                Icon(
-                    imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                    contentDescription = if (post.isBookmarkedByCurrentUser) "Retirer des signets" else "Enregistrer",
-                    tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubMuted,
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .clickable { onToggleBookmark?.invoke(post.id) }
+                        .testTag("action_bookmark_${post.id}"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (post.isBookmarkedByCurrentUser) strings.bookmarkRemoveDesc else strings.bookmarkAddDesc,
+                        tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubTextTertiary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(HubBorder)
-        )
     }
 }
 
@@ -348,67 +377,71 @@ private fun EmbeddedOriginalPost(
     onVideoClick: ((String) -> Unit)?,
     onPostClick: (String) -> Unit
 ) {
-    val origAuthor = rememberLiveUser(
-        userId = originalPost.authorId
-    )
+    val strings = LocalHubStrings.current
+    val origAuthor = rememberLiveUser(userId = originalPost.authorId)
 
-    Column(
+    // Publi d'origine incrustée : verre doux .glass-soft rayon --r-sm 14.
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(HubSurfaceElevated)
-            .border(1.dp, HubBorder, RoundedCornerShape(12.dp))
-            .clickable { onPostClick(originalPost.id) }
-            .padding(12.dp)
+            .clickable { onPostClick(originalPost.id) },
+        shape = RoundedCornerShape(14.dp),
+        variant = GlassVariant.Soft
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            UserAvatar(
-                name = origAuthor.effectiveName,
-                photoUrl = origAuthor.photoUrl,
-                size = 28.dp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = origAuthor.effectiveName,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "· ${RelativeTime.format(originalPost.createdAt)}",
-                fontSize = 12.sp,
-                color = HubMuted
-            )
-        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UserAvatar(
+                    name = origAuthor.effectiveName,
+                    photoUrl = origAuthor.photoUrl,
+                    size = 28.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = origAuthor.effectiveName,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "· ${RelativeTime.format(originalPost.createdAt)}",
+                    fontSize = 11.5.sp,
+                    color = HubMuted
+                )
+            }
 
-        if (originalPost.text.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = originalPost.text,
-                fontSize = 14.sp,
-                color = HubWhite,
-                lineHeight = 18.sp
-            )
-        }
+            if (originalPost.text.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = originalPost.text,
+                    fontSize = 13.5.sp,
+                    lineHeight = 20.sp,
+                    color = HubSecondary
+                )
+            }
 
-        if (!originalPost.imageUrl.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            PostMediaImage(
-                imageUrl = originalPost.imageUrl,
-                contentDescription = "Image repostée",
-                cornerRadius = 8.dp,
-                showSaveButton = false,
-                onImageClick = onImageClick
-            )
-        }
+            if (!originalPost.imageUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                PostMediaImage(
+                    imageUrl = originalPost.imageUrl,
+                    contentDescription = strings.repostImageDesc,
+                    cornerRadius = 12.dp,
+                    showSaveButton = false,
+                    onImageClick = onImageClick
+                )
+            }
 
-        if (!originalPost.videoUrl.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            VideoLinkCard(
-                videoUrl = originalPost.videoUrl!!,
-                onClick = onVideoClick
-            )
+            if (!originalPost.videoUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                VideoLinkCard(
+                    videoUrl = originalPost.videoUrl!!,
+                    onClick = onVideoClick
+                )
+            }
         }
     }
 }

@@ -1,8 +1,5 @@
 package com.thehub.hb.ui.comments
 
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -50,11 +47,8 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -62,11 +56,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -95,20 +89,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Comment
 import com.thehub.hb.data.repository.rememberLiveUser
-import com.thehub.hb.ui.components.HubVerifiedUserName
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubErrorBanner
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassSoft
+import com.thehub.hb.ui.theme.HubGlassStrong
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 import com.thehub.hb.utils.RelativeTime
 import kotlinx.coroutines.withTimeoutOrNull
-import androidx.compose.ui.graphics.Color
 
 private data class CommentThread(
     val rootComment: Comment,
@@ -154,6 +155,8 @@ fun CommentsScreen(
     onUserClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val threads = remember(uiState.comments) {
@@ -170,66 +173,76 @@ fun CommentsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
             .imePadding()
             .testTag("comments_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header
+            // .appbar — retour (verre), titre 16/800 + compteur.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                CommentsGlassIcon(
                     onClick = onNavigateBack,
                     modifier = Modifier.testTag("comments_back_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Retour",
-                        tint = HubWhite
+                        contentDescription = strings.back,
+                        tint = HubWhite,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                Text(
-                    text = "Commentaires",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+                Spacer(Modifier.width(12.dp))
 
-                if (uiState.comments.isNotEmpty()) {
-                    Text(
-                        text = " (${uiState.comments.size})",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = HubSecondary
-                    )
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = strings.comments,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.3).sp,
+                            color = HubWhite
+                        )
+                        if (uiState.comments.isNotEmpty()) {
+                            Text(
+                                text = " · ${uiState.comments.size}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = HubMuted
+                            )
+                        }
+                    }
                 }
             }
 
-            // Error banner if any
+            // Onglets soulignés de la maquette (Pertinents actif).
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(26.dp)
+            ) {
+                CommentsTabLabel(text = strings.relevantTab, selected = true)
+                CommentsTabLabel(text = strings.recentTab, selected = false)
+            }
+
             if (uiState.errorMessage != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp)
-                        .background(HubError.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                        .padding(10.dp)
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = uiState.errorMessage ?: "",
-                        color = HubError,
-                        fontSize = 12.sp
-                    )
+                    HubErrorBanner(message = uiState.errorMessage ?: "")
                 }
             }
 
-            // Content Area
+            // Zone de contenu.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -237,65 +250,51 @@ fun CommentsScreen(
             ) {
                 when {
                     uiState.isLoading && uiState.comments.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                        // État « chargement » : bulles squelettes.
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            CircularProgressIndicator(
-                                color = HubWhite,
-                                modifier = Modifier.size(36.dp)
-                            )
+                            repeat(4) {
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Box(
+                                        Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .background(HubGlassStrong)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        HubSkeletonLine(height = 52.dp, widthFraction = 1f)
+                                    }
+                                }
+                            }
                         }
                     }
 
                     uiState.comments.isEmpty() -> {
+                        // État « vide » : icône verre 76 + textes de la maquette.
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(64.dp)
-                                        .clip(CircleShape)
-                                        .background(HubSurfaceElevated),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                                        contentDescription = null,
-                                        tint = HubSecondary,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Aucun commentaire pour l'instant",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = HubWhite
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "Lancez la discussion en écrivant le premier commentaire !",
-                                    fontSize = 13.sp,
-                                    color = HubSecondary,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            HubEmptyState(
+                                title = strings.noCommentsTitle,
+                                description = strings.noCommentsDesc,
+                                icon = Icons.Outlined.ChatBubbleOutline
+                            )
                         }
                     }
 
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             items(
                                 items = threads,
@@ -314,13 +313,12 @@ fun CommentsScreen(
                                         onOptionsClick = { viewModel.onCommentLongPress(it) }
                                     )
 
-                                    // Replies section
+                                    // Réponses imbriquées.
                                     if (thread.replies.isNotEmpty()) {
                                         val hasMultiple = thread.replies.size > 1
                                         val isExpanded = uiState.expandedThreads.contains(thread.rootComment.id)
 
                                         if (hasMultiple && !isExpanded) {
-                                            // Collapsed toggle link for multiple replies
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -337,14 +335,14 @@ fun CommentsScreen(
                                                         .height(1.dp)
                                                         .background(HubSecondary.copy(alpha = 0.5f))
                                                 )
-                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Spacer(Modifier.width(8.dp))
                                                 Text(
-                                                    text = "Voir les ${thread.replies.size} réponses",
+                                                    text = strings.seeRepliesFormat.format(thread.replies.size),
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = HubSecondary
                                                 )
-                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Spacer(Modifier.width(4.dp))
                                                 Icon(
                                                     imageVector = Icons.Default.KeyboardArrowDown,
                                                     contentDescription = null,
@@ -353,11 +351,10 @@ fun CommentsScreen(
                                                 )
                                             }
                                         } else {
-                                            // Show replies indented visually under the parent comment
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(start = 24.dp, top = 8.dp)
+                                                    .padding(start = 34.dp, top = 4.dp)
                                             ) {
                                                 thread.replies.forEach { reply ->
                                                     Row(
@@ -373,7 +370,7 @@ fun CommentsScreen(
                                                                 modifier = Modifier
                                                                     .width(12.dp)
                                                                     .height(1.dp)
-                                                                    .background(HubBorder)
+                                                                    .background(HubStrokeSoft)
                                                             )
                                                         }
                                                         Box(modifier = Modifier.weight(1f)) {
@@ -390,10 +387,9 @@ fun CommentsScreen(
                                                             )
                                                         }
                                                     }
-                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Spacer(Modifier.height(8.dp))
                                                 }
 
-                                                // If multiple and expanded, show collapse toggle link
                                                 if (hasMultiple) {
                                                     Row(
                                                         modifier = Modifier
@@ -411,14 +407,14 @@ fun CommentsScreen(
                                                                 .height(1.dp)
                                                                 .background(HubSecondary.copy(alpha = 0.5f))
                                                         )
-                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Spacer(Modifier.width(8.dp))
                                                         Text(
-                                                            text = "Masquer les réponses",
+                                                            text = strings.hideReplies,
                                                             fontSize = 12.sp,
                                                             fontWeight = FontWeight.SemiBold,
                                                             color = HubSecondary
                                                         )
-                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Spacer(Modifier.width(4.dp))
                                                         Icon(
                                                             imageVector = Icons.Default.KeyboardArrowUp,
                                                             contentDescription = null,
@@ -437,7 +433,12 @@ fun CommentsScreen(
                 }
             }
 
-            // Reply banner above sticky input bar if in reply mode
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Bandeau « réponse en cours » au-dessus du composeur.
             AnimatedVisibility(
                 visible = uiState.replyingTo != null,
                 enter = fadeIn(),
@@ -446,8 +447,7 @@ fun CommentsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(HubSurfaceElevated)
-                        .border(width = 1.dp, color = HubOutline)
+                        .background(HubGlassSoft)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .testTag("comment_reply_banner"),
                     verticalAlignment = Alignment.CenterVertically
@@ -458,9 +458,9 @@ fun CommentsScreen(
                         tint = HubSecondary,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Réponse à @${uiState.replyingTo?.authorUsername}",
+                        text = strings.replyToFormat.format(uiState.replyingTo?.authorUsername ?: ""),
                         color = HubSecondary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -474,7 +474,7 @@ fun CommentsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Annuler la réponse",
+                            contentDescription = strings.cancelReplyDesc,
                             tint = HubSecondary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -482,91 +482,110 @@ fun CommentsScreen(
                 }
             }
 
-            // Sticky Bottom Input Bar
-            Row(
+            // .composer verre — avatar, pastille de saisie, envoi dégradé.
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(HubSurfaceElevated)
-                    .border(width = 1.dp, color = HubBorder)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                UserAvatar(
-                    name = uiState.currentUserUsername,
-                    photoUrl = uiState.currentUserPhotoUrl,
-                    size = 36.dp
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(HubCard)
-                        .border(1.dp, HubBorder, MaterialTheme.shapes.medium)
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                GlassSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    variant = GlassVariant.Card
                 ) {
-                    if (uiState.inputText.isEmpty()) {
-                        val placeholder = if (uiState.replyingTo != null) {
-                            "Répondre à @${uiState.replyingTo?.authorUsername}..."
-                        } else {
-                            "Ajouter un commentaire..."
-                        }
-                        Text(
-                            text = placeholder,
-                            color = HubMuted,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    BasicTextField(
-                        value = uiState.inputText,
-                        onValueChange = { viewModel.updateInputText(it) },
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("comments_input_field"),
-                        textStyle = TextStyle(
-                            color = HubWhite,
-                            fontSize = 14.sp
-                        ),
-                        cursorBrush = SolidColor(HubWhite),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { viewModel.sendComment() }),
-                        maxLines = 4
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = { viewModel.sendComment() },
-                    enabled = uiState.canSend,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(if (uiState.canSend) HubWhite else HubDarkGray)
-                        .testTag("comments_send_button")
-                ) {
-                    if (uiState.isSending) {
-                        CircularProgressIndicator(
-                            color = HubBlack,
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        UserAvatar(
+                            name = uiState.currentUserUsername,
+                            photoUrl = uiState.currentUserPhotoUrl,
+                            size = 34.dp
                         )
-                    } else {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Envoyer",
-                            tint = if (uiState.canSend) HubBlack else HubMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
+
+                        Spacer(Modifier.width(9.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(percent = 50))
+                                .background(HubGlass)
+                                .border(1.dp, HubStroke, RoundedCornerShape(percent = 50))
+                                .padding(horizontal = 15.dp, vertical = 10.dp)
+                        ) {
+                            if (uiState.inputText.isEmpty()) {
+                                Text(
+                                    text = if (uiState.replyingTo != null) {
+                                        strings.replyToFormat.format(uiState.replyingTo?.authorUsername ?: "")
+                                    } else {
+                                        strings.addCommentPlaceholder
+                                    },
+                                    color = HubMuted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            BasicTextField(
+                                value = uiState.inputText,
+                                onValueChange = { viewModel.updateInputText(it) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("comments_input_field"),
+                                textStyle = TextStyle(
+                                    color = HubWhite,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                cursorBrush = SolidColor(palette.accent),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                                keyboardActions = KeyboardActions(onSend = { viewModel.sendComment() }),
+                                maxLines = 4
+                            )
+                        }
+
+                        Spacer(Modifier.width(9.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .then(
+                                    if (uiState.canSend) {
+                                        Modifier.background(brush = hubPrimaryGradient())
+                                    } else {
+                                        Modifier
+                                            .background(HubGlass)
+                                            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+                                    }
+                                )
+                                .clickable(enabled = uiState.canSend) { viewModel.sendComment() }
+                                .testTag("comments_send_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (uiState.isSending) {
+                                CircularProgressIndicator(
+                                    color = HubWhite,
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = strings.send,
+                                    tint = if (uiState.canSend) HubWhite else HubMuted,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Comment Options Bottom Sheet ("⋮" or 2s press)
+        // Feuille d'options d'un commentaire.
         uiState.selectedCommentForOptions?.let { comment ->
             CommentOptionsBottomSheet(
                 comment = comment,
@@ -580,7 +599,6 @@ fun CommentsScreen(
             )
         }
 
-        // Edit Comment Dialog
         uiState.commentToEdit?.let { comment ->
             EditCommentDialog(
                 initialText = uiState.editText,
@@ -593,7 +611,6 @@ fun CommentsScreen(
             )
         }
 
-        // Delete Comment Dialog
         uiState.commentToDelete?.let { comment ->
             DeleteCommentDialog(
                 isLoading = uiState.isActionLoading,
@@ -602,13 +619,60 @@ fun CommentsScreen(
             )
         }
 
-        // Report Comment Dialog
         uiState.commentToReport?.let { comment ->
             ReportCommentDialog(
                 isLoading = uiState.isActionLoading,
                 onDismiss = { viewModel.cancelReportComment() },
                 onConfirm = { reason -> viewModel.submitReportComment(reason) }
             )
+        }
+    }
+}
+
+/** Iconbtn verre 40/14 de l'appbar commentaires. */
+@Composable
+private fun CommentsGlassIcon(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(HubGlass)
+            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+/** Onglet souligné .tabs — actif : texte + barre dégradée 3 dp. */
+@Composable
+private fun CommentsTabLabel(text: String, selected: Boolean) {
+    Column(
+        modifier = Modifier.padding(top = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = text,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) HubWhite else HubMuted
+        )
+        Spacer(Modifier.height(13.dp))
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(CircleShape)
+                    .background(brush = hubPrimaryGradient())
+            )
+        } else {
+            Spacer(Modifier.height(3.dp))
         }
     }
 }
@@ -625,18 +689,18 @@ private fun CommentItemRow(
     onLongPress: (Comment) -> Unit,
     onOptionsClick: (Comment) -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val author = rememberLiveUser(
         userId = comment.authorId
     )
     val haptic = LocalHapticFeedback.current
     val isPostAuthor = currentUserId.isNotBlank() && currentUserId == postAuthorId
+    val isCommentAuthor = comment.authorId == postAuthorId
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(if (isReply) HubSurfaceElevated else HubSurface)
-            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
             .pointerInput(comment.id) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -654,7 +718,6 @@ private fun CommentItemRow(
                     }
                 }
             }
-            .padding(if (isReply) 12.dp else 14.dp)
             .testTag("comment_item_${comment.id}"),
         verticalAlignment = Alignment.Top
     ) {
@@ -666,131 +729,139 @@ private fun CommentItemRow(
             UserAvatar(
                 name = author.effectiveName,
                 photoUrl = author.photoUrl,
-                size = if (isReply) 30.dp else 38.dp
+                size = if (isReply) 30.dp else 34.dp
             )
         }
 
-        Spacer(modifier = Modifier.width(if (isReply) 10.dp else 12.dp))
+        Spacer(Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Row(
+            // Bulle .glass-soft rayon 16 — nom 12/800, badge Auteur, heure 10.
+            GlassSurface(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                shape = RoundedCornerShape(16.dp),
+                variant = GlassVariant.Soft
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HubVerifiedUserName(
-                        name = author.effectiveName,
-                        isVerified = author.isVerified,
-                        verificationType = author.verificationType,
-                        fontSize = if (isReply) 13.sp else 14.sp,
-                        color = HubWhite,
-                        badgeSize = if (isReply) 14.dp else 15.dp,
-                        modifier = Modifier.then(
-                            if (onUserClick != null) Modifier.clickable { onUserClick(comment.authorId) } else Modifier
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "·",
-                        fontSize = 12.sp,
-                        color = HubMuted
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = RelativeTime.format(comment.createdAt),
-                        fontSize = 12.sp,
-                        color = HubMuted
-                    )
-                    if (comment.isEdited) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "(modifié)",
-                            fontSize = 11.sp,
-                            color = HubMuted,
-                            fontStyle = FontStyle.Italic
-                        )
-                    }
-                }
-
-                // Options button
-                IconButton(
-                    onClick = { onOptionsClick(comment) },
-                    modifier = Modifier
-                        .size(24.dp)
-                        .testTag("comment_options_${comment.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options du commentaire",
-                        tint = HubMuted,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            if (comment.isHidden && !isPostAuthor) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.VisibilityOff,
-                        contentDescription = null,
-                        tint = HubMuted,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Ce commentaire a été masqué par l'auteur de la publication.",
-                        fontSize = 12.5.sp,
-                        fontStyle = FontStyle.Italic,
-                        color = HubMuted
-                    )
-                }
-            } else {
-                if (comment.isHidden && isPostAuthor) {
-                    Surface(
-                        color = HubSurfaceElevated,
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.padding(bottom = 6.dp)
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            HubVerifiedUserName(
+                                name = author.effectiveName,
+                                isVerified = author.isVerified,
+                                verificationType = author.verificationType,
+                                fontSize = 12.sp,
+                                color = HubWhite,
+                                weight = FontWeight.ExtraBold,
+                                badgeSize = if (isReply) 13.dp else 14.dp,
+                                modifier = Modifier.then(
+                                    if (onUserClick != null) Modifier.clickable { onUserClick(comment.authorId) } else Modifier
+                                )
+                            )
+                            // Badge-vip « Auteur » de la maquette (dégradé de marque).
+                            if (isCommentAuthor) {
+                                Text(
+                                    text = strings.authorBadge,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.4.sp,
+                                    color = HubWhite,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(percent = 50))
+                                        .background(brush = hubPrimaryGradient())
+                                        .padding(horizontal = 7.dp, vertical = 1.5.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = RelativeTime.format(comment.createdAt),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HubMuted
+                        )
+
+                        IconButton(
+                            onClick = { onOptionsClick(comment) },
+                            modifier = Modifier
+                                .size(24.dp)
+                                .testTag("comment_options_${comment.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = strings.commentOptionsTitle,
+                                tint = HubMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    if (comment.isHidden && !isPostAuthor) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.VisibilityOff,
                                 contentDescription = null,
-                                tint = HubSecondary,
-                                modifier = Modifier.size(12.dp)
+                                tint = HubMuted,
+                                modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
-                                text = "Masqué pour les autres utilisateurs",
-                                fontSize = 11.sp,
-                                color = HubSecondary,
-                                fontWeight = FontWeight.Medium
+                                text = strings.hiddenByAuthorLabel,
+                                fontSize = 12.5.sp,
+                                fontStyle = FontStyle.Italic,
+                                color = HubMuted
                             )
                         }
+                    } else {
+                        if (comment.isHidden && isPostAuthor) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(HubGlassStrong)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.VisibilityOff,
+                                    contentDescription = null,
+                                    tint = HubSecondary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = strings.hiddenForOthersLabel,
+                                    fontSize = 11.sp,
+                                    color = HubSecondary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        FormattedCommentText(text = comment.text, isReply = isReply)
                     }
                 }
-                FormattedCommentText(text = comment.text, isReply = isReply)
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
 
-            // Action Row: "J'aime" with Heart icon & counter + "Répondre" link
+            // Actions : J'aime (13) + Répondre (11), gap 14, padding 6 4.
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 6.dp)
             ) {
-                // Heart Like button with counter
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -801,24 +872,23 @@ private fun CommentItemRow(
                 ) {
                     Icon(
                         imageVector = if (comment.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (comment.isLikedByCurrentUser) "Je n'aime plus" else "J'aime",
-                        tint = if (comment.isLikedByCurrentUser) HubError else HubSecondary,
-                        modifier = Modifier.size(15.dp)
+                        contentDescription = if (comment.isLikedByCurrentUser) strings.unlikeDesc else strings.likeDesc,
+                        tint = if (comment.isLikedByCurrentUser) HubError else HubMuted,
+                        modifier = Modifier.size(13.dp)
                     )
                     if (comment.likesCount > 0) {
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(Modifier.width(4.dp))
                         Text(
                             text = "${comment.likesCount}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (comment.isLikedByCurrentUser) HubError else HubSecondary
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (comment.isLikedByCurrentUser) HubError else HubMuted
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(Modifier.width(14.dp))
 
-                // Reply link
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -827,11 +897,18 @@ private fun CommentItemRow(
                         .testTag("comment_reply_button_${comment.id}"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Reply,
+                        contentDescription = null,
+                        tint = HubMuted,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Répondre",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = HubSecondary
+                        text = strings.replyLabel,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HubMuted
                     )
                 }
             }
@@ -863,9 +940,9 @@ private fun FormattedCommentText(text: String, isReply: Boolean) {
     }
     Text(
         text = annotatedString,
-        fontSize = if (isReply) 13.5.sp else 14.sp,
-        lineHeight = 20.sp,
-        color = HubWhite
+        fontSize = if (isReply) 12.sp else 12.5.sp,
+        lineHeight = if (isReply) 18.sp else 19.sp,
+        color = HubSecondary
     )
 }
 
@@ -881,13 +958,14 @@ private fun CommentOptionsBottomSheet(
     onToggleHide: () -> Unit,
     onReport: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val isCommentAuthor = currentUserId.isNotBlank() && currentUserId == comment.authorId
     val isPostAuthor = currentUserId.isNotBlank() && currentUserId == postAuthorId
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = HubWhite,
+        containerColor = palette.bg1,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -895,7 +973,7 @@ private fun CommentOptionsBottomSheet(
                     .width(36.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(HubBorder)
+                    .background(palette.stroke)
             )
         }
     ) {
@@ -906,12 +984,12 @@ private fun CommentOptionsBottomSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Options du commentaire",
+                text = strings.commentOptionsTitle,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = HubWhite
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = "\"${comment.text.take(60)}${if (comment.text.length > 60) "..." else ""}\"",
                 fontSize = 12.sp,
@@ -920,39 +998,44 @@ private fun CommentOptionsBottomSheet(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = HubBorder, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(HubStrokeSoft)
+            )
+            Spacer(Modifier.height(10.dp))
 
-            // 1. Modifier (Only for comment author)
+            // 1. Modifier (auteur du commentaire uniquement)
             if (isCommentAuthor) {
                 CommentOptionRow(
                     icon = Icons.Outlined.Edit,
-                    title = "Modifier le commentaire",
-                    subtitle = "Corriger ou mettre à jour votre texte",
+                    title = strings.editCommentTitle,
+                    subtitle = strings.editCommentSubtitle,
                     onClick = onEdit,
                     testTag = "option_edit_comment"
                 )
             }
 
-            // 2. Masquer / Démasquer (For the post creator)
+            // 2. Masquer / Démasquer (créateur de la publication)
             if (isPostAuthor) {
                 CommentOptionRow(
                     icon = if (comment.isHidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                    title = if (comment.isHidden) "Démasquer le commentaire" else "Masquer le commentaire",
-                    subtitle = if (comment.isHidden) "Rendre à nouveau visible aux autres" else "Visible uniquement par vous en tant que créateur",
+                    title = if (comment.isHidden) strings.unhideCommentTitle else strings.hideCommentTitle,
+                    subtitle = if (comment.isHidden) strings.unhideCommentSubtitle else strings.hideCommentSubtitle,
                     tint = HubSecondary,
                     onClick = onToggleHide,
                     testTag = "option_hide_comment"
                 )
             }
 
-            // 3. Supprimer (For comment author OR post author)
+            // 3. Supprimer (auteur du commentaire OU de la publication)
             if (isCommentAuthor || isPostAuthor) {
                 CommentOptionRow(
                     icon = Icons.Outlined.Delete,
-                    title = "Supprimer le commentaire",
-                    subtitle = if (isCommentAuthor) "Supprimer définitivement votre commentaire" else "Supprimer ce commentaire de votre publication",
+                    title = strings.deleteCommentTitle,
+                    subtitle = if (isCommentAuthor) strings.deleteCommentSubtitleOwn else strings.deleteCommentSubtitleAuthor,
                     tint = HubError,
                     textColor = HubError,
                     onClick = onDelete,
@@ -960,11 +1043,11 @@ private fun CommentOptionsBottomSheet(
                 )
             }
 
-            // 4. Signaler (For everyone)
+            // 4. Signaler (tout le monde)
             CommentOptionRow(
                 icon = Icons.Outlined.Flag,
-                title = "Signaler ce commentaire",
-                subtitle = "Signaler un abus, spam ou contenu inapproprié",
+                title = strings.reportCommentTitle,
+                subtitle = strings.reportCommentSubtitle,
                 tint = HubMuted,
                 onClick = onReport,
                 testTag = "option_report_comment"
@@ -996,7 +1079,7 @@ private fun CommentOptionRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(HubCard),
+                .background(HubGlassSoft),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1006,7 +1089,7 @@ private fun CommentOptionRow(
                 modifier = Modifier.size(20.dp)
             )
         }
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -1015,7 +1098,7 @@ private fun CommentOptionRow(
                 color = textColor
             )
             if (subtitle != null) {
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
@@ -1033,15 +1116,17 @@ private fun EditCommentDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     var text by remember { mutableStateOf(initialText) }
 
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = palette.bg1,
         title = {
             Text(
-                text = "Modifier le commentaire",
-                fontWeight = FontWeight.Bold,
+                text = strings.editCommentTitle,
+                fontWeight = FontWeight.ExtraBold,
                 color = HubWhite
             )
         },
@@ -1050,17 +1135,17 @@ private fun EditCommentDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("Votre commentaire...", color = HubMuted) },
+                    placeholder = { Text(strings.editCommentInputPlaceholder, color = HubMuted) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("edit_comment_input"),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = HubWhite,
                         unfocusedTextColor = HubWhite,
-                        focusedBorderColor = HubWhite,
-                        unfocusedBorderColor = HubBorder,
-                        focusedContainerColor = HubCard,
-                        unfocusedContainerColor = HubCard
+                        focusedBorderColor = palette.accent,
+                        unfocusedBorderColor = HubStrokeSoft,
+                        focusedContainerColor = HubGlassSoft,
+                        unfocusedContainerColor = HubGlassSoft
                     ),
                     maxLines = 5,
                     enabled = !isLoading
@@ -1068,23 +1153,23 @@ private fun EditCommentDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = { onConfirm(text) },
                 enabled = text.isNotBlank() && text != initialText && !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = HubWhite,
-                    contentColor = HubBlack
-                ),
                 modifier = Modifier.testTag("edit_comment_save_button")
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
-                        color = HubBlack
+                        color = palette.accent
                     )
                 } else {
-                    Text("Enregistrer", fontWeight = FontWeight.Bold)
+                    Text(
+                        strings.saveLabel,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.accent
+                    )
                 }
             }
         },
@@ -1093,7 +1178,7 @@ private fun EditCommentDialog(
                 onClick = onDismiss,
                 enabled = !isLoading
             ) {
-                Text("Annuler", color = HubMuted)
+                Text(strings.dialogCancel, color = HubMuted)
             }
         }
     )
@@ -1105,9 +1190,12 @@ private fun DeleteCommentDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
+
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = palette.bg1,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Delete,
@@ -1118,38 +1206,38 @@ private fun DeleteCommentDialog(
         },
         title = {
             Text(
-                text = "Supprimer le commentaire ?",
-                fontWeight = FontWeight.Bold,
+                text = strings.deleteCommentDialogTitle,
+                fontWeight = FontWeight.ExtraBold,
                 color = HubWhite,
                 textAlign = TextAlign.Center
             )
         },
         text = {
             Text(
-                text = "Cette action est irréversible. Le commentaire sera définitivement effacé.",
+                text = strings.deleteCommentDialogMessage,
                 color = HubSecondary,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = HubError,
-                    contentColor = HubWhite
-                ),
                 modifier = Modifier.testTag("delete_comment_confirm_button")
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
-                        color = HubWhite
+                        color = HubError
                     )
                 } else {
-                    Text("Supprimer", fontWeight = FontWeight.Bold)
+                    Text(
+                        strings.deletePostOption,
+                        fontWeight = FontWeight.Bold,
+                        color = HubError
+                    )
                 }
             }
         },
@@ -1158,7 +1246,7 @@ private fun DeleteCommentDialog(
                 onClick = onDismiss,
                 enabled = !isLoading
             ) {
-                Text("Annuler", color = HubMuted)
+                Text(strings.dialogCancel, color = HubMuted)
             }
         }
     )
@@ -1170,34 +1258,36 @@ private fun ReportCommentDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val reportReasons = listOf(
-        "Spam ou contenu indésirable",
-        "Harcèlement ou intimidation",
-        "Propos haineux ou violents",
-        "Contenu sexuel explicite",
-        "Désinformation ou arnaque",
-        "Autre raison"
+        strings.reportReasonSpam,
+        strings.reportReasonHarassment,
+        strings.reportReasonHate,
+        strings.reportReasonSexual,
+        strings.reportReasonMisinformation,
+        strings.reportReasonOther
     )
     var selectedReason by remember { mutableStateOf(reportReasons[0]) }
 
     AlertDialog(
         onDismissRequest = { if (!isLoading) onDismiss() },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = palette.bg1,
         title = {
             Text(
-                text = "Signaler ce commentaire",
-                fontWeight = FontWeight.Bold,
+                text = strings.reportCommentTitle,
+                fontWeight = FontWeight.ExtraBold,
                 color = HubWhite
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Pourquoi souhaitez-vous signaler ce commentaire ?",
+                    text = strings.reportCommentQuestion,
                     color = HubSecondary,
                     fontSize = 13.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
                 reportReasons.forEach { reason ->
                     Row(
                         modifier = Modifier
@@ -1211,11 +1301,11 @@ private fun ReportCommentDialog(
                             selected = selectedReason == reason,
                             onClick = { selectedReason = reason },
                             colors = RadioButtonDefaults.colors(
-                                selectedColor = HubWhite,
+                                selectedColor = palette.accent,
                                 unselectedColor = HubMuted
                             )
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(
                             text = reason,
                             color = if (selectedReason == reason) HubWhite else HubSecondary,
@@ -1226,23 +1316,23 @@ private fun ReportCommentDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = { onConfirm(selectedReason) },
                 enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = HubWhite,
-                    contentColor = HubBlack
-                ),
                 modifier = Modifier.testTag("report_comment_confirm_button")
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
-                        color = HubBlack
+                        color = palette.accent
                     )
                 } else {
-                    Text("Signaler", fontWeight = FontWeight.Bold)
+                    Text(
+                        strings.reportPost,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.accent
+                    )
                 }
             }
         },
@@ -1251,9 +1341,8 @@ private fun ReportCommentDialog(
                 onClick = onDismiss,
                 enabled = !isLoading
             ) {
-                Text("Annuler", color = HubMuted)
+                Text(strings.dialogCancel, color = HubMuted)
             }
         }
     )
 }
-

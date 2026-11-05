@@ -1,9 +1,5 @@
 package com.thehub.hb.ui.likeslist
 
-import android.widget.Toast
-import com.thehub.hb.ui.theme.HubSurface
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,10 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -38,23 +33,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.LikerUser
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubCard
 import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassSoft
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
 import com.thehub.hb.ui.theme.HubWhite
-import androidx.compose.ui.graphics.Color
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
 
 @Composable
 fun LikesListScreen(
@@ -63,56 +64,107 @@ fun LikesListScreen(
     onUserClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("likes_list_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header
+            // .appbar — retour (verre), titre 16/800 + sous-titre « N personnes ».
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                LikesGlassIcon(
                     onClick = onNavigateBack,
                     modifier = Modifier.testTag("likes_list_back_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Retour",
-                        tint = HubWhite
+                        contentDescription = strings.back,
+                        tint = HubWhite,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                Text(
-                    text = "Mentions J'aime",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+                Spacer(Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = strings.likes,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.3).sp,
+                        color = HubWhite
+                    )
+                    val subtitle = when (val state = uiState) {
+                        is LikesListUiState.Success -> strings.likesPeopleFormat.format(state.likers.size)
+                        else -> ""
+                    }
+                    if (subtitle.isNotBlank()) {
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HubMuted
+                        )
+                    }
+                }
+            }
+
+            // .seg — filtre « Tous / Abonnements » de la maquette.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+            ) {
+                GlassSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    variant = GlassVariant.Soft
+                ) {
+                    Row(modifier = Modifier.padding(4.dp)) {
+                        SegmentLabel(text = strings.filterAll, selected = true, modifier = Modifier.weight(1f))
+                        SegmentLabel(text = strings.following, selected = false, modifier = Modifier.weight(1f))
+                    }
+                }
             }
 
             when (val state = uiState) {
                 is LikesListUiState.Loading -> {
-                    Box(
+                    // État « chargement » : rangées squelettes.
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            modifier = Modifier.size(36.dp)
-                        )
+                        repeat(5) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(HubGlassStrong)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    HubSkeletonLine(height = 13.dp, widthFraction = 0.4f)
+                                    Spacer(Modifier.height(6.dp))
+                                    HubSkeletonLine(height = 11.dp, widthFraction = 0.25f)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -124,17 +176,19 @@ fun LikesListScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = state.message,
-                            color = HubError,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
+                        HubEmptyState(
+                            title = strings.oopsLabel,
+                            description = state.message,
+                            icon = Icons.Outlined.CloudOff,
+                            actionLabel = strings.retryLabel,
+                            onAction = { viewModel.loadLikers() }
                         )
                     }
                 }
 
                 is LikesListUiState.Success -> {
                     if (state.likers.isEmpty()) {
+                        // État « vide » : cœur dans une carte de verre 76.
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -142,47 +196,19 @@ fun LikesListScreen(
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(64.dp)
-                                        .clip(CircleShape)
-                                        .background(HubSurfaceElevated),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.FavoriteBorder,
-                                        contentDescription = null,
-                                        tint = HubSecondary,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Aucune mention J'aime",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = HubWhite
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "Personne n'a encore aimé cette publication.",
-                                    fontSize = 13.sp,
-                                    color = HubSecondary,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            HubEmptyState(
+                                title = strings.noLikesTitle,
+                                description = strings.noLikesDesc,
+                                icon = Icons.Outlined.FavoriteBorder
+                            )
                         }
                     } else {
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             items(
                                 items = state.likers,
@@ -203,6 +229,54 @@ fun LikesListScreen(
     }
 }
 
+/** Iconbtn verre 40/14 de l'appbar mentions J'aime. */
+@Composable
+private fun LikesGlassIcon(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(HubGlass)
+            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+/** Segment .seg — actif : verre renforcé + contour, inactif : transparent. */
+@Composable
+private fun SegmentLabel(text: String, selected: Boolean, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (selected) {
+                    Modifier
+                        .background(HubGlassStrong, shape)
+                        .border(1.dp, HubStroke, shape)
+                } else {
+                    Modifier
+                }
+            )
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) HubWhite else HubSecondary
+        )
+    }
+}
+
 @Composable
 private fun LikerItemRow(
     liker: LikerUser,
@@ -214,15 +288,15 @@ private fun LikerItemRow(
         fallbackDisplayName = liker.displayName,
         fallbackPhotoUrl = liker.photoUrl
     )
+    val strings = LocalHubStrings.current
 
+    // Rangée .row de la maquette : 12 16, rayon 18, appui = verre doux.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(HubSurface)
-            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         UserAvatar(
@@ -231,23 +305,31 @@ private fun LikerItemRow(
             size = 42.dp
         )
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             HubVerifiedUserName(
                 name = liveUser.effectiveName,
                 isVerified = liveUser.isVerified,
                 verificationType = liveUser.verificationType,
-                fontSize = 15.sp,
+                fontSize = 13.5.sp,
                 color = HubWhite,
-                badgeSize = 16.dp
+                badgeSize = 15.dp
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = if (liker.username.isNotBlank()) "@${liker.username}" else " ",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = HubMuted,
+                maxLines = 1
             )
         }
 
         Icon(
             imageVector = Icons.Default.Favorite,
-            contentDescription = null,
-            tint = androidx.compose.ui.graphics.Color(0xFFE0245E),
+            contentDescription = strings.likes,
+            tint = HubError,
             modifier = Modifier.size(16.dp)
         )
     }
