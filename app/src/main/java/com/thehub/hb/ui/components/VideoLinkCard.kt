@@ -83,7 +83,7 @@ fun VideoLinkCard(
         if (thumbnailUrl != null) {
             SubcomposeAsyncImage(
                 model = thumbnailUrl,
-                contentDescription = strings.videoPreviewDescFormat.format(provider),
+                contentDescription = strings.lot3.videoPreviewDescFormat.format(provider),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 loading = {
@@ -171,7 +171,7 @@ fun VideoLinkCard(
         ) {
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
-                contentDescription = strings.playVideoDesc,
+                contentDescription = strings.lot3.playVideoDesc,
                 tint = Color.White,
                 modifier = Modifier.size(if (isShort) 34.dp else 32.dp)
             )
@@ -188,7 +188,7 @@ fun VideoLinkCard(
                     .padding(horizontal = 9.dp, vertical = 5.dp)
             ) {
                 Text(
-                    text = strings.shortsLabel,
+                    text = strings.lot3.shortsLabel,
                     color = HubWhite,
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium
@@ -223,7 +223,7 @@ private fun VideoThumbnailFallback(
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
-                text = strings.previewUnavailableTitle,
+                text = strings.lot3.previewUnavailableTitle,
                 color = HubMuted,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp)

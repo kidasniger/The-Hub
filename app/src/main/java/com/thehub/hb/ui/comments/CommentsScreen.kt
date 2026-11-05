@@ -228,8 +228,8 @@ fun CommentsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(26.dp)
             ) {
-                CommentsTabLabel(text = strings.relevantTab, selected = true)
-                CommentsTabLabel(text = strings.recentTab, selected = false)
+                CommentsTabLabel(text = strings.lot3.relevantTab, selected = true)
+                CommentsTabLabel(text = strings.lot3.recentTab, selected = false)
             }
 
             if (uiState.errorMessage != null) {
@@ -283,8 +283,8 @@ fun CommentsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             HubEmptyState(
-                                title = strings.noCommentsTitle,
-                                description = strings.noCommentsDesc,
+                                title = strings.lot3.noCommentsTitle,
+                                description = strings.lot3.noCommentsDesc,
                                 icon = Icons.Outlined.ChatBubbleOutline
                             )
                         }
@@ -337,7 +337,7 @@ fun CommentsScreen(
                                                 )
                                                 Spacer(Modifier.width(8.dp))
                                                 Text(
-                                                    text = strings.seeRepliesFormat.format(thread.replies.size),
+                                                    text = strings.lot3.seeRepliesFormat.format(thread.replies.size),
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = HubSecondary
@@ -409,7 +409,7 @@ fun CommentsScreen(
                                                         )
                                                         Spacer(Modifier.width(8.dp))
                                                         Text(
-                                                            text = strings.hideReplies,
+                                                            text = strings.lot3.hideReplies,
                                                             fontSize = 12.sp,
                                                             fontWeight = FontWeight.SemiBold,
                                                             color = HubSecondary
@@ -460,7 +460,7 @@ fun CommentsScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = strings.replyToFormat.format(uiState.replyingTo?.authorUsername ?: ""),
+                        text = strings.lot3.replyToFormat.format(uiState.replyingTo?.authorUsername ?: ""),
                         color = HubSecondary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -474,7 +474,7 @@ fun CommentsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = strings.cancelReplyDesc,
+                            contentDescription = strings.lot3.cancelReplyDesc,
                             tint = HubSecondary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -518,9 +518,9 @@ fun CommentsScreen(
                             if (uiState.inputText.isEmpty()) {
                                 Text(
                                     text = if (uiState.replyingTo != null) {
-                                        strings.replyToFormat.format(uiState.replyingTo?.authorUsername ?: "")
+                                        strings.lot3.replyToFormat.format(uiState.replyingTo?.authorUsername ?: "")
                                     } else {
-                                        strings.addCommentPlaceholder
+                                        strings.lot3.addCommentPlaceholder
                                     },
                                     color = HubMuted,
                                     fontSize = 13.sp,
@@ -767,7 +767,7 @@ private fun CommentItemRow(
                             // Badge-vip « Auteur » de la maquette (dégradé de marque).
                             if (isCommentAuthor) {
                                 Text(
-                                    text = strings.authorBadge,
+                                    text = strings.lot3.authorBadge,
                                     fontSize = 8.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     letterSpacing = 0.4.sp,
@@ -795,7 +795,7 @@ private fun CommentItemRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = strings.commentOptionsTitle,
+                                contentDescription = strings.lot3.commentOptionsTitle,
                                 tint = HubMuted,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -819,7 +819,7 @@ private fun CommentItemRow(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = strings.hiddenByAuthorLabel,
+                                text = strings.lot3.hiddenByAuthorLabel,
                                 fontSize = 12.5.sp,
                                 fontStyle = FontStyle.Italic,
                                 color = HubMuted
@@ -842,7 +842,7 @@ private fun CommentItemRow(
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text = strings.hiddenForOthersLabel,
+                                    text = strings.lot3.hiddenForOthersLabel,
                                     fontSize = 11.sp,
                                     color = HubSecondary,
                                     fontWeight = FontWeight.Medium
@@ -872,7 +872,7 @@ private fun CommentItemRow(
                 ) {
                     Icon(
                         imageVector = if (comment.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (comment.isLikedByCurrentUser) strings.unlikeDesc else strings.likeDesc,
+                        contentDescription = if (comment.isLikedByCurrentUser) strings.lot3.unlikeDesc else strings.lot3.likeDesc,
                         tint = if (comment.isLikedByCurrentUser) HubError else HubMuted,
                         modifier = Modifier.size(13.dp)
                     )
@@ -905,7 +905,7 @@ private fun CommentItemRow(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = strings.replyLabel,
+                        text = strings.lot3.replyLabel,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = HubMuted
@@ -984,7 +984,7 @@ private fun CommentOptionsBottomSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = strings.commentOptionsTitle,
+                text = strings.lot3.commentOptionsTitle,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = HubWhite
@@ -1011,8 +1011,8 @@ private fun CommentOptionsBottomSheet(
             if (isCommentAuthor) {
                 CommentOptionRow(
                     icon = Icons.Outlined.Edit,
-                    title = strings.editCommentTitle,
-                    subtitle = strings.editCommentSubtitle,
+                    title = strings.lot3.editCommentTitle,
+                    subtitle = strings.lot3.editCommentSubtitle,
                     onClick = onEdit,
                     testTag = "option_edit_comment"
                 )
@@ -1022,8 +1022,8 @@ private fun CommentOptionsBottomSheet(
             if (isPostAuthor) {
                 CommentOptionRow(
                     icon = if (comment.isHidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                    title = if (comment.isHidden) strings.unhideCommentTitle else strings.hideCommentTitle,
-                    subtitle = if (comment.isHidden) strings.unhideCommentSubtitle else strings.hideCommentSubtitle,
+                    title = if (comment.isHidden) strings.lot3.unhideCommentTitle else strings.lot3.hideCommentTitle,
+                    subtitle = if (comment.isHidden) strings.lot3.unhideCommentSubtitle else strings.lot3.hideCommentSubtitle,
                     tint = HubSecondary,
                     onClick = onToggleHide,
                     testTag = "option_hide_comment"
@@ -1034,8 +1034,8 @@ private fun CommentOptionsBottomSheet(
             if (isCommentAuthor || isPostAuthor) {
                 CommentOptionRow(
                     icon = Icons.Outlined.Delete,
-                    title = strings.deleteCommentTitle,
-                    subtitle = if (isCommentAuthor) strings.deleteCommentSubtitleOwn else strings.deleteCommentSubtitleAuthor,
+                    title = strings.lot3.deleteCommentTitle,
+                    subtitle = if (isCommentAuthor) strings.lot3.deleteCommentSubtitleOwn else strings.lot3.deleteCommentSubtitleAuthor,
                     tint = HubError,
                     textColor = HubError,
                     onClick = onDelete,
@@ -1046,8 +1046,8 @@ private fun CommentOptionsBottomSheet(
             // 4. Signaler (tout le monde)
             CommentOptionRow(
                 icon = Icons.Outlined.Flag,
-                title = strings.reportCommentTitle,
-                subtitle = strings.reportCommentSubtitle,
+                title = strings.lot3.reportCommentTitle,
+                subtitle = strings.lot3.reportCommentSubtitle,
                 tint = HubMuted,
                 onClick = onReport,
                 testTag = "option_report_comment"
@@ -1125,7 +1125,7 @@ private fun EditCommentDialog(
         containerColor = palette.bg1,
         title = {
             Text(
-                text = strings.editCommentTitle,
+                text = strings.lot3.editCommentTitle,
                 fontWeight = FontWeight.ExtraBold,
                 color = HubWhite
             )
@@ -1135,7 +1135,7 @@ private fun EditCommentDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text(strings.editCommentInputPlaceholder, color = HubMuted) },
+                    placeholder = { Text(strings.lot3.editCommentInputPlaceholder, color = HubMuted) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("edit_comment_input"),
@@ -1166,7 +1166,7 @@ private fun EditCommentDialog(
                     )
                 } else {
                     Text(
-                        strings.saveLabel,
+                        strings.lot3.saveLabel,
                         fontWeight = FontWeight.Bold,
                         color = palette.accent
                     )
@@ -1206,7 +1206,7 @@ private fun DeleteCommentDialog(
         },
         title = {
             Text(
-                text = strings.deleteCommentDialogTitle,
+                text = strings.lot3.deleteCommentDialogTitle,
                 fontWeight = FontWeight.ExtraBold,
                 color = HubWhite,
                 textAlign = TextAlign.Center
@@ -1214,7 +1214,7 @@ private fun DeleteCommentDialog(
         },
         text = {
             Text(
-                text = strings.deleteCommentDialogMessage,
+                text = strings.lot3.deleteCommentDialogMessage,
                 color = HubSecondary,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
@@ -1234,7 +1234,7 @@ private fun DeleteCommentDialog(
                     )
                 } else {
                     Text(
-                        strings.deletePostOption,
+                        strings.lot3.deletePostOption,
                         fontWeight = FontWeight.Bold,
                         color = HubError
                     )
@@ -1261,12 +1261,12 @@ private fun ReportCommentDialog(
     val strings = LocalHubStrings.current
     val palette = LocalHubColors.current
     val reportReasons = listOf(
-        strings.reportReasonSpam,
-        strings.reportReasonHarassment,
-        strings.reportReasonHate,
-        strings.reportReasonSexual,
-        strings.reportReasonMisinformation,
-        strings.reportReasonOther
+        strings.lot3.reportReasonSpam,
+        strings.lot3.reportReasonHarassment,
+        strings.lot3.reportReasonHate,
+        strings.lot3.reportReasonSexual,
+        strings.lot3.reportReasonMisinformation,
+        strings.lot3.reportReasonOther
     )
     var selectedReason by remember { mutableStateOf(reportReasons[0]) }
 
@@ -1275,7 +1275,7 @@ private fun ReportCommentDialog(
         containerColor = palette.bg1,
         title = {
             Text(
-                text = strings.reportCommentTitle,
+                text = strings.lot3.reportCommentTitle,
                 fontWeight = FontWeight.ExtraBold,
                 color = HubWhite
             )
@@ -1283,7 +1283,7 @@ private fun ReportCommentDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = strings.reportCommentQuestion,
+                    text = strings.lot3.reportCommentQuestion,
                     color = HubSecondary,
                     fontSize = 13.sp
                 )

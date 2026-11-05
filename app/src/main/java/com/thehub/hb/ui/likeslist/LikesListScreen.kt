@@ -105,7 +105,7 @@ fun LikesListScreen(
                         color = HubWhite
                     )
                     val subtitle = when (val state = uiState) {
-                        is LikesListUiState.Success -> strings.likesPeopleFormat.format(state.likers.size)
+                        is LikesListUiState.Success -> strings.lot3.likesPeopleFormat.format(state.likers.size)
                         else -> ""
                     }
                     if (subtitle.isNotBlank()) {
@@ -131,7 +131,7 @@ fun LikesListScreen(
                     variant = GlassVariant.Soft
                 ) {
                     Row(modifier = Modifier.padding(4.dp)) {
-                        SegmentLabel(text = strings.filterAll, selected = true, modifier = Modifier.weight(1f))
+                        SegmentLabel(text = strings.lot3.filterAll, selected = true, modifier = Modifier.weight(1f))
                         SegmentLabel(text = strings.following, selected = false, modifier = Modifier.weight(1f))
                     }
                 }
@@ -177,10 +177,10 @@ fun LikesListScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         HubEmptyState(
-                            title = strings.oopsLabel,
+                            title = strings.lot3.oopsLabel,
                             description = state.message,
                             icon = Icons.Outlined.CloudOff,
-                            actionLabel = strings.retryLabel,
+                            actionLabel = strings.lot3.retryLabel,
                             onAction = { viewModel.loadLikers() }
                         )
                     }
@@ -197,8 +197,8 @@ fun LikesListScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             HubEmptyState(
-                                title = strings.noLikesTitle,
-                                description = strings.noLikesDesc,
+                                title = strings.lot3.noLikesTitle,
+                                description = strings.lot3.noLikesDesc,
                                 icon = Icons.Outlined.FavoriteBorder
                             )
                         }

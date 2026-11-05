@@ -140,7 +140,7 @@ fun PostDetailScreen(
                 Spacer(Modifier.width(12.dp))
 
                 Text(
-                    text = strings.postDetailTitle,
+                    text = strings.lot3.postDetailTitle,
                     fontSize = 16.5.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = (-0.3).sp,
@@ -156,7 +156,7 @@ fun PostDetailScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Share,
-                                contentDescription = strings.shareDesc,
+                                contentDescription = strings.lot3.shareDesc,
                                 tint = HubWhite,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -168,7 +168,7 @@ fun PostDetailScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = strings.postOptionsDesc,
+                                contentDescription = strings.lot3.postOptionsDesc,
                                 tint = HubWhite,
                                 modifier = Modifier.size(17.dp)
                             )
@@ -192,10 +192,10 @@ fun PostDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         HubEmptyState(
-                            title = strings.oopsLabel,
+                            title = strings.lot3.oopsLabel,
                             description = state.message,
                             icon = Icons.Outlined.CloudOff,
-                            actionLabel = strings.retryLabel,
+                            actionLabel = strings.lot3.retryLabel,
                             onAction = { viewModel.loadPostDetail() }
                         )
                     }
@@ -235,7 +235,7 @@ fun PostDetailScreen(
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = strings.repostedByFormat.format(reposter.effectiveName),
+                                            text = strings.lot3.repostedByFormat.format(reposter.effectiveName),
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = HubSecondary
@@ -283,7 +283,7 @@ fun PostDetailScreen(
                                                     text = buildString {
                                                         if (author.username.isNotBlank()) append("@${author.username} · ")
                                                         append(RelativeTime.format(post.createdAt))
-                                                        append(" · ${strings.publicLabel}")
+                                                        append(" · ${strings.lot3.publicLabel}")
                                                     },
                                                     fontSize = 11.5.sp,
                                                     fontWeight = FontWeight.Medium,
@@ -334,7 +334,7 @@ fun PostDetailScreen(
                                     Box(Modifier.padding(horizontal = 14.dp)) {
                                         PostMediaImage(
                                             imageUrl = post.imageUrl,
-                                            contentDescription = strings.postImageDesc,
+                                            contentDescription = strings.lot3.postImageDesc,
                                             cornerRadius = 20.dp,
                                             showSaveButton = true,
                                             saveButtonTag = "post_detail_save_image_button",
@@ -400,7 +400,7 @@ fun PostDetailScreen(
                                                     Spacer(Modifier.height(8.dp))
                                                     PostMediaImage(
                                                         imageUrl = orig.imageUrl,
-                                                        contentDescription = strings.repostImageDesc,
+                                                        contentDescription = strings.lot3.repostImageDesc,
                                                         cornerRadius = 12.dp,
                                                         showSaveButton = false,
                                                         onImageClick = onImageClick
@@ -443,13 +443,13 @@ fun PostDetailScreen(
                                         ) {
                                             Icon(
                                                 imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                                contentDescription = if (post.isLikedByCurrentUser) strings.unlikeDesc else strings.likeDesc,
+                                                contentDescription = if (post.isLikedByCurrentUser) strings.lot3.unlikeDesc else strings.lot3.likeDesc,
                                                 tint = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
                                         Text(
-                                            text = strings.likesCountFormat.format(post.likesCount),
+                                            text = strings.lot3.likesCountFormat.format(post.likesCount),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
@@ -468,13 +468,13 @@ fun PostDetailScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.ChatBubbleOutline,
-                                            contentDescription = strings.commentsDesc,
+                                            contentDescription = strings.lot3.commentsDesc,
                                             tint = HubInfo,
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = strings.commentsCountFormat.format(state.totalCommentsCount),
+                                            text = strings.lot3.commentsCountFormat.format(state.totalCommentsCount),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = HubInfo
@@ -491,7 +491,7 @@ fun PostDetailScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.Share,
-                                            contentDescription = strings.shareDesc,
+                                            contentDescription = strings.lot3.shareDesc,
                                             tint = HubSuccess,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -507,7 +507,7 @@ fun PostDetailScreen(
                                     ) {
                                         Icon(
                                             imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                            contentDescription = if (post.isBookmarkedByCurrentUser) strings.bookmarkRemoveDesc else strings.bookmarkAddDesc,
+                                            contentDescription = if (post.isBookmarkedByCurrentUser) strings.lot3.bookmarkRemoveDesc else strings.lot3.bookmarkAddDesc,
                                             tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubTextTertiary,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -539,7 +539,7 @@ fun PostDetailScreen(
                             Spacer(Modifier.weight(1f))
                             if (state.totalCommentsCount > 0) {
                                 Text(
-                                    text = strings.viewAllFormat.format(state.totalCommentsCount),
+                                    text = strings.lot3.viewAllFormat.format(state.totalCommentsCount),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = palette.accent,
@@ -561,7 +561,7 @@ fun PostDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = strings.noCommentsYetDesc,
+                                    text = strings.lot3.noCommentsYetDesc,
                                     color = HubMuted,
                                     fontSize = 13.5.sp,
                                     lineHeight = 20.sp,
@@ -576,7 +576,7 @@ fun PostDetailScreen(
                             }
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                text = strings.viewAllFormat.format(state.totalCommentsCount),
+                                text = strings.lot3.viewAllFormat.format(state.totalCommentsCount),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = HubMuted,
@@ -620,7 +620,7 @@ fun PostDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = strings.addCommentPlaceholder,
+                                        text = strings.lot3.addCommentPlaceholder,
                                         color = HubMuted,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium
@@ -675,7 +675,7 @@ fun PostDetailScreen(
                     showReportSheet = true
                 },
                 onCopyLink = { post ->
-                    copyPostLinkToClipboard(context, post.id, strings.linkCopiedToast)
+                    copyPostLinkToClipboard(context, post.id, strings.lot3.linkCopiedToast)
                 }
             )
         }
@@ -689,10 +689,10 @@ fun PostDetailScreen(
                     isDeletingPost = false
                     showDeleteConfirmation = false
                     if (success) {
-                        Toast.makeText(context, strings.postDeletedToast, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, strings.lot3.postDeletedToast, Toast.LENGTH_SHORT).show()
                         onPostDeleted()
                     } else {
-                        Toast.makeText(context, errorMsg ?: strings.deleteErrorToast, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, errorMsg ?: strings.lot3.deleteErrorToast, Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -707,7 +707,7 @@ fun PostDetailScreen(
             ReportBottomSheet(
                 targetType = "post",
                 targetId = currentPost.id,
-                targetName = if (currentPost.authorUsername.isNotBlank()) "@${currentPost.authorUsername}" else strings.thisPostLabel,
+                targetName = if (currentPost.authorUsername.isNotBlank()) "@${currentPost.authorUsername}" else strings.lot3.thisPostLabel,
                 onDismiss = { showReportSheet = false },
                 onSubmitReport = { reason, details ->
                     isSubmittingReport = true
@@ -715,11 +715,11 @@ fun PostDetailScreen(
                         isSubmittingReport = false
                         showReportSheet = false
                         if (success) {
-                            Toast.makeText(context, strings.reportSentToast, Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, strings.lot3.reportSentToast, Toast.LENGTH_LONG).show()
                         } else {
                             Toast.makeText(
                                 context,
-                                errorMsg ?: strings.reportErrorToast,
+                                errorMsg ?: strings.lot3.reportErrorToast,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }

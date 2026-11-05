@@ -2,6 +2,152 @@ package com.thehub.hb.ui.theme
 
 import androidx.compose.runtime.staticCompositionLocalOf
 
+/**
+ * Chaînes du Lot 3 (fil et publications — écrans 06 à 10 de la maquette).
+ * Classe imbriquée : la classe [HubStrings] ne doit pas dépasser la limite JVM
+ * de 255 paramètres de constructeur (ClassFormatError au chargement).
+ */
+data class HubLot3Strings(
+    // ---- Fil et publications (Lot 3 — écrans 06 à 10 de la maquette) ----
+    // Fil (06)
+    val feedChipAll: String,
+    val feedChipTheHub: String,
+    val feedChipNigerTech: String,
+    val feedChipDesignSystem: String,
+    val feedTrendsDesc: String,
+    val appLogoDesc: String,
+    val friendsDesc: String,
+    val messengerDesc: String,
+    val retryLabel: String,
+    val oopsLabel: String,
+
+    // Carte de publication
+    val repostedByFormat: String,
+    val postImageDesc: String,
+    val repostImageDesc: String,
+    val likeDesc: String,
+    val unlikeDesc: String,
+    val commentsDesc: String,
+    val shareDesc: String,
+    val saveDesc: String,
+    val bookmarkAddDesc: String,
+    val bookmarkRemoveDesc: String,
+    val postOptionsDesc: String,
+    val videoPreviewDescFormat: String,
+
+    // Média (PostMediaImage)
+    val photoUnavailableTitle: String,
+    val photoUnavailableDesc: String,
+    val saveImageDesc: String,
+
+    // Aperçu de lien (LinkPreviewCard)
+    val linkPreviewLoading: String,
+    val previewUnavailableTitle: String,
+    val previewUnavailableDesc: String,
+    val linkUnavailable: String,
+    val openLinkDesc: String,
+    val linkImageDesc: String,
+
+    // Carte vidéo (VideoLinkCard)
+    val playVideoDesc: String,
+    val shortsLabel: String,
+
+    // Création de publication (07)
+    val newPostTitle: String,
+    val editPostTitle: String,
+    val saveLabel: String,
+    val publicLabel: String,
+    val visibilityDesc: String,
+    val charCountFormat: String,
+    val readyToPublish: String,
+    val selectedImageDesc: String,
+    val removeImageDesc: String,
+    val removeVideoDesc: String,
+    val addVideoLinkLabel: String,
+    val addVideoLinkDesc: String,
+    val discardTitle: String,
+    val discardMessage: String,
+    val leaveLabel: String,
+    val continueLabel: String,
+    val addVideoTitle: String,
+    val addVideoHelp: String,
+    val videoLinkLabel: String,
+    val invalidVideoUrl: String,
+    val addLabel: String,
+    val imagePrepareError: String,
+
+    // Détail de publication (08)
+    val postDetailTitle: String,
+    val likesCountFormat: String,
+    val commentsCountFormat: String,
+    val viewAllFormat: String,
+    val noCommentsYetDesc: String,
+    val addCommentPlaceholder: String,
+
+    // Commentaires (09)
+    val relevantTab: String,
+    val recentTab: String,
+    val authorBadge: String,
+    val replyLabel: String,
+    val replyToFormat: String,
+    val noCommentsTitle: String,
+    val noCommentsDesc: String,
+    val editedLabel: String,
+    val seeRepliesFormat: String,
+    val hideReplies: String,
+    val commentOptionsTitle: String,
+    val editCommentTitle: String,
+    val editCommentSubtitle: String,
+    val hideCommentTitle: String,
+    val hideCommentSubtitle: String,
+    val unhideCommentTitle: String,
+    val unhideCommentSubtitle: String,
+    val deleteCommentTitle: String,
+    val deleteCommentSubtitleOwn: String,
+    val deleteCommentSubtitleAuthor: String,
+    val reportCommentTitle: String,
+    val reportCommentSubtitle: String,
+    val editCommentInputPlaceholder: String,
+    val deleteCommentDialogTitle: String,
+    val deleteCommentDialogMessage: String,
+    val reportCommentQuestion: String,
+    val reportReasonSpam: String,
+    val reportReasonHarassment: String,
+    val reportReasonHate: String,
+    val reportReasonSexual: String,
+    val reportReasonMisinformation: String,
+    val reportReasonOther: String,
+    val hiddenByAuthorLabel: String,
+    val hiddenForOthersLabel: String,
+    val cancelReplyDesc: String,
+
+    // Liste des J'aime (10)
+    val likesPeopleFormat: String,
+    val filterAll: String,
+    val noLikesTitle: String,
+    val noLikesDesc: String,
+
+    // Options de publication + confirmations
+    val postOptionsTitle: String,
+    val editPostOption: String,
+    val editPostOptionSub: String,
+    val deletePostOption: String,
+    val deletePostOptionSub: String,
+    val copyLinkOption: String,
+    val copyLinkOptionSub: String,
+    val reportPostOptionSub: String,
+    val deletePostDialogTitle: String,
+    val deletePostDialogMessage: String,
+
+    // Toasts et presse-papiers
+    val postDeletedToast: String,
+    val deleteErrorToast: String,
+    val reportSentToast: String,
+    val reportErrorToast: String,
+    val thisPostLabel: String,
+    val linkCopiedToast: String
+)
+
 data class HubStrings(
     // Navigation
     val tabFeed: String,
@@ -207,144 +353,7 @@ data class HubStrings(
     val wheelConfirm: String,
     val wheelMonths: List<String>,
 
-    // ---- Fil et publications (Lot 3 — écrans 06 à 10 de la maquette) ----
-    // Fil (06)
-    val feedChipAll: String,
-    val feedChipTheHub: String,
-    val feedChipNigerTech: String,
-    val feedChipDesignSystem: String,
-    val feedTrendsDesc: String,
-    val appLogoDesc: String,
-    val friendsDesc: String,
-    val messengerDesc: String,
-    val retryLabel: String,
-    val oopsLabel: String,
-
-    // Carte de publication
-    val repostedByFormat: String,
-    val postImageDesc: String,
-    val repostImageDesc: String,
-    val likeDesc: String,
-    val unlikeDesc: String,
-    val commentsDesc: String,
-    val shareDesc: String,
-    val saveDesc: String,
-    val bookmarkAddDesc: String,
-    val bookmarkRemoveDesc: String,
-    val postOptionsDesc: String,
-    val videoPreviewDescFormat: String,
-
-    // Média (PostMediaImage)
-    val photoUnavailableTitle: String,
-    val photoUnavailableDesc: String,
-    val saveImageDesc: String,
-
-    // Aperçu de lien (LinkPreviewCard)
-    val linkPreviewLoading: String,
-    val previewUnavailableTitle: String,
-    val previewUnavailableDesc: String,
-    val linkUnavailable: String,
-    val openLinkDesc: String,
-    val linkImageDesc: String,
-
-    // Carte vidéo (VideoLinkCard)
-    val playVideoDesc: String,
-    val shortsLabel: String,
-
-    // Création de publication (07)
-    val newPostTitle: String,
-    val editPostTitle: String,
-    val saveLabel: String,
-    val publicLabel: String,
-    val visibilityDesc: String,
-    val charCountFormat: String,
-    val readyToPublish: String,
-    val selectedImageDesc: String,
-    val removeImageDesc: String,
-    val removeVideoDesc: String,
-    val addVideoLinkLabel: String,
-    val addVideoLinkDesc: String,
-    val discardTitle: String,
-    val discardMessage: String,
-    val leaveLabel: String,
-    val continueLabel: String,
-    val addVideoTitle: String,
-    val addVideoHelp: String,
-    val videoLinkLabel: String,
-    val invalidVideoUrl: String,
-    val addLabel: String,
-    val imagePrepareError: String,
-
-    // Détail de publication (08)
-    val postDetailTitle: String,
-    val likesCountFormat: String,
-    val commentsCountFormat: String,
-    val viewAllFormat: String,
-    val noCommentsYetDesc: String,
-    val addCommentPlaceholder: String,
-
-    // Commentaires (09)
-    val relevantTab: String,
-    val recentTab: String,
-    val authorBadge: String,
-    val replyLabel: String,
-    val replyToFormat: String,
-    val noCommentsTitle: String,
-    val noCommentsDesc: String,
-    val editedLabel: String,
-    val seeRepliesFormat: String,
-    val hideReplies: String,
-    val commentOptionsTitle: String,
-    val editCommentTitle: String,
-    val editCommentSubtitle: String,
-    val hideCommentTitle: String,
-    val hideCommentSubtitle: String,
-    val unhideCommentTitle: String,
-    val unhideCommentSubtitle: String,
-    val deleteCommentTitle: String,
-    val deleteCommentSubtitleOwn: String,
-    val deleteCommentSubtitleAuthor: String,
-    val reportCommentTitle: String,
-    val reportCommentSubtitle: String,
-    val editCommentInputPlaceholder: String,
-    val deleteCommentDialogTitle: String,
-    val deleteCommentDialogMessage: String,
-    val reportCommentQuestion: String,
-    val reportReasonSpam: String,
-    val reportReasonHarassment: String,
-    val reportReasonHate: String,
-    val reportReasonSexual: String,
-    val reportReasonMisinformation: String,
-    val reportReasonOther: String,
-    val hiddenByAuthorLabel: String,
-    val hiddenForOthersLabel: String,
-    val cancelReplyDesc: String,
-
-    // Liste des J'aime (10)
-    val likesPeopleFormat: String,
-    val filterAll: String,
-    val noLikesTitle: String,
-    val noLikesDesc: String,
-
-    // Options de publication + confirmations
-    val postOptionsTitle: String,
-    val editPostOption: String,
-    val editPostOptionSub: String,
-    val deletePostOption: String,
-    val deletePostOptionSub: String,
-    val copyLinkOption: String,
-    val copyLinkOptionSub: String,
-    val reportPostOptionSub: String,
-    val deletePostDialogTitle: String,
-    val deletePostDialogMessage: String,
-
-    // Toasts et presse-papiers
-    val postDeletedToast: String,
-    val deleteErrorToast: String,
-    val reportSentToast: String,
-    val reportErrorToast: String,
-    val thisPostLabel: String,
-    val linkCopiedToast: String
+    val lot3: HubLot3Strings
 )
 
 val FrenchHubStrings = HubStrings(
@@ -538,7 +547,7 @@ val FrenchHubStrings = HubStrings(
         "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
     ),
 
-    // Fil et publications (Lot 3)
+    lot3 = HubLot3Strings(
     feedChipAll = "✦ Tout",
     feedChipTheHub = "#TheHub",
     feedChipNigerTech = "#NigerTech",
@@ -665,6 +674,7 @@ val FrenchHubStrings = HubStrings(
     reportErrorToast = "Erreur lors du signalement",
     thisPostLabel = "cette publication",
     linkCopiedToast = "Lien copié dans le presse-papiers"
+    )
 )
 
 val EnglishHubStrings = HubStrings(
@@ -857,7 +867,7 @@ val EnglishHubStrings = HubStrings(
         "July", "August", "September", "October", "November", "December"
     ),
 
-    // Feed and posts (Lot 3)
+    lot3 = HubLot3Strings(
     feedChipAll = "✦ All",
     feedChipTheHub = "#TheHub",
     feedChipNigerTech = "#NigerTech",
@@ -984,6 +994,7 @@ val EnglishHubStrings = HubStrings(
     reportErrorToast = "Report error",
     thisPostLabel = "this post",
     linkCopiedToast = "Link copied to clipboard"
+    )
 )
 
 val LocalHubStrings = staticCompositionLocalOf<HubStrings> { FrenchHubStrings }

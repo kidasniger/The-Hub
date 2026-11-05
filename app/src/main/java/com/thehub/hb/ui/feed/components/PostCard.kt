@@ -109,7 +109,7 @@ fun PostCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = strings.repostedByFormat.format(reposter.effectiveName),
+                        text = strings.lot3.repostedByFormat.format(reposter.effectiveName),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = HubSecondary
@@ -188,7 +188,7 @@ fun PostCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = strings.postOptionsDesc,
+                            contentDescription = strings.lot3.postOptionsDesc,
                             tint = HubTextTertiary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -227,7 +227,7 @@ fun PostCard(
                 Box(modifier = Modifier.padding(horizontal = 14.dp)) {
                     PostMediaImage(
                         imageUrl = post.imageUrl,
-                        contentDescription = strings.postImageDesc,
+                        contentDescription = strings.lot3.postImageDesc,
                         cornerRadius = 20.dp,
                         showSaveButton = true,
                         saveButtonTag = "post_card_save_image_button",
@@ -288,7 +288,7 @@ fun PostCard(
                     ) {
                         Icon(
                             imageVector = if (post.isLikedByCurrentUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = if (post.isLikedByCurrentUser) strings.unlikeDesc else strings.likeDesc,
+                            contentDescription = if (post.isLikedByCurrentUser) strings.lot3.unlikeDesc else strings.lot3.likeDesc,
                             tint = if (post.isLikedByCurrentUser) HubError else HubTextTertiary,
                             modifier = Modifier.size(17.dp)
                         )
@@ -314,7 +314,7 @@ fun PostCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = strings.commentsDesc,
+                        contentDescription = strings.lot3.commentsDesc,
                         tint = HubInfo,
                         modifier = Modifier.size(17.dp)
                     )
@@ -337,7 +337,7 @@ fun PostCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Share,
-                        contentDescription = strings.shareDesc,
+                        contentDescription = strings.lot3.shareDesc,
                         tint = HubSuccess,
                         modifier = Modifier.size(17.dp)
                     )
@@ -360,7 +360,7 @@ fun PostCard(
                 ) {
                     Icon(
                         imageVector = if (post.isBookmarkedByCurrentUser) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                        contentDescription = if (post.isBookmarkedByCurrentUser) strings.bookmarkRemoveDesc else strings.bookmarkAddDesc,
+                        contentDescription = if (post.isBookmarkedByCurrentUser) strings.lot3.bookmarkRemoveDesc else strings.lot3.bookmarkAddDesc,
                         tint = if (post.isBookmarkedByCurrentUser) HubWhite else HubTextTertiary,
                         modifier = Modifier.size(17.dp)
                     )
@@ -428,7 +428,7 @@ private fun EmbeddedOriginalPost(
                 Spacer(modifier = Modifier.height(8.dp))
                 PostMediaImage(
                     imageUrl = originalPost.imageUrl,
-                    contentDescription = strings.repostImageDesc,
+                    contentDescription = strings.lot3.repostImageDesc,
                     cornerRadius = 12.dp,
                     showSaveButton = false,
                     onImageClick = onImageClick

@@ -101,7 +101,7 @@ fun LinkPreviewCard(
                 strokeWidth = 2.dp
             )
             Text(
-                text = strings.linkPreviewLoading,
+                text = strings.lot3.linkPreviewLoading,
                 color = HubSecondary,
                 fontSize = 12.sp
             )
@@ -112,8 +112,8 @@ fun LinkPreviewCard(
     val data = preview ?: LinkPreviewData(
         originalUrl = url,
         finalUrl = url,
-        title = strings.previewUnavailableTitle,
-        description = strings.previewUnavailableDesc,
+        title = strings.lot3.previewUnavailableTitle,
+        description = strings.lot3.previewUnavailableDesc,
         imageUrl = null,
         siteName = Uri.parse(url).host?.removePrefix("www.").orEmpty(),
         httpStatus = 0
@@ -138,7 +138,7 @@ fun LinkPreviewCard(
             if (!data.imageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = data.imageUrl,
-                    contentDescription = data.title ?: strings.linkImageDesc,
+                    contentDescription = data.title ?: strings.lot3.linkImageDesc,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(168.dp),
@@ -170,7 +170,7 @@ fun LinkPreviewCard(
                     )
                     Icon(
                         imageVector = Icons.Outlined.OpenInNew,
-                        contentDescription = strings.openLinkDesc,
+                        contentDescription = strings.lot3.openLinkDesc,
                         tint = HubMuted,
                         modifier = Modifier.size(15.dp)
                     )
@@ -212,7 +212,7 @@ fun LinkPreviewCard(
                 if (data.httpStatus == 404 || data.httpStatus == 410) {
                     Spacer(modifier = Modifier.height(7.dp))
                     Text(
-                        text = strings.linkUnavailable,
+                        text = strings.lot3.linkUnavailable,
                         color = HubSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium

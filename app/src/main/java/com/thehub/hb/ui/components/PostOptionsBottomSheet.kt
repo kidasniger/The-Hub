@@ -99,7 +99,7 @@ fun PostOptionsBottomSheet(
                 .testTag("post_options_bottom_sheet")
         ) {
             Text(
-                text = strings.postOptionsTitle,
+                text = strings.lot3.postOptionsTitle,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = HubWhite,
@@ -111,8 +111,8 @@ fun PostOptionsBottomSheet(
                 // Modifier
                 PostOptionRow(
                     icon = Icons.Outlined.Edit,
-                    label = strings.editPostOption,
-                    sublabel = strings.editPostOptionSub,
+                    label = strings.lot3.editPostOption,
+                    sublabel = strings.lot3.editPostOptionSub,
                     color = HubWhite,
                     testTag = "post_option_edit",
                     onClick = {
@@ -126,8 +126,8 @@ fun PostOptionsBottomSheet(
                 // Supprimer
                 PostOptionRow(
                     icon = Icons.Outlined.Delete,
-                    label = strings.deletePostOption,
-                    sublabel = strings.deletePostOptionSub,
+                    label = strings.lot3.deletePostOption,
+                    sublabel = strings.lot3.deletePostOptionSub,
                     color = HubError,
                     testTag = "post_option_delete",
                     onClick = {
@@ -139,8 +139,8 @@ fun PostOptionsBottomSheet(
                 // Copier le lien
                 PostOptionRow(
                     icon = Icons.Outlined.ContentCopy,
-                    label = strings.copyLinkOption,
-                    sublabel = strings.copyLinkOptionSub,
+                    label = strings.lot3.copyLinkOption,
+                    sublabel = strings.lot3.copyLinkOptionSub,
                     color = HubWhite,
                     testTag = "post_option_copy_link",
                     onClick = {
@@ -155,7 +155,7 @@ fun PostOptionsBottomSheet(
                 PostOptionRow(
                     icon = Icons.Outlined.Flag,
                     label = strings.reportPost,
-                    sublabel = strings.reportPostOptionSub,
+                    sublabel = strings.lot3.reportPostOptionSub,
                     color = HubError,
                     testTag = "post_option_report",
                     onClick = {
@@ -246,7 +246,7 @@ fun DeletePostConfirmationDialog(
         containerColor = LocalHubColors.current.bg1,
         title = {
             Text(
-                text = strings.deletePostDialogTitle,
+                text = strings.lot3.deletePostDialogTitle,
                 color = HubWhite,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold
@@ -254,7 +254,7 @@ fun DeletePostConfirmationDialog(
         },
         text = {
             Text(
-                text = strings.deletePostDialogMessage,
+                text = strings.lot3.deletePostDialogMessage,
                 color = HubSecondary,
                 fontSize = 14.sp,
                 lineHeight = 20.sp
@@ -277,7 +277,7 @@ fun DeletePostConfirmationDialog(
                     )
                 } else {
                     Text(
-                        text = strings.deletePostOption,
+                        text = strings.lot3.deletePostOption,
                         fontWeight = FontWeight.Bold,
                         color = HubError
                     )

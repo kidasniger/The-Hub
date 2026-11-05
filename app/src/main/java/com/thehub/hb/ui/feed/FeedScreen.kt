@@ -177,7 +177,7 @@ fun FeedScreen(
                     ) {
                         Icon(
                             Icons.Outlined.People,
-                            contentDescription = strings.friendsDesc,
+                            contentDescription = strings.lot3.friendsDesc,
                             tint = HubWhite,
                             modifier = Modifier.size(18.dp)
                         )
@@ -192,7 +192,7 @@ fun FeedScreen(
                         ) {
                             Icon(
                                 Icons.Outlined.Email,
-                                contentDescription = strings.messengerDesc,
+                                contentDescription = strings.lot3.messengerDesc,
                                 tint = HubWhite,
                                 modifier = Modifier.size(17.dp)
                             )
@@ -240,7 +240,7 @@ fun FeedScreen(
                 Spacer(Modifier.weight(1f))
                 Icon(
                     imageVector = Icons.Outlined.TrendingUp,
-                    contentDescription = strings.feedTrendsDesc,
+                    contentDescription = strings.lot3.feedTrendsDesc,
                     tint = HubTextTertiary,
                     modifier = Modifier.size(17.dp)
                 )
@@ -254,10 +254,10 @@ fun FeedScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FeedChip(text = strings.feedChipAll, selected = true)
-                FeedChip(text = strings.feedChipTheHub, selected = false)
-                FeedChip(text = strings.feedChipNigerTech, selected = false)
-                FeedChip(text = strings.feedChipDesignSystem, selected = false)
+                FeedChip(text = strings.lot3.feedChipAll, selected = true)
+                FeedChip(text = strings.lot3.feedChipTheHub, selected = false)
+                FeedChip(text = strings.lot3.feedChipNigerTech, selected = false)
+                FeedChip(text = strings.lot3.feedChipDesignSystem, selected = false)
             }
 
             PullToRefreshBox(
@@ -332,7 +332,7 @@ fun FeedScreen(
                 onEdit = onEditPost,
                 onDelete = { postToDelete = it },
                 onReport = { postToReport = it },
-                onCopyLink = { copyPostLinkToClipboard(context, it.id, strings.linkCopiedToast) }
+                onCopyLink = { copyPostLinkToClipboard(context, it.id, strings.lot3.linkCopiedToast) }
             )
         }
 
@@ -347,7 +347,7 @@ fun FeedScreen(
                     postToDelete = null
                     Toast.makeText(
                         context,
-                        if (success) strings.postDeletedToast else (errorMsg ?: strings.deleteErrorToast),
+                        if (success) strings.lot3.postDeletedToast else (errorMsg ?: strings.lot3.deleteErrorToast),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -359,7 +359,7 @@ fun FeedScreen(
             ReportBottomSheet(
                 targetType = "post",
                 targetId = post.id,
-                targetName = if (post.authorUsername.isNotBlank()) "@${post.authorUsername}" else strings.thisPostLabel,
+                targetName = if (post.authorUsername.isNotBlank()) "@${post.authorUsername}" else strings.lot3.thisPostLabel,
                 onDismiss = { postToReport = null },
                 onSubmitReport = { reason, details ->
                     isSubmittingReport = true
@@ -368,7 +368,7 @@ fun FeedScreen(
                         postToReport = null
                         Toast.makeText(
                             context,
-                            if (success) strings.reportSentToast else (errorMsg ?: strings.reportErrorToast),
+                            if (success) strings.lot3.reportSentToast else (errorMsg ?: strings.lot3.reportErrorToast),
                             if (success) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -536,10 +536,10 @@ private fun FeedErrorState(message: String, onRetry: () -> Unit) {
     val strings = LocalHubStrings.current
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         HubEmptyState(
-            title = strings.oopsLabel,
+            title = strings.lot3.oopsLabel,
             description = message,
             icon = Icons.Outlined.CloudOff,
-            actionLabel = strings.retryLabel,
+            actionLabel = strings.lot3.retryLabel,
             onAction = onRetry
         )
     }

@@ -130,7 +130,7 @@ fun CreatePostScreen(
                 if (bytes != null) {
                     viewModel.setImage(uri, bytes)
                 } else {
-                    viewModel.showErrorMessage(strings.imagePrepareError)
+                    viewModel.showErrorMessage(strings.lot3.imagePrepareError)
                 }
             }
         }
@@ -179,7 +179,7 @@ fun CreatePostScreen(
                 Spacer(Modifier.width(12.dp))
 
                 Text(
-                    text = if (uiState.isEditMode) strings.editPostTitle else strings.newPostTitle,
+                    text = if (uiState.isEditMode) strings.lot3.editPostTitle else strings.lot3.newPostTitle,
                     fontSize = 16.5.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = (-0.3).sp,
@@ -222,7 +222,7 @@ fun CreatePostScreen(
                         AppLogo(size = 22.dp, animated = true)
                     } else {
                         Text(
-                            text = if (uiState.isEditMode) strings.saveLabel else strings.publish,
+                            text = if (uiState.isEditMode) strings.lot3.saveLabel else strings.publish,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (canPublish) Color.White else HubMuted
@@ -281,7 +281,7 @@ fun CreatePostScreen(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Text(
-                        text = if (uiState.charCount == 0) strings.readyToPublish else strings.charCountFormat.format(uiState.charCount),
+                        text = if (uiState.charCount == 0) strings.lot3.readyToPublish else strings.lot3.charCountFormat.format(uiState.charCount),
                         fontSize = 10.5.sp,
                         color = HubMuted,
                         fontWeight = FontWeight.Medium,
@@ -303,7 +303,7 @@ fun CreatePostScreen(
                     ) {
                         AsyncImage(
                             model = uiState.selectedImageUri,
-                            contentDescription = strings.selectedImageDesc,
+                            contentDescription = strings.lot3.selectedImageDesc,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(20.dp)),
@@ -312,7 +312,7 @@ fun CreatePostScreen(
 
                         CloseOverlayButton(
                             onClick = { viewModel.clearImage() },
-                            contentDescription = strings.removeImageDesc,
+                            contentDescription = strings.lot3.removeImageDesc,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(10.dp)
@@ -333,7 +333,7 @@ fun CreatePostScreen(
                         )
                         CloseOverlayButton(
                             onClick = { viewModel.clearVideoUrl() },
-                            contentDescription = strings.removeVideoDesc,
+                            contentDescription = strings.lot3.removeVideoDesc,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(10.dp)
@@ -381,12 +381,12 @@ fun CreatePostScreen(
                         icon = {
                             Icon(
                                 imageVector = Icons.Outlined.VideoLibrary,
-                                contentDescription = strings.addVideoLinkDesc,
+                                contentDescription = strings.lot3.addVideoLinkDesc,
                                 tint = HubWhite,
                                 modifier = Modifier.size(14.dp)
                             )
                         },
-                        label = strings.addVideoLinkLabel
+                        label = strings.lot3.addVideoLinkLabel
                     )
                 }
             }
@@ -398,14 +398,14 @@ fun CreatePostScreen(
                 containerColor = palette.bg1,
                 title = {
                     Text(
-                        strings.discardTitle,
+                        strings.lot3.discardTitle,
                         color = HubWhite,
                         fontWeight = FontWeight.ExtraBold
                     )
                 },
                 text = {
                     Text(
-                        strings.discardMessage,
+                        strings.lot3.discardMessage,
                         color = HubSecondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
@@ -422,12 +422,12 @@ fun CreatePostScreen(
                         },
                         modifier = Modifier.testTag("create_post_discard_confirm")
                     ) {
-                        Text(strings.leaveLabel, color = HubError, fontWeight = FontWeight.Bold)
+                        Text(strings.lot3.leaveLabel, color = HubError, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDiscardDialog = false }) {
-                        Text(strings.continueLabel, color = HubWhite)
+                        Text(strings.lot3.continueLabel, color = HubWhite)
                     }
                 }
             )
@@ -439,7 +439,7 @@ fun CreatePostScreen(
                 containerColor = palette.bg1,
                 title = {
                     Text(
-                        strings.addVideoTitle,
+                        strings.lot3.addVideoTitle,
                         color = HubWhite,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -447,7 +447,7 @@ fun CreatePostScreen(
                 text = {
                     Column {
                         Text(
-                            text = strings.addVideoHelp,
+                            text = strings.lot3.addVideoHelp,
                             color = HubSecondary,
                             fontSize = 13.sp
                         )
@@ -459,7 +459,7 @@ fun CreatePostScreen(
                                 videoDialogError = null
                             },
                             singleLine = true,
-                            label = { Text(strings.videoLinkLabel) },
+                            label = { Text(strings.lot3.videoLinkLabel) },
                             isError = videoDialogError != null,
                             supportingText = {
                                 videoDialogError?.let { Text(it, color = HubError) }
@@ -483,7 +483,7 @@ fun CreatePostScreen(
                         onClick = {
                             val normalized = VideoLinkDetector.normalizeManualUrl(videoDialogUrl)
                             if (normalized == null) {
-                                videoDialogError = strings.invalidVideoUrl
+                                videoDialogError = strings.lot3.invalidVideoUrl
                             } else {
                                 viewModel.setVideoUrl(normalized)
                                 showVideoDialog = false
@@ -491,7 +491,7 @@ fun CreatePostScreen(
                         },
                         modifier = Modifier.testTag("create_post_video_link_confirm")
                     ) {
-                        Text(strings.addLabel, color = palette.accent, fontWeight = FontWeight.Bold)
+                        Text(strings.lot3.addLabel, color = palette.accent, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {

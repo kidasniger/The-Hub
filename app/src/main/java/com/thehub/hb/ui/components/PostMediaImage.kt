@@ -76,8 +76,8 @@ fun PostMediaImage(
     if (remoteImageUnavailable) {
         MediaUnavailablePlaceholder(
             cornerRadius = cornerRadius,
-            title = strings.photoUnavailableTitle,
-            description = strings.photoUnavailableDesc
+            title = strings.lot3.photoUnavailableTitle,
+            description = strings.lot3.photoUnavailableDesc
         )
     } else {
         SubcomposeAsyncImage(
@@ -148,7 +148,7 @@ fun PostMediaImage(
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.FileDownload,
-                                    contentDescription = strings.saveImageDesc,
+                                    contentDescription = strings.lot3.saveImageDesc,
                                     tint = HubWhite,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -161,8 +161,8 @@ fun PostMediaImage(
                 // État « erreur » sans modifier la publication.
                 MediaUnavailablePlaceholder(
                     cornerRadius = cornerRadius,
-                    title = strings.photoUnavailableTitle,
-                    description = strings.photoUnavailableDesc
+                    title = strings.lot3.photoUnavailableTitle,
+                    description = strings.lot3.photoUnavailableDesc
                 )
             }
         )
