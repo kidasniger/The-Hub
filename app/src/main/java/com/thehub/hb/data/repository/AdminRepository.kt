@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -188,7 +189,13 @@ class AdminRepository(
         val email = user.email?.trim()?.lowercase()
             ?: return@withContext false
 
-        val existing = firestore.collection("admins").document(uid).get().await()
+        val existing = try {
+            firestore.collection("admins").document(uid).get().await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return@withContext false
+        }
         if (
             existing.getBoolean("active") == true
             && existing.getString("role") == "superadmin"

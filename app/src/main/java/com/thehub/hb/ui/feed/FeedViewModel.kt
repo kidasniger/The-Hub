@@ -13,6 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,7 +44,9 @@ class FeedViewModel(
     val currentUserId: String?
         get() = postRepository.currentUserId
 
-    val unreadConversationsCount: StateFlow<Int> = messageRepository?.getUnreadConversationsCount()
+    val unreadConversationsCount: StateFlow<Int> = messageRepository
+        ?.getUnreadConversationsCount()
+        ?.catch { emit(0) }
         ?.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
