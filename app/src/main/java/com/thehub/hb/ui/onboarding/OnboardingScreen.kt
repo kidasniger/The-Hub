@@ -13,72 +13,70 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.ui.components.AppLogo
-import com.thehub.hb.ui.theme.HubBlue
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubBorderLight
-import com.thehub.hb.ui.theme.HubCard
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.OfficialVerificationBadge
+import com.thehub.hb.ui.theme.HubAccent
 import com.thehub.hb.ui.theme.HubError
-import com.thehub.hb.ui.theme.HubMuted
-import com.thehub.hb.ui.theme.HubSecondary
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubInfo
+import com.thehub.hb.ui.theme.HubStroke
 import com.thehub.hb.ui.theme.HubSuccess
-import com.thehub.hb.ui.theme.HubSurfaceDark
-import com.thehub.hb.ui.theme.HubSurfaceElevated
-import com.thehub.hb.ui.theme.HubViolet
-import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.HubTextPrimary
+import com.thehub.hb.ui.theme.HubTextSecondary
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubThemeBackground
-import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 import kotlinx.coroutines.launch
 
 private data class OnboardingPage(
-    val title: String,
-    val description: String,
-    val type: Int
+    val titleTop: String,
+    val titleGrad: String,
+    val description: String
 )
 
 @Composable
@@ -86,29 +84,13 @@ fun OnboardingScreen(
     dataStoreManager: DataStoreManager,
     onFinish: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
     val scope = rememberCoroutineScope()
-    val colors = LocalHubColors.current
+    // La maquette affiche 3 points : 3 pages.
     val pages = listOf(
-        OnboardingPage(
-            "Bienvenue sur The Hub",
-            "Un espace simple pour partager, découvrir et échanger avec ta communauté.",
-            0
-        ),
-        OnboardingPage(
-            "Découvre ce qui compte",
-            "Un fil clair, des publications lisibles et les interactions essentielles à portée de main.",
-            1
-        ),
-        OnboardingPage(
-            "Partage en quelques secondes",
-            "Une idée, une photo ou un moment : compose ta publication sans détour.",
-            2
-        ),
-        OnboardingPage(
-            "Ta communauté, ton rythme",
-            "J’aime, commentaires, republications et conversations : tout reste à portée de main.",
-            3
-        )
+        OnboardingPage(strings.ob1TitleTop, strings.ob1TitleGrad, strings.ob1Body),
+        OnboardingPage(strings.ob2TitleTop, strings.ob2TitleGrad, strings.ob2Body),
+        OnboardingPage(strings.ob3TitleTop, strings.ob3TitleGrad, strings.ob3Body)
     )
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -126,13 +108,12 @@ fun OnboardingScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // En-tête : logo 30 px + « The Hub », action Passer (02-onboarding.html).
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
@@ -140,22 +121,18 @@ fun OnboardingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(HubWhite.copy(alpha = if (colors.isGlass) 0.10f else 0.06f))
-                            .border(1.dp, HubBorderLight, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AppLogo(size = 30.dp, animated = false)
-                    }
+                    AppLogo(size = 30.dp, animated = false)
                     Text(
-                        text = "THE HUB",
-                        color = HubSecondary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.4.sp
+                        text = buildAnnotatedString {
+                            append("The ")
+                            withStyle(style = SpanStyle(brush = hubPrimaryGradient())) {
+                                append("Hub")
+                            }
+                        },
+                        color = HubTextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.2).sp
                     )
                 }
 
@@ -164,541 +141,334 @@ fun OnboardingScreen(
                     enter = fadeIn(animationSpec = tween(200)),
                     exit = fadeOut(animationSpec = tween(150))
                 ) {
-                    TextButton(
-                        onClick = { completeOnboarding() },
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "Passer",
-                            color = HubSecondary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    Text(
+                        text = strings.onboardingSkip,
+                        color = HubTextTertiary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable { completeOnboarding() }
+                            .padding(horizontal = 10.dp, vertical = 10.dp)
+                    )
                 }
             }
 
-            HorizontalPager(
-                state = pagerState,
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) { index ->
-                val page = pages[index]
-                val isCurrent = pagerState.currentPage == index
-                val visualAlpha by animateFloatAsState(
-                    targetValue = if (isCurrent) 1f else 0.55f,
-                    animationSpec = tween(280),
-                    label = "onboarding_alpha"
-                )
-                val scale by animateFloatAsState(
-                    targetValue = if (isCurrent) 1f else 0.94f,
-                    animationSpec = tween(320, easing = FastOutSlowInEasing),
-                    label = "onboarding_scale"
-                )
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    .fillMaxSize()
+                    .padding(start = 22.dp, end = 22.dp, top = 26.dp, bottom = 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Points de pagination : actif 30×5 dégradé, inactifs 7×5 verre bordé.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
+                    repeat(pages.size) { index ->
+                        val selected = pagerState.currentPage == index
+                        val width by animateDpAsState(
+                            targetValue = if (selected) 30.dp else 7.dp,
+                            animationSpec = tween(230),
+                            label = "onboarding_indicator_width"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 2.dp)
+                                .height(5.dp)
+                                .width(width)
+                                .then(onboardingDotBackground(selected))
+                        )
+                    }
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) { index ->
+                    val page = pages[index]
+                    val isCurrent = pagerState.currentPage == index
+                    val visualAlpha by animateFloatAsState(
+                        targetValue = if (isCurrent) 1f else 0.55f,
+                        animationSpec = tween(280),
+                        label = "onboarding_alpha"
+                    )
+                    val scale by animateFloatAsState(
+                        targetValue = if (isCurrent) 1f else 0.94f,
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        label = "onboarding_scale"
+                    )
+
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(390.dp)
+                            .fillMaxSize()
                             .graphicsLayer {
                                 this.alpha = visualAlpha
                                 scaleX = scale
                                 scaleY = scale
-                            }
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        OnboardingIllustration(type = page.type, glass = colors.isGlass)
-                    }
+                        // Carte de démonstration (.glass, rayon 26, ombre --shadow).
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(26.dp),
+                            variant = GlassVariant.Card
+                        ) {
+                            Column(modifier = Modifier.padding(15.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    DemoAvatar(
+                                        initials = "FB",
+                                        size = 38.dp,
+                                        fontSize = 13.sp
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = strings.demoName,
+                                                color = HubTextPrimary,
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            // .badge-verified { color: var(--info) }
+                                            OfficialVerificationBadge(
+                                                size = 12.dp,
+                                                tint = HubInfo
+                                            )
+                                        }
+                                        Text(
+                                            text = "${strings.demoHandle} · ${strings.demoTime}",
+                                            color = HubTextTertiary,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(top = 1.dp)
+                                        )
+                                    }
+                                }
 
-                    Spacer(Modifier.height(20.dp))
-
-                    Text(
-                        text = page.title,
-                        color = HubWhite,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 38.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Text(
-                        text = page.description,
-                        color = HubSecondary,
-                        fontSize = 16.sp,
-                        lineHeight = 23.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 10.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(pages.size) { index ->
-                    val selected = pagerState.currentPage == index
-                    val width by animateDpAsState(
-                        targetValue = if (selected) 28.dp else 7.dp,
-                        animationSpec = tween(230),
-                        label = "onboarding_indicator_width"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 3.dp)
-                            .height(7.dp)
-                            .width(width)
-                            .clip(RoundedCornerShape(50))
-                            .background(
-                                if (selected) {
-                                    Brush.horizontalGradient(listOf(HubViolet, HubBlue))
-                                } else {
-                                    null
-                                } ?: Brush.linearGradient(
-                                    listOf(HubMuted.copy(alpha = 0.45f), HubMuted.copy(alpha = 0.45f))
+                                Text(
+                                    text = strings.demoPostText,
+                                    color = HubTextSecondary,
+                                    fontSize = 11.5.sp,
+                                    lineHeight = 17.5.sp,
+                                    modifier = Modifier.padding(top = 10.dp)
                                 )
-                            )
-                    )
-                }
-            }
 
-            val last = pagerState.currentPage == pages.lastIndex
-            Button(
-                onClick = {
-                    if (last) {
-                        completeOnboarding()
-                    } else {
-                        scope.launch {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                Row(
+                                    modifier = Modifier.padding(top = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // .pa hot / .pa cool / .pa share de la maquette.
+                                    DemoAction(
+                                        icon = Icons.Filled.Favorite,
+                                        label = "128",
+                                        color = HubError
+                                    )
+                                    DemoAction(
+                                        icon = Icons.Outlined.ChatBubbleOutline,
+                                        label = "24",
+                                        color = HubInfo
+                                    )
+                                    DemoAction(
+                                        icon = Icons.AutoMirrored.Outlined.Send,
+                                        label = "12",
+                                        color = HubSuccess
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .shadow(14.dp, RoundedCornerShape(30.dp), clip = false),
-                shape = RoundedCornerShape(30.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color.White
-                )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (last) "Commencer" else "Continuer",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
 
-@Composable
-private fun OnboardingIllustration(
-    type: Int,
-    glass: Boolean
-) {
-    val frameShape = RoundedCornerShape(34.dp)
-    val frameBackground = if (glass) HubWhite.copy(alpha = 0.06f) else HubSurfaceElevated
-    val frameBorder = if (glass) HubWhite.copy(alpha = 0.20f) else HubBorder
+                        Spacer(Modifier.height(24.dp))
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clip(frameShape)
-            .background(frameBackground)
-            .border(1.dp, frameBorder, frameShape)
-            .padding(20.dp)
-    ) {
-        // Accent glows / depth.
-        Box(
-            modifier = Modifier
-                .size(184.dp)
-                .align(Alignment.TopStart)
-                .offset(x = (-70).dp, y = (-70).dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(HubViolet.copy(alpha = if (glass) 0.22f else 0.12f), Color.Transparent)
-                    )
-                )
-        )
-        Box(
-            modifier = Modifier
-                .size(180.dp)
-                .align(Alignment.BottomEnd)
-                .offset(x = 90.dp, y = 90.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(HubBlue.copy(alpha = if (glass) 0.20f else 0.10f), Color.Transparent)
-                    )
-                )
-        )
+                        // Deux tuiles .glass-soft (rayon 18) de la maquette.
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OnboardingTile(
+                                icon = Icons.Outlined.Image,
+                                title = strings.tileCreateTitle,
+                                subtitle = strings.tileCreateSub,
+                                modifier = Modifier.weight(1f)
+                            )
+                            OnboardingTile(
+                                icon = Icons.Outlined.AlternateEmail,
+                                title = strings.tileCommunityTitle,
+                                subtitle = strings.tileCommunitySub,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
 
-        when (type) {
-            0 -> WelcomeIllustration()
-            1 -> FeedIllustration()
-            2 -> ShareIllustration()
-            else -> CommunityIllustration()
-        }
-    }
-}
+                        Spacer(Modifier.height(24.dp))
 
-@Composable
-private fun WelcomeIllustration() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .size(270.dp)
-                .clip(CircleShape)
-                .background(HubWhite.copy(alpha = 0.035f))
-                .border(1.dp, HubBorderLight, CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(150.dp)
-                .clip(CircleShape)
-                .background(Brush.radialGradient(listOf(HubViolet.copy(alpha = 0.20f), HubBlue.copy(alpha = 0.07f), Color.Transparent)))
-                .border(1.dp, HubWhite.copy(alpha = 0.12f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(142.dp)
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(HubCard)
-                    .border(1.dp, HubBorderLight, RoundedCornerShape(32.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                AppLogo(size = 108.dp, animated = true)
-            }
-        }
-
-        FloatingMiniChip(
-            icon = Icons.Default.Favorite,
-            text = "J'aime",
-            modifier = Modifier.align(Alignment.TopEnd).offset(x = (-18).dp, y = 50.dp)
-        )
-        FloatingMiniChip(
-            icon = Icons.Default.ChatBubble,
-            text = "Échange",
-            modifier = Modifier.align(Alignment.BottomStart).offset(x = 8.dp, y = (-30).dp)
-        )
-        FloatingMiniChip(
-            icon = Icons.Default.Share,
-            text = "Partage",
-            modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-16).dp, y = (-70).dp)
-        )
-    }
-}
-
-@Composable
-private fun FeedIllustration() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier
-                .width(286.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(HubCard)
-                .border(1.dp, HubBorderLight, RoundedCornerShape(28.dp))
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarBubble(HubViolet, size = 34.dp)
-                Spacer(Modifier.width(9.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("The Hub", color = HubWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text("il y a 2 min", color = HubMuted, fontSize = 10.sp)
-                }
-                Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = HubMuted, modifier = Modifier.size(18.dp))
-            }
-
-            Text(
-                "Une communauté qui tient l'essentiel dans une seule place.",
-                color = HubWhite,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(146.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(HubViolet.copy(alpha = 0.65f), HubBlue.copy(alpha = 0.55f))
+                        Text(
+                            text = buildAnnotatedString {
+                                append("${page.titleTop}\n")
+                                withStyle(style = SpanStyle(brush = hubPrimaryGradient())) {
+                                    append(page.titleGrad)
+                                }
+                            },
+                            color = HubTextPrimary,
+                            fontSize = 25.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            lineHeight = 29.5.sp,
+                            letterSpacing = (-0.6).sp,
+                            textAlign = TextAlign.Center
                         )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Image, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(42.dp))
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                MiniMetric(Icons.Default.Favorite, "128", HubError)
-                MiniMetric(Icons.Default.ChatBubble, "24", HubBlue)
-                MiniMetric(Icons.Default.Share, "12", HubSuccess)
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = (-14).dp, y = (-18).dp)
-                .size(62.dp)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(HubViolet, HubBlue)))
-                .border(2.dp, Color.White.copy(alpha = 0.72f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-        }
-    }
-}
-
-@Composable
-private fun ShareIllustration() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .width(286.dp)
-                .height(292.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(HubCard)
-                .border(1.dp, HubBorderLight, RoundedCornerShape(30.dp))
-                .padding(18.dp)
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AvatarBubble(HubBlue, size = 34.dp)
-                    Spacer(Modifier.width(9.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Créer une publication", color = HubWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("Partager avec ta communauté", color = HubMuted, fontSize = 9.sp)
+                        Text(
+                            text = page.description,
+                            color = HubTextSecondary,
+                            fontSize = 13.5.sp,
+                            lineHeight = 21.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .padding(top = 11.dp)
+                                .fillMaxWidth()
+                        )
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(92.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(HubSurfaceDark)
-                        .border(1.dp, HubBorder, RoundedCornerShape(18.dp))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        "Écris quelque chose de simple…",
-                        color = HubMuted,
-                        fontSize = 10.sp
-                    )
-                }
-
-                Spacer(Modifier.height(11.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    QuickActionChip(Icons.Default.Image, "Photo")
-                    QuickActionChip(Icons.Default.PlayArrow, "Vidéo")
-                    QuickActionChip(Icons.Default.Share, "Partager")
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .width(132.dp)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Publier", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
+                val last = pagerState.currentPage == pages.lastIndex
+                HubButton(
+                    text = if (last) strings.onboardingStart else strings.onboardingContinue,
+                    onClick = {
+                        if (last) {
+                            completeOnboarding()
+                        } else {
+                            scope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                        }
+                    },
+                    trailingIcon = if (!last) {
+                        {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    } else null
+                )
             }
         }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = 18.dp, y = 40.dp)
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(HubViolet.copy(alpha = 0.18f))
-                .border(1.dp, HubViolet.copy(alpha = 0.45f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = HubWhite, modifier = Modifier.size(23.dp))
-        }
     }
 }
 
+/**
+ * Fond des points de pagination : dégradé de marque si actif,
+ * verre --glass-strong + contour --stroke sinon (02-onboarding.html).
+ */
 @Composable
-private fun CommunityIllustration() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .size(136.dp)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(HubViolet, HubBlue)))
-                .border(3.dp, Color.White.copy(alpha = 0.78f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(50.dp))
-        }
-
-        CommunityNode(
-            color = HubBlue,
-            label = "Amis",
-            modifier = Modifier.align(Alignment.TopStart).offset(x = 34.dp, y = 34.dp)
-        )
-        CommunityNode(
-            color = HubSuccess,
-            label = "Messages",
-            modifier = Modifier.align(Alignment.TopEnd).offset(x = (-20).dp, y = 52.dp)
-        )
-        CommunityNode(
-            color = HubError,
-            label = "Réactions",
-            modifier = Modifier.align(Alignment.BottomStart).offset(x = 44.dp, y = (-28).dp)
-        )
-        CommunityNode(
-            color = HubViolet,
-            label = "Partages",
-            modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-24).dp, y = (-48).dp)
-        )
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(240.dp)
-                .border(1.dp, HubWhite.copy(alpha = 0.08f), CircleShape)
-        )
+private fun onboardingDotBackground(selected: Boolean): Modifier {
+    val shape = RoundedCornerShape(4.dp)
+    return if (selected) {
+        Modifier
+            .clip(shape)
+            .background(brush = hubPrimaryGradient(), shape = shape)
+    } else {
+        Modifier
+            .clip(shape)
+            .background(HubGlassStrong, shape)
+            .border(1.dp, HubStroke, shape)
     }
 }
 
+/** Avatar de démonstration .av-g3 (#EC4899 → #F97316), initiale blanche 800. */
 @Composable
-private fun AvatarBubble(color: Color, size: androidx.compose.ui.unit.Dp = 30.dp) {
+private fun DemoAvatar(
+    initials: String,
+    size: androidx.compose.ui.unit.Dp,
+    fontSize: androidx.compose.ui.unit.TextUnit
+) {
     Box(
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.75f)),
+            .background(
+                brush = Brush.linearGradient(
+                    listOf(Color(0xFFEC4899), Color(0xFFF97316))
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+        Text(
+            text = initials,
+            color = Color.White,
+            fontSize = fontSize,
+            fontWeight = FontWeight.ExtraBold
+        )
     }
 }
 
+/** Action de la carte démo (.pa hot / cool / share) : icône 13 + valeur 10.5/700. */
 @Composable
-private fun FloatingMiniChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    modifier: Modifier
+private fun DemoAction(
+    icon: ImageVector,
+    label: String,
+    color: Color
 ) {
     Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(HubCard)
-            .border(1.dp, HubBorderLight, RoundedCornerShape(18.dp))
-            .padding(horizontal = 11.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = HubWhite, modifier = Modifier.size(14.dp))
-        Text(text, color = HubSecondary, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(13.dp)
+        )
+        Text(
+            text = label,
+            color = color,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
+/** Tuile .glass-soft : icône 16 accent, titre 11/800, sous-titre 9 --text-3. */
 @Composable
-private fun MiniMetric(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String,
-    tint: Color
+private fun OnboardingTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
-        Text(value, color = HubSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun QuickActionChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(HubSurfaceDark)
-            .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 7.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = HubSecondary, modifier = Modifier.size(12.dp))
-        Text(label, color = HubSecondary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun CommunityNode(
-    color: Color,
-    label: String,
-    modifier: Modifier
-) {
-    Column(
+    GlassSurface(
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+        shape = RoundedCornerShape(18.dp),
+        variant = GlassVariant.Soft
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.18f))
-                .border(1.dp, color.copy(alpha = 0.55f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.ChatBubble, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+        Column(modifier = Modifier.padding(12.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = HubAccent,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = title,
+                color = HubTextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+            Text(
+                text = subtitle,
+                color = HubTextTertiary,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
-        Spacer(Modifier.height(5.dp))
-        Text(label, color = HubSecondary, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
     }
 }

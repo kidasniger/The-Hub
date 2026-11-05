@@ -17,13 +17,18 @@ import androidx.compose.ui.unit.dp
  * avec coche blanche, comme le pictogramme « Vérifié » du design-system
  * (.pill.ok / .badge-verified). Dessiné en vectoriel pour éviter tout décodage
  * bitmap au démarrage du Feed.
+ *
+ * @param tint couleur de survcharge optionnelle — la maquette utilise var(--info)
+ *             pour le badge du fil de démonstration (02-onboarding.html) ;
+ *             null (défaut) conserve le disque --success d'origine.
  */
 @Composable
 fun OfficialVerificationBadge(
     modifier: Modifier = Modifier,
-    size: Dp = 18.dp
+    size: Dp = 18.dp,
+    tint: Color? = null
 ) {
-    val successColor = com.thehub.hb.ui.theme.HubSuccess
+    val successColor = tint ?: com.thehub.hb.ui.theme.HubSuccess
     val white = Color.White
 
     Canvas(
@@ -34,7 +39,7 @@ fun OfficialVerificationBadge(
         val minSide = this.size.minDimension
         val center = Offset(this.size.width / 2f, this.size.height / 2f)
 
-        // Disque de vérification (vert succès de la maquette).
+        // Disque de vérification (succès, ou teinte de surcharge de la maquette).
         drawCircle(
             color = successColor,
             radius = minSide / 2f,

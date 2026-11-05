@@ -1,24 +1,28 @@
 package com.thehub.hb.ui.splash
 
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,28 +35,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.thehub.hb.BuildConfig
 import com.thehub.hb.data.local.DataStoreManager
 import com.thehub.hb.data.repository.AuthRepository
 import com.thehub.hb.ui.components.AppLogo
-import com.thehub.hb.utils.SessionValidationPolicy
-import com.thehub.hb.ui.theme.AppThemeMode
-import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubBorderLight
-import com.thehub.hb.ui.theme.HubSurfaceElevated
-import com.thehub.hb.ui.theme.HubMuted
-import com.thehub.hb.ui.theme.HubViolet
-import com.thehub.hb.ui.theme.HubBlue
+import com.thehub.hb.ui.theme.AuroraGlowViolet
+import com.thehub.hb.ui.theme.HubGlassSoft
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubTextPrimary
+import com.thehub.hb.ui.theme.HubTextTertiary
+import com.thehub.hb.ui.theme.HubFabGlow
 import com.thehub.hb.ui.theme.HubThemeBackground
-import com.thehub.hb.ui.theme.HubWhite
-import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
+import com.thehub.hb.utils.SessionValidationPolicy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
@@ -121,7 +126,7 @@ fun SplashScreen(
         }
     }
 
-    val colors = LocalHubColors.current
+    val strings = LocalHubStrings.current
     var showBrand by remember { mutableStateOf(false) }
     val brandAlpha by animateFloatAsState(
         targetValue = if (showBrand) 1f else 0f,
@@ -134,168 +139,137 @@ fun SplashScreen(
         showBrand = true
     }
 
-
     HubThemeBackground(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        val isGlass = colors.isGlass
-        val panelShape = RoundedCornerShape(44.dp)
-
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp)
+                .alpha(brandAlpha)
         ) {
-            // Même langage visuel que l'onboarding : halos de marque + surface principale.
+            // Bloc central : logo flottant, marque, barre de chargement (01-splash.html).
             Box(
                 modifier = Modifier
-                    .size(390.dp)
-                    .align(Alignment.Center)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(
-                                HubViolet.copy(alpha = if (isGlass) 0.28f else 0.16f),
-                                HubBlue.copy(alpha = if (isGlass) 0.18f else 0.08f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center)
-                    .clip(panelShape)
-                    .background(
-                        if (isGlass) HubWhite.copy(alpha = 0.055f) else HubCard
-                    )
-                    .border(
-                        1.dp,
-                        if (isGlass) HubWhite.copy(alpha = 0.18f) else HubBorderLight,
-                        panelShape
-                    )
-                    .alpha(brandAlpha)
-                    .padding(horizontal = 30.dp, vertical = 42.dp)
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    verticalArrangement = Arrangement.spacedBy(26.dp)
                 ) {
+                    // .float : logo 112 px, rayon 34, anneau inset -18 px rayon 44.
                     Box(
-                        modifier = Modifier
-                            .size(154.dp)
-                            .clip(RoundedCornerShape(38.dp))
-                            .background(
-                                if (isGlass) HubWhite.copy(alpha = 0.08f)
-                                else HubSurfaceElevated
-                            )
-                            .border(
-                                1.dp,
-                                if (isGlass) HubWhite.copy(alpha = 0.20f) else HubBorderLight,
-                                RoundedCornerShape(38.dp)
-                            ),
+                        modifier = Modifier.size(148.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        AppLogo(size = 112.dp, animated = true)
+                        Box(
+                            modifier = Modifier
+                                .size(148.dp)
+                                .clip(RoundedCornerShape(44.dp))
+                                .background(HubGlassSoft)
+                                .border(
+                                    width = 1.5.dp,
+                                    color = HubStrokeSoft,
+                                    shape = RoundedCornerShape(44.dp)
+                                )
+                        )
+                        Box(
+                            modifier = Modifier.shadow(
+                                elevation = 30.dp,
+                                shape = RoundedCornerShape(112.dp / 3),
+                                clip = false,
+                                ambientColor = Color.Transparent,
+                                // 0 30px 70px rgba(124,92,255,.55)
+                                spotColor = HubFabGlow.copy(alpha = 0.55f)
+                            )
+                        ) {
+                            AppLogo(size = 112.dp, animated = true)
+                        }
                     }
 
-                    Spacer(Modifier.height(28.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = strings.brandWordmark,
+                            color = HubTextPrimary,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 6.5.sp,
+                            // margin-left 6 px : compense le letter-spacing final.
+                            modifier = Modifier.padding(start = 6.dp)
+                        )
 
-                    Text(
-                        text = "THE HUB",
-                        color = HubWhite,
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 6.5.sp
-                    )
+                        Spacer(Modifier.height(9.dp))
 
-                    Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = strings.splashTagline.uppercase(),
+                            color = HubTextTertiary,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 2.2.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
-                    Box(
-                        modifier = Modifier
-                            .width(56.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Brush.horizontalGradient(listOf(HubViolet, HubBlue)))
-                    )
+                    Spacer(Modifier.height(16.dp))
 
-                    Spacer(Modifier.height(18.dp))
-
-                    Text(
-                        text = when {
-                            isGlass -> "CONNECTÉ. CRÉATIF. ENSEMBLE."
-                            colors.isLight -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
-                            else -> "PARTAGE. DÉCOUVRE. ÉCHANGE."
-                        },
-                        color = HubSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 2.0.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            }
-
-            var activeIndicator by remember { mutableStateOf(0) }
-
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(850L)
-                    activeIndicator = (activeIndicator + 1) % 3
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 30.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(3) { index ->
-                    val isActive = activeIndicator == index
-                    val indicatorWidth by androidx.compose.animation.core.animateDpAsState(
-                        targetValue = if (isActive) 28.dp else 7.dp,
-                        animationSpec = tween(
-                            durationMillis = 280,
-                            easing = FastOutSlowInEasing
+                    // .progress : 150 px, hauteur 7, fond --glass-strong,
+                    // contour --stroke-soft, remplissage dégradé + lueur.
+                    val progressTransition = rememberInfiniteTransition(label = "splash_progress")
+                    val progressFraction by progressTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 0.64f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 1600, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
                         ),
-                        label = "splash_indicator_width_$index"
-                    )
-                    val indicatorAlpha by animateFloatAsState(
-                        targetValue = if (isActive) 1f else 0.45f,
-                        animationSpec = tween(280, easing = FastOutSlowInEasing),
-                        label = "splash_indicator_alpha_$index"
+                        label = "splash_progress_fraction"
                     )
 
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = 3.dp)
+                            .width(150.dp)
                             .height(7.dp)
-                            .width(indicatorWidth)
-                            .clip(RoundedCornerShape(50))
-                            .alpha(indicatorAlpha)
-                            .background(
-                                if (isActive) {
-                                    Brush.horizontalGradient(listOf(HubViolet, HubBlue))
-                                } else {
-                                    Brush.linearGradient(
-                                        listOf(
-                                            HubMuted.copy(alpha = 0.95f),
-                                            HubMuted.copy(alpha = 0.95f)
-                                        )
-                                    )
-                                }
-                            )
-                    )
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(HubGlassStrong)
+                            .border(1.dp, HubStrokeSoft, RoundedCornerShape(6.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progressFraction)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(6.dp))
+                                .shadow(
+                                    elevation = 6.dp,
+                                    shape = RoundedCornerShape(6.dp),
+                                    clip = false,
+                                    ambientColor = Color.Transparent,
+                                    // box-shadow 0 0 12px rgba(139,92,246,.7)
+                                    spotColor = AuroraGlowViolet.copy(alpha = 0.7f)
+                                )
+                                .background(brush = hubPrimaryGradient())
+                        )
+                    }
                 }
             }
+
+            // Pied : version courante, comme « v1.0.173 · build 173 · Aurora Glass ».
+            Text(
+                text = strings.splashVersionLine.format(
+                    BuildConfig.VERSION_NAME,
+                    "${BuildConfig.VERSION_CODE}"
+                ),
+                color = HubTextTertiary,
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 34.dp)
+            )
         }
     }
 }

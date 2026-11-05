@@ -1,6 +1,5 @@
 package com.thehub.hb.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,19 +9,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -51,30 +49,25 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubBorderLight
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubLightGray
-import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.HubAccent
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubStrokeStrong
+import com.thehub.hb.ui.theme.HubTextPrimary
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.math.abs
 
-private val FRENCH_MONTHS = listOf(
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-)
-
 /**
- * Custom iOS-style Wheel Date Picker in Jetpack Compose.
+ * Sélecteur de date à roue « iOS », habillé « Aurora Glass » :
+ * bande de sélection --glass-strong (rayon 12), séparateurs --stroke-soft,
+ * valeur sélectionnée --accent, volets fondus vers la couleur du conteneur.
  *
- * @param selectedDate The currently selected date.
- * @param onDateSelected Callback fired when the date changes.
- * @param modifier Modifier for styling.
- * @param minYear The minimum year displayed (default: 1900).
- * @param maxYear The maximum year displayed (default: current year).
+ * Signatures publiques conservées : [WheelDatePicker],
+ * [WheelDatePickerBottomSheet], [parseBirthdateOrDefault], [formatBirthdate].
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -87,10 +80,13 @@ fun WheelDatePicker(
     itemHeight: Dp = 44.dp,
     containerBackgroundColor: Color = Color.Unspecified
 ) {
+    val palette = LocalHubColors.current
+    val strings = LocalHubStrings.current
+
     val effectiveContainerBg = if (containerBackgroundColor != Color.Unspecified) {
         containerBackgroundColor
     } else {
-        MaterialTheme.colorScheme.surface
+        palette.bg1
     }
 
     val safeMinYear = minYear.coerceAtMost(maxYear)
@@ -108,6 +104,7 @@ fun WheelDatePicker(
     val daysList = remember(maxDaysInCurrentMonth) {
         (1..maxDaysInCurrentMonth).toList()
     }
+    val monthsList = strings.wheelMonths
 
     val totalHeight = itemHeight * 5
 
@@ -118,38 +115,38 @@ fun WheelDatePicker(
             .testTag("wheel_date_picker"),
         contentAlignment = Alignment.Center
     ) {
-        // Subtle selection area highlight
+        // Bande de sélection : --glass-strong, rayon 12.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(itemHeight)
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    color = HubGlassStrong,
                     shape = RoundedCornerShape(12.dp)
                 )
         )
 
-        // Upper horizontal separator line
+        // Séparateur supérieur
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.Center)
                 .offset(y = -(itemHeight / 2))
                 .height(1.dp)
-                .background(HubBorderLight)
+                .background(HubStrokeSoft)
         )
 
-        // Lower horizontal separator line
+        // Séparateur inférieur
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.Center)
                 .offset(y = (itemHeight / 2))
                 .height(1.dp)
-                .background(HubBorderLight)
+                .background(HubStrokeSoft)
         )
 
-        // Three columns in French date order: Jour / Mois / Année
+        // Trois colonnes en ordre de date français : Jour / Mois / Année
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
@@ -169,9 +166,9 @@ fun WheelDatePicker(
                     .testTag("wheel_day_column")
             )
 
-            // Mois (nom complet, ex: "Juin")
+            // Mois (nom complet, ex: « Juin »)
             WheelColumn(
-                items = FRENCH_MONTHS,
+                items = monthsList,
                 selectedIndex = currentMonth - 1,
                 onSelectedIndexChanged = { monthIdx ->
                     val newMonth = monthIdx + 1
@@ -207,7 +204,7 @@ fun WheelDatePicker(
             )
         }
 
-        // Top edge fade gradient
+        // Fondu du bord supérieur
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -224,7 +221,7 @@ fun WheelDatePicker(
                 )
         )
 
-        // Bottom edge fade gradient
+        // Fondu du bord inférieur
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -340,7 +337,7 @@ private fun <T> WheelColumn(
 
             val isSelected = index == centeredIndex
 
-            // Smooth iOS-like wheel falloff instead of three fixed states.
+            // Fondu de roue continu (comme la roue iOS d'origine).
             val alpha = when {
                 isSelected -> 1f
                 distanceInItems <= 1f -> 0.55f
@@ -386,9 +383,9 @@ private fun <T> WheelColumn(
                 Text(
                     text = labelProvider(items[index]),
                     color = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
+                        HubAccent
                     } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+                        HubTextPrimary.copy(alpha = alpha)
                     },
                     fontSize = fontSize,
                     fontWeight = fontWeight,
@@ -408,7 +405,8 @@ private fun <T> WheelColumn(
 }
 
 /**
- * iOS-styled Wheel Date Picker presented in a Modal Bottom Sheet.
+ * Sélecteur à roue présenté dans une feuille inférieure modale translucide
+ * (verre de la palette : --glass), poignée --stroke-strong, bouton de validation.
  *
  * @param initialDate The starting date to display.
  * @param onDateConfirmed Callback invoked with the confirmed [LocalDate].
@@ -422,20 +420,22 @@ fun WheelDatePickerBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val palette = LocalHubColors.current
+    val strings = LocalHubStrings.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var tempSelectedDate by remember(initialDate) { mutableStateOf(initialDate) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = palette.card,
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
                     .size(width = 40.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(HubBorder)
+                    .background(HubStrokeStrong)
             )
         },
         modifier = modifier.testTag("wheel_date_picker_bottom_sheet")
@@ -447,26 +447,26 @@ fun WheelDatePickerBottomSheet(
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header: Title
+            // Titre de la feuille
             Text(
-                text = "Date de naissance",
-                color = HubWhite,
+                text = strings.birthdateLabel,
+                color = HubTextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 20.dp)
             )
 
-            // The iOS-style 3-column wheel picker
+            // Roue à 3 colonnes façon iOS
             WheelDatePicker(
                 selectedDate = tempSelectedDate,
                 onDateSelected = { tempSelectedDate = it },
-                containerBackgroundColor = MaterialTheme.colorScheme.surface,
+                containerBackgroundColor = palette.card,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Validation button
+            // Bouton de validation
             HubButton(
-                text = "Valider",
+                text = strings.wheelConfirm,
                 onClick = {
                     onDateConfirmed(tempSelectedDate)
                     onDismiss()
