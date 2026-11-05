@@ -1,7 +1,6 @@
 package com.thehub.hb.ui.notifications
 
 import androidx.compose.foundation.background
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,27 +22,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -54,19 +45,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.NotificationItem
 import com.thehub.hb.data.repository.rememberLiveUser
-import com.thehub.hb.ui.components.HubVerifiedUserName
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubMuted
-import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceDark
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubGlassSoft
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextSecondary
+import com.thehub.hb.ui.theme.HubTextTertiary
+import com.thehub.hb.ui.theme.HubViolet
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 import com.thehub.hb.utils.RelativeTime
 
+/**
+ * Écran 15 « Notifications » — maquette Aurora Glass.
+ *
+ * App bar : titre 19/800 + sous-titre « N nouvelles », bouton « tout marquer
+ * comme lu » (.iconbtn, ✓✓) ; contrôle segmenté .seg (Toutes / Non lues /
+ * Activité / Messages) ; liste par période : titre de section 12/800
+ * majuscules puis carte de verre r22 contenant les rangées séparées par des
+ * dividers (avatar 40, texte 12.5/600 avec nom en ExtraBold, citation 11 en
+ * text-3, heure à droite, pastille non-lue dégradé 8 dp lueur violette).
+ * Chargement = squelettes, vide = HubEmptyState par filtre.
+ */
 @Composable
 fun NotificationsScreen(
     viewModel: NotificationsViewModel,
@@ -78,28 +84,72 @@ fun NotificationsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val strings = LocalHubStrings.current
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("notifications_screen")
     ) {
-        // Top App Bar
-        NotificationsHeader(
-            unreadCount = uiState.unreadCount,
-            onMarkAllAsRead = { viewModel.onMarkAllAsRead() }
-        )
+        // ---- App bar : titre + sous-titre + tout marquer comme lu ----
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = strings.notificationsTitle,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.3).sp,
+                    color = HubWhite
+                )
+                if (uiState.unreadCount > 0) {
+                    Spacer(Modifier.height(1.dp))
+                    Text(
+                        text = if (uiState.unreadCount == 1) {
+                            strings.lot4.notifNewOne
+                        } else {
+                            strings.lot4.notifNewFormat.format(uiState.unreadCount)
+                        },
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = HubTextTertiary
+                    )
+                }
+            }
+            if (uiState.unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(HubGlassSoft)
+                        .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+                        .clickable { viewModel.onMarkAllAsRead() }
+                        .testTag("mark_all_read_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DoneAll,
+                        contentDescription = strings.lot4.markAllReadDesc,
+                        tint = HubWhite,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
 
+        // ---- Contrôle segmenté .seg ----
         NotificationFilterBar(
             selectedFilter = uiState.selectedFilter,
             onFilterSelected = viewModel::setFilter
         )
 
-        HorizontalDivider(color = HubBorder, thickness = 1.dp)
-
-        // Content
+        // ---- Contenu ----
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -107,22 +157,18 @@ fun NotificationsScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag("notifications_loading_indicator"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
+                    NotificationsLoadingSkeleton()
                 }
 
                 uiState.visibleNotifications.isEmpty() -> {
-                    EmptyNotifications(filter = uiState.selectedFilter)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("empty_notifications"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyNotifications(filter = uiState.selectedFilter)
+                    }
                 }
 
                 else -> {
@@ -130,8 +176,9 @@ fun NotificationsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .testTag("notifications_list"),
-                        contentPadding = PaddingValues(vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(
+                            top = 4.dp, bottom = 96.dp
+                        )
                     ) {
                         if (uiState.groupedNotifications.isNotEmpty()) {
                             uiState.groupedNotifications.forEach { (periodTitle, itemsInPeriod) ->
@@ -139,39 +186,60 @@ fun NotificationsScreen(
                                     PeriodHeader(title = periodTitle)
                                 }
 
-                                items(
-                                    items = itemsInPeriod,
-                                    key = { it.id }
-                                ) { notification ->
-                                    NotificationRow(
-                                        notification = notification,
-                                        onClick = {
-                                            viewModel.onNotificationClicked(notification)
-                                            when (notification.type) {
-                                                NotificationItem.TYPE_LIKE -> {
-                                                    notification.postId?.let(onPostClick)
+                                item(key = "card_$periodTitle") {
+                                    GlassSurface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp),
+                                        shape = RoundedCornerShape(22.dp),
+                                        variant = GlassVariant.Card
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            itemsInPeriod.forEachIndexed { index, notification ->
+                                                if (index > 0) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 14.dp)
+                                                            .height(1.dp)
+                                                            .background(HubStrokeSoft)
+                                                    )
                                                 }
-                                                NotificationItem.TYPE_COMMENT,
-                                                NotificationItem.TYPE_LIKE_COMMENT,
-                                                NotificationItem.TYPE_REPLY_COMMENT,
-                                                NotificationItem.TYPE_ANNOUNCEMENT -> {
-                                                    notification.postId?.let(onOpenComments)
-                                                }
-                                                NotificationItem.TYPE_FOLLOW -> {
-                                                    onUserClick(notification.actorId, notification.actorUsername)
-                                                }
-                                                NotificationItem.TYPE_MESSAGE -> {
-                                                    notification.conversationId
-                                                        ?.takeIf { it.isNotBlank() }
-                                                        ?.let(onOpenChat)
-                                                        ?: onOpenMessenger()
-                                                }
-                                                else -> {
-                                                    notification.postId?.let { onPostClick(it) }
-                                                }
+                                                NotificationRow(
+                                                    notification = notification,
+                                                    onClick = {
+                                                        viewModel.onNotificationClicked(notification)
+                                                        when (notification.type) {
+                                                            NotificationItem.TYPE_LIKE -> {
+                                                                notification.postId?.let(onPostClick)
+                                                            }
+                                                            NotificationItem.TYPE_COMMENT,
+                                                            NotificationItem.TYPE_LIKE_COMMENT,
+                                                            NotificationItem.TYPE_REPLY_COMMENT,
+                                                            NotificationItem.TYPE_ANNOUNCEMENT -> {
+                                                                notification.postId?.let(onOpenComments)
+                                                            }
+                                                            NotificationItem.TYPE_FOLLOW -> {
+                                                                onUserClick(
+                                                                    notification.actorId,
+                                                                    notification.actorUsername
+                                                                )
+                                                            }
+                                                            NotificationItem.TYPE_MESSAGE -> {
+                                                                notification.conversationId
+                                                                    ?.takeIf { it.isNotBlank() }
+                                                                    ?.let(onOpenChat)
+                                                                    ?: onOpenMessenger()
+                                                            }
+                                                            else -> {
+                                                                notification.postId?.let { onPostClick(it) }
+                                                            }
+                                                        }
+                                                    }
+                                                )
                                             }
                                         }
-                                    )
+                                    }
                                 }
                             }
                         } else {
@@ -193,7 +261,10 @@ fun NotificationsScreen(
                                                 notification.postId?.let(onOpenComments)
                                             }
                                             NotificationItem.TYPE_FOLLOW -> {
-                                                onUserClick(notification.actorId, notification.actorUsername)
+                                                onUserClick(
+                                                    notification.actorId,
+                                                    notification.actorUsername
+                                                )
                                             }
                                             NotificationItem.TYPE_MESSAGE -> {
                                                 onOpenMessenger()
@@ -213,342 +284,250 @@ fun NotificationsScreen(
     }
 }
 
-@Composable
-private fun NotificationsHeader(
-    unreadCount: Int,
-    onMarkAllAsRead: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Notifications",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite
-            )
-
-            if (unreadCount > 0) {
-                Spacer(modifier = Modifier.width(10.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(HubWhite)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = if (unreadCount > 99) "99+" else "$unreadCount",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = HubBlack
-                    )
-                }
-            }
-        }
-
-        if (unreadCount > 0) {
-            TextButton(
-                onClick = onMarkAllAsRead,
-                modifier = Modifier.testTag("mark_all_read_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DoneAll,
-                    contentDescription = null,
-                    tint = HubSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Tout lire",
-                    fontSize = 13.sp,
-                    color = HubSecondary
-                )
-            }
-        }
-    }
-}
-
+/** Titre de période .section-title — 12/800, majuscules, text-3. */
 @Composable
 private fun PeriodHeader(title: String) {
-    Box(
+    Text(
+        text = title.uppercase(),
+        fontSize = 12.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 1.2.sp,
+        color = HubTextTertiary,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = title,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = HubSecondary,
-            letterSpacing = 0.5.sp
-        )
-    }
+            .padding(start = 20.dp, top = 12.dp, bottom = 8.dp)
+    )
 }
 
+/** Rangée de notification — avatar 40, texte, heure, pastille non-lue. */
 @Composable
 private fun NotificationRow(
     notification: NotificationItem,
     onClick: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
     val actor = rememberLiveUser(
         userId = notification.actorId,
         fallbackUsername = notification.actorUsername,
         fallbackDisplayName = notification.actorDisplayName,
         fallbackPhotoUrl = notification.actorPhotoUrl
     )
-    val backgroundColor = if (!notification.isRead) HubCard else HubBlack
-    val borderColor = if (!notification.isRead) HubBorder else Color.Transparent
+
+    // Texte principal et citation selon le type (données du ViewModel).
+    val quoteText = when (notification.type) {
+        NotificationItem.TYPE_COMMENT,
+        NotificationItem.TYPE_REPLY_COMMENT,
+        NotificationItem.TYPE_MESSAGE ->
+            notification.commentText?.takeIf { it.isNotBlank() }
+                ?.let { strings.lot4.notifQuoteFormat.format(it) }
+        else -> null
+    }
+    val actionText = when (notification.type) {
+        NotificationItem.TYPE_LIKE -> strings.lot4.notifLikedPost
+        NotificationItem.TYPE_LIKE_COMMENT -> strings.lot4.notifLikedComment
+        NotificationItem.TYPE_COMMENT -> strings.lot4.notifCommented
+        NotificationItem.TYPE_REPLY_COMMENT -> strings.lot4.notifReply
+        NotificationItem.TYPE_FOLLOW -> strings.lot4.notifFollowed
+        NotificationItem.TYPE_MESSAGE -> strings.lot4.notifMessage
+        NotificationItem.TYPE_ANNOUNCEMENT ->
+            notification.commentText?.takeIf { it.isNotBlank() }
+                ?.let { "· $it" }
+                ?: strings.lot4.notifAnnouncement
+        else -> strings.lot4.notifInteracted
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 2.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .background(backgroundColor)
-            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .heightIn(min = 68.dp)
-            .padding(12.dp)
+            .heightIn(min = 64.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
             .testTag("notification_item_${notification.id}"),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Avatar with Action Badge
-        Box(contentAlignment = Alignment.BottomEnd) {
-            UserAvatar(
-                name = actor.effectiveName,
-                photoUrl = actor.photoUrl,
-                size = 46.dp
-            )
+        UserAvatar(
+            name = actor.effectiveName,
+            photoUrl = actor.photoUrl,
+            size = 40.dp
+        )
 
-            val badgeInfo = getBadgeForType(notification.type)
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(badgeInfo.color)
-                    .border(1.5.dp, HubBlack, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = badgeInfo.icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(11.dp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(
+                        SpanStyle(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = HubWhite
+                        )
+                    ) {
+                        append(actor.effectiveName)
+                    }
+                    append(" ")
+                    append(actionText)
+                },
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 18.sp,
+                color = HubWhite,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (quoteText != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = quoteText,
+                    fontSize = 11.sp,
+                    color = HubTextTertiary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
-
-        // Text & Timestamp
-        Column(modifier = Modifier.weight(1f)) {
-            HubVerifiedUserName(
-                name = actor.effectiveName,
-                isVerified = actor.isVerified,
-                verificationType = actor.verificationType,
-                fontSize = 14.sp,
-                color = HubWhite,
-                badgeSize = 15.dp
-            )
-
-            val actionText = when (notification.type) {
-                NotificationItem.TYPE_LIKE -> "a aimé votre publication."
-                NotificationItem.TYPE_LIKE_COMMENT -> "a aimé votre commentaire."
-                NotificationItem.TYPE_COMMENT -> {
-                    if (!notification.commentText.isNullOrBlank()) {
-                        "a commenté : « ${notification.commentText} »"
-                    } else {
-                        "a commenté votre publication."
-                    }
-                }
-                NotificationItem.TYPE_REPLY_COMMENT -> {
-                    if (!notification.commentText.isNullOrBlank()) {
-                        "a répondu à votre commentaire : « ${notification.commentText} »"
-                    } else {
-                        "a répondu à votre commentaire."
-                    }
-                }
-                NotificationItem.TYPE_FOLLOW -> "a commencé à vous suivre."
-                NotificationItem.TYPE_MESSAGE -> {
-                    if (!notification.commentText.isNullOrBlank()) {
-                        "vous a envoyé un message : « ${notification.commentText} »"
-                    } else {
-                        "vous a envoyé un message."
-                    }
-                }
-                NotificationItem.TYPE_ANNOUNCEMENT -> {
-                    if (!notification.commentText.isNullOrBlank()) {
-                        ": ${notification.commentText}"
-                    } else {
-                        "vous a envoyé une annonce."
-                    }
-                }
-                else -> "a interagi avec vous."
-            }
-
+        // Colonne droite : heure + pastille non-lue dégradé avec lueur.
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Text(
-                text = actionText,
-                fontSize = 14.sp,
-                lineHeight = 19.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = HubWhite.copy(alpha = 0.9f)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = RelativeTime.formatWithClock(notification.createdAt),
+                text = RelativeTime.format(notification.createdAt),
                 fontSize = 12.sp,
-                color = HubSecondary
+                fontWeight = FontWeight.Medium,
+                color = HubTextTertiary
             )
-        }
-
-        // Unread Blue/White Indicator Dot
-        if (!notification.isRead) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(HubWhite)
-                    .testTag("unread_dot_${notification.id}")
-            )
+            if (!notification.isRead) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = CircleShape,
+                            clip = false,
+                            ambientColor = Color.Transparent,
+                            spotColor = HubViolet.copy(alpha = 0.8f)
+                        )
+                        .clip(CircleShape)
+                        .background(brush = hubPrimaryGradient())
+                        .testTag("unread_dot_${notification.id}")
+                )
+            }
         }
     }
 }
 
-private data class NotificationBadge(
-    val icon: ImageVector,
-    val color: Color
-)
-
-private fun getBadgeForType(type: String): NotificationBadge {
-    return when (type) {
-        NotificationItem.TYPE_LIKE, NotificationItem.TYPE_LIKE_COMMENT -> NotificationBadge(
-            icon = Icons.Default.Favorite,
-            color = Color(0xFFE91E63) // Vibrant Rose / Red
-        )
-        NotificationItem.TYPE_COMMENT, NotificationItem.TYPE_REPLY_COMMENT -> NotificationBadge(
-            icon = Icons.Default.ChatBubble,
-            color = Color(0xFF2196F3) // Blue
-        )
-        NotificationItem.TYPE_FOLLOW -> NotificationBadge(
-            icon = Icons.Default.PersonAdd,
-            color = Color(0xFF9C27B0) // Purple
-        )
-        NotificationItem.TYPE_MESSAGE -> NotificationBadge(
-            icon = Icons.Default.Mail,
-            color = Color(0xFF00B0FF) // Cyan
-        )
-        NotificationItem.TYPE_ANNOUNCEMENT -> NotificationBadge(
-            icon = Icons.Default.Notifications,
-            color = Color(0xFFE53935)
-        )
-        else -> NotificationBadge(
-            icon = Icons.Default.Notifications,
-            color = Color(0xFFFF9800)
-        )
-    }
-}
-
+/** Contrôle segmenté .seg — quatre filtres du ViewModel. */
 @Composable
 private fun NotificationFilterBar(
     selectedFilter: NotificationFilter,
     onFilterSelected: (NotificationFilter) -> Unit
 ) {
+    val strings = LocalHubStrings.current
     val filters = listOf(
-        NotificationFilter.ALL to "Tout",
-        NotificationFilter.UNREAD to "Non lues",
-        NotificationFilter.ACTIVITY to "Activité",
-        NotificationFilter.MESSAGES to "Messages"
+        NotificationFilter.ALL to strings.lot4.filterAllNotif,
+        NotificationFilter.UNREAD to strings.lot4.filterUnread,
+        NotificationFilter.ACTIVITY to strings.lot4.filterActivity,
+        NotificationFilter.MESSAGES to strings.lot4.filterMessages
     )
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .testTag("notification_filter_bar"),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 18.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(HubGlassSoft)
+            .border(1.dp, HubStrokeSoft, RoundedCornerShape(16.dp))
+            .padding(4.dp)
+            .testTag("notification_filter_bar")
     ) {
-        filters.forEach { (filter, label) ->
-            val selected = filter == selectedFilter
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(if (selected) HubWhite else HubSurfaceDark)
-                    .border(1.dp, if (selected) HubWhite else HubBorder, RoundedCornerShape(18.dp))
-                    .clickable { onFilterSelected(filter) }
-                    .padding(horizontal = 12.dp, vertical = 7.dp)
-                    .testTag("notification_filter_${filter.name.lowercase()}")
-            ) {
-                Text(
-                    text = label,
-                    fontSize = 12.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) HubBlack else HubSecondary
-                )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            filters.forEach { (filter, label) ->
+                val selected = filter == selectedFilter
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (selected) HubGlassStrong else Color.Transparent)
+                        .border(
+                            1.dp,
+                            if (selected) HubStroke else Color.Transparent,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onFilterSelected(filter) }
+                        .padding(horizontal = 10.dp, vertical = 9.dp)
+                        .testTag("notification_filter_${filter.name.lowercase()}"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selected) HubWhite else HubTextSecondary,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
 }
 
+/** État vide — HubEmptyState dont le titre dépend du filtre actif. */
 @Composable
-private fun EmptyNotifications(filter: NotificationFilter = NotificationFilter.ALL) {
-    Box(
+private fun EmptyNotifications(filter: NotificationFilter) {
+    val strings = LocalHubStrings.current
+    HubEmptyState(
+        title = when (filter) {
+            NotificationFilter.ALL -> strings.lot4.notifEmptyAllTitle
+            NotificationFilter.UNREAD -> strings.lot4.notifEmptyUnreadTitle
+            NotificationFilter.ACTIVITY -> strings.lot4.notifEmptyActivityTitle
+            NotificationFilter.MESSAGES -> strings.lot4.notifEmptyMessagesTitle
+        },
+        description = strings.lot4.notifEmptyDesc,
+        icon = Icons.Outlined.Notifications
+    )
+}
+
+/** Chargement : deux cartes de verre à rangées squelettes. */
+@Composable
+private fun NotificationsLoadingSkeleton() {
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp)
-            .testTag("empty_notifications"),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag("notifications_loading_indicator"),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(CircleShape)
-                    .background(HubSurfaceElevated),
-                contentAlignment = Alignment.Center
+        HubSkeletonLine(height = 12.dp, widthFraction = 0.3f, modifier = Modifier.padding(start = 8.dp))
+        repeat(2) {
+            GlassSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                variant = GlassVariant.Card
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Notifications,
-                    contentDescription = null,
-                    tint = HubSecondary,
-                    modifier = Modifier.size(34.dp)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    repeat(3) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(HubGlassStrong)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                HubSkeletonLine(height = 12.dp, widthFraction = 0.85f)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                HubSkeletonLine(height = 10.dp, widthFraction = 0.55f)
+                            }
+                        }
+                    }
+                }
             }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = when (filter) {
-                    NotificationFilter.ALL -> "Toutes vos notifications sont à jour"
-                    NotificationFilter.UNREAD -> "Aucune notification non lue"
-                    NotificationFilter.ACTIVITY -> "Aucune activité récente"
-                    NotificationFilter.MESSAGES -> "Aucun message récent"
-                },
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Les mentions J'aime, commentaires, nouveaux abonnements et messages apparaîtront ici.",
-                fontSize = 13.sp,
-                color = HubSecondary,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                lineHeight = 18.sp
-            )
         }
     }
 }

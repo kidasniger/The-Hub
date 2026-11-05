@@ -2,9 +2,6 @@ package com.thehub.hb.ui.messenger
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import com.thehub.hb.ui.theme.HubOutline
-import com.thehub.hb.ui.theme.HubSurface
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +11,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,14 +24,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,29 +39,46 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.PaddingValues
 import com.thehub.hb.data.model.Conversation
 import com.thehub.hb.data.repository.rememberLiveUser
-import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubTextField
 import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.components.HubSkeletonLine
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubMuted
-import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubAccent
+import com.thehub.hb.ui.theme.HubAccent2
+import com.thehub.hb.ui.theme.HubFabGlow
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
-import com.thehub.hb.ui.theme.HubViolet
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 import com.thehub.hb.utils.RelativeTime
 
+/**
+ * Écran 11 « Messagerie » — maquette Aurora Glass.
+ *
+ * App bar verre : retour + titre 19/800 + sous-titre « N conversations non lues » ;
+ * champ de recherche .input ; rangée d'accès rapide (cercle pointillé « Nouveau » +
+ * avatars 48 dp des conversations récentes) ; séparateur ; titre de section
+ * « Récentes » ; rangées .row (avatar 48, titre 13.5/700, aperçu 11.5, heure 10,
+ * coche de lecture accent ou badge non-lu dégradé) ; FAB 58/20 dégradé avion.
+ * Chargement = squelettes, vide = HubEmptyState, erreur = bandeau .banner.danger.
+ */
 @Composable
 fun MessengerScreen(
     viewModel: MessengerViewModel,
@@ -72,166 +89,308 @@ fun MessengerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val strings = LocalHubStrings.current
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
+            .imePadding()
             .testTag("messenger_screen")
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        // ---- .appbar : iconbtn retour + titre + sous-titre non-lues ----
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 18.dp, top = 10.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            GlassIconButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("messenger_back_button")
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.testTag("messenger_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Retour",
-                            tint = HubWhite
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Messages",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = HubWhite
-                    )
-                }
-
-                IconButton(
-                    onClick = onNewMessageClick,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(HubSurfaceElevated)
-                        .testTag("new_message_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Nouveau message",
-                        tint = HubWhite
-                    )
-                }
-            }
-
-            // Search Bar
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                HubTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    placeholder = "Rechercher des conversations...",
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = HubMuted,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Effacer la recherche",
-                                    tint = HubMuted,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    } else null,
-                    minHeight = 44,
-                    testTag = "messenger_search_input"
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = strings.back,
+                    tint = HubWhite,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-
-            // Content
-            when (val state = uiState) {
-                is MessengerUiState.Loading -> {
-                    MessengerLoadingSkeleton()
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = strings.lot4.messengerTitle,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.3).sp,
+                    color = HubWhite
+                )
+                when (val state = uiState) {
+                    is MessengerUiState.Success -> {
+                        val unreadConv = state.conversations.count {
+                            it.getUnreadCountFor(state.currentUserId) > 0
+                        }
+                        if (unreadConv > 0) {
+                            Spacer(Modifier.height(1.dp))
+                            Text(
+                                text = if (unreadConv == 1) {
+                                    strings.lot4.messengerUnreadOne
+                                } else {
+                                    strings.lot4.messengerUnreadFormat.format(unreadConv)
+                                },
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = HubTextTertiary
+                            )
+                        }
+                    }
+                    else -> Unit
                 }
+            }
+        }
 
-                is MessengerUiState.Success -> {
-                    if (state.filteredConversations.isEmpty()) {
+        // ---- Recherche .input ----
+        Box(modifier = Modifier.padding(horizontal = 18.dp)) {
+            HubTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                placeholder = strings.lot4.messengerSearchPlaceholder,
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = HubTextTertiary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = strings.lot4.searchClearDesc,
+                            tint = HubTextTertiary,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable { viewModel.onSearchQueryChanged("") }
+                        )
+                    }
+                } else null,
+                minHeight = 46,
+                testTag = "messenger_search_input"
+            )
+        }
+
+        when (val state = uiState) {
+            is MessengerUiState.Loading -> {
+                MessengerLoadingSkeleton()
+            }
+
+            is MessengerUiState.Success -> {
+                if (state.filteredConversations.isEmpty()) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         MessengerEmptyState(
                             isSearch = searchQuery.isNotBlank(),
                             onNewMessageClick = onNewMessageClick
                         )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .testTag("conversations_list")
-                        ) {
-                            items(
-                                items = state.filteredConversations,
-                                key = { it.id }
-                            ) { conversation ->
-                                ConversationItem(
-                                    conversation = conversation,
-                                    currentUserId = state.currentUserId,
-                                    onClick = { onConversationClick(conversation.id) }
-                                )
-                            }
-                            item {
-                                Spacer(modifier = Modifier.height(80.dp))
-                            }
-                        }
                     }
+                } else {
+                    MessengerSuccessContent(
+                        state = state,
+                        onConversationClick = onConversationClick,
+                        onNewMessageClick = onNewMessageClick
+                    )
                 }
+            }
 
-                is MessengerUiState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+            is MessengerUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = state.message,
-                            color = HubMuted,
-                            fontSize = 14.sp
+                            color = HubWhite.copy(alpha = 0.68f),
+                            fontSize = 12.5.sp,
+                            lineHeight = 19.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             }
         }
+    }
+}
 
-        // Floating Action Button for quick new message
-        FloatingActionButton(
-            onClick = onNewMessageClick,
-            containerColor = HubViolet,
-            contentColor = Color.White,
-            shape = CircleShape,
+/** Contenu succès : accès rapide + « Récentes » + liste + FAB. */
+@Composable
+private fun MessengerSuccessContent(
+    state: MessengerUiState.Success,
+    onConversationClick: (String) -> Unit,
+    onNewMessageClick: () -> Unit
+) {
+    val strings = LocalHubStrings.current
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("conversations_list"),
+            contentPadding = PaddingValues(bottom = 110.dp)
+        ) {
+            // ---- Accès rapide : cercle pointillé « Nouveau » + avatars récents ----
+            item(key = "quick_access") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .padding(top = 14.dp, bottom = 14.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            HubAccent.copy(alpha = 0.22f),
+                                            HubAccent2.copy(alpha = 0.22f)
+                                        )
+                                    )
+                                )
+                                .border(
+                                    width = 1.5.dp,
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            HubAccent.copy(alpha = 0.6f),
+                                            HubAccent2.copy(alpha = 0.6f)
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
+                                .clickable(onClick = onNewMessageClick)
+                                .testTag("new_message_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = strings.lot4.newChatDesc,
+                                tint = HubAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            text = strings.lot4.newChatLabel,
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HubTextTertiary
+                        )
+                    }
+                    state.filteredConversations.take(4).forEach { conversation ->
+                        val otherInfo = conversation.getOtherParticipantInfo(state.currentUserId)
+                        val otherUid = conversation.getOtherParticipantId(state.currentUserId)
+                        val liveUser = rememberLiveUser(
+                            userId = otherUid,
+                            fallbackUsername = otherInfo.username,
+                            fallbackDisplayName = otherInfo.displayName,
+                            fallbackPhotoUrl = otherInfo.photoUrl
+                        )
+                        UserAvatar(
+                            name = liveUser.effectiveName,
+                            photoUrl = liveUser.photoUrl,
+                            size = 48.dp,
+                            modifier = Modifier
+                                .clickable { onConversationClick(conversation.id) }
+                        )
+                    }
+                }
+            }
+
+            // ---- Séparateur + titre de section « Récentes » ----
+            item(key = "divider") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 2.dp)
+                        .height(1.dp)
+                        .background(HubStrokeSoft)
+                )
+            }
+            item(key = "section_title") {
+                Text(
+                    text = strings.lot4.sectionRecent.uppercase(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.2.sp,
+                    color = HubTextTertiary,
+                    modifier = Modifier.padding(start = 26.dp, top = 6.dp, bottom = 8.dp)
+                )
+            }
+
+            // ---- Rangées de conversation .row ----
+            items(
+                items = state.filteredConversations,
+                key = { it.id }
+            ) { conversation ->
+                ConversationItem(
+                    conversation = conversation,
+                    currentUserId = state.currentUserId,
+                    onClick = { onConversationClick(conversation.id) }
+                )
+            }
+        }
+
+        // ---- FAB .fab 58/20 dégradé + avion ----
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp)
-                .testTag("messenger_fab")
+                .padding(end = 20.dp, bottom = 30.dp)
+                .navigationBarsPadding()
+                .size(58.dp)
+                .shadow(
+                    elevation = 14.dp,
+                    shape = RoundedCornerShape(20.dp),
+                    clip = false,
+                    ambientColor = Color.Transparent,
+                    spotColor = HubFabGlow
+                )
+                .clip(RoundedCornerShape(20.dp))
+                .background(brush = hubPrimaryGradient())
+                .clickable(onClick = onNewMessageClick)
+                .testTag("messenger_fab"),
+            contentAlignment = Alignment.Center
         ) {
+            // Reflet interne haut 1 dp rgba(255,255,255,.35)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.35f))
+            )
             Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Écrire un message",
-                modifier = Modifier.size(24.dp)
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = strings.lot4.messengerFabDesc,
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
 
+/** Rangée de conversation .row — avatar 48, titre, aperçu, heure, état de lecture. */
 @Composable
 private fun ConversationItem(
     conversation: Conversation,
     currentUserId: String,
     onClick: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
     val otherInfo = conversation.getOtherParticipantInfo(currentUserId)
     val otherUid = conversation.getOtherParticipantId(currentUserId)
     val liveUser = rememberLiveUser(
@@ -243,152 +402,115 @@ private fun ConversationItem(
     val unreadCount = conversation.getUnreadCountFor(currentUserId)
     val hasUnread = unreadCount > 0
     val displayName = liveUser.effectiveName
+    val sentByMe = conversation.lastMessageSenderId == currentUserId
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (hasUnread) HubSurfaceElevated.copy(alpha = 0.42f) else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 22.dp, vertical = 11.dp)
             .testTag("conversation_item_${conversation.id}"),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         UserAvatar(
             name = displayName,
             photoUrl = liveUser.photoUrl,
-            size = 52.dp
+            size = 48.dp
         )
 
-        Spacer(modifier = Modifier.width(14.dp))
-
         Column(modifier = Modifier.weight(1f)) {
-            Row(
+            HubVerifiedUserName(
+                name = displayName,
+                isVerified = liveUser.isVerified,
+                verificationType = liveUser.verificationType,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HubVerifiedUserName(
-                    name = displayName,
-                    isVerified = liveUser.isVerified,
-                    verificationType = liveUser.verificationType,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 15.sp,
-                    color = HubWhite,
-                    weight = if (hasUnread) FontWeight.Bold else FontWeight.SemiBold,
-                    badgeSize = 15.dp
-                )
+                fontSize = 13.5.sp,
+                color = HubWhite,
+                weight = if (hasUnread) FontWeight.ExtraBold else FontWeight.Bold,
+                badgeSize = 15.dp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = conversation.lastMessageText.ifBlank {
+                    strings.lot4.emptyConversationPreview
+                },
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (hasUnread) HubWhite.copy(alpha = 0.68f) else HubTextTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
-                Text(
-                    text = RelativeTime.formatConversationDate(conversation.lastMessageAt),
-                    fontSize = 12.sp,
-                    color = if (hasUnread) HubWhite else HubMuted,
-                    fontWeight = if (hasUnread) FontWeight.SemiBold else FontWeight.Normal
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val preview = conversation.lastMessageText.ifBlank { "Nouvelle conversation" }
-                Text(
-                    text = preview,
-                    fontSize = 14.sp,
-                    color = if (hasUnread) HubWhite else HubMuted,
-                    fontWeight = if (hasUnread) FontWeight.Medium else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (hasUnread) {
-                    Spacer(modifier = Modifier.width(8.dp))
+        // Colonne droite : heure + coche de lecture ou badge non-lu.
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(
+                text = RelativeTime.formatConversationDate(conversation.lastMessageAt),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (hasUnread) HubWhite.copy(alpha = 0.68f) else HubTextTertiary
+            )
+            when {
+                hasUnread -> {
+                    // Badge .bdg : dégradé de marque, pilule 19 dp, lueur violette.
                     Box(
                         modifier = Modifier
-                            .clip(CircleShape)
-                            .background(HubWhite)
-                            .padding(horizontal = 7.dp, vertical = 2.dp),
+                            .shadow(
+                                elevation = 6.dp,
+                                shape = RoundedCornerShape(10.dp),
+                                clip = false,
+                                ambientColor = Color.Transparent,
+                                spotColor = Color(0xFF7C5CFF).copy(alpha = 0.5f)
+                            )
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(brush = hubPrimaryGradient())
+                            .padding(horizontal = 6.dp)
+                            .height(19.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                            color = HubBlack,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
+                }
+                sentByMe -> {
+                    Icon(
+                        imageVector = Icons.Outlined.CheckCircle,
+                        contentDescription = strings.lot4.readReceiptDesc,
+                        tint = HubAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
         }
     }
 }
 
+/** État vide .empty — icône bulle dans carte de verre + action. */
 @Composable
 private fun MessengerEmptyState(
     isSearch: Boolean,
     onNewMessageClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp)
-            .testTag("messenger_empty_state"),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(HubSurfaceElevated),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.ChatBubbleOutline,
-                contentDescription = null,
-                tint = HubSecondary,
-                modifier = Modifier.size(36.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = if (isSearch) "Aucun résultat trouvé" else "Aucune conversation",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = HubWhite
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = if (isSearch) {
-                "Vérifiez l'orthographe ou commencez un nouveau message."
-            } else {
-                "Envoyez un message privé avec du texte et des photos à vos contacts."
-            },
-            fontSize = 14.sp,
-            color = HubMuted,
-            lineHeight = 20.sp
-        )
-
-        if (!isSearch) {
-            Spacer(modifier = Modifier.height(24.dp))
-            HubButton(
-                text = "Démarrer une conversation",
-                onClick = onNewMessageClick,
-                modifier = Modifier.width(220.dp),
-                testTag = "start_conversation_button"
-            )
-        }
-    }
+    val strings = LocalHubStrings.current
+    HubEmptyState(
+        title = if (isSearch) strings.lot4.searchNoMatchTitle else strings.lot4.emptyConvTitle,
+        description = if (isSearch) strings.lot4.searchNoMatchDesc else strings.lot4.emptyConvDesc,
+        icon = Icons.Outlined.ChatBubbleOutline,
+        actionLabel = if (isSearch) null else strings.lot4.startConversationCta,
+        onAction = if (isSearch) null else onNewMessageClick,
+        modifier = Modifier.testTag("messenger_empty_state")
+    )
 }
 
+/** Chargement : squelettes de rangées (avatar + deux lignes .skel). */
 @Composable
 private fun MessengerLoadingSkeleton() {
     Column(
@@ -401,14 +523,14 @@ private fun MessengerLoadingSkeleton() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(HubSurfaceElevated)
+                        .background(HubGlassStrong)
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -418,5 +540,28 @@ private fun MessengerLoadingSkeleton() {
                 }
             }
         }
+    }
+}
+
+/**
+ * Bouton icône .iconbtn de la maquette : 40 dp, rayon 14, fond --glass,
+ * contour --stroke (même motif que les écrans du lot 3).
+ */
+@Composable
+private fun GlassIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(HubGlass)
+            .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
