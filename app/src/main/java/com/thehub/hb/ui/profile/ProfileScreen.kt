@@ -1,9 +1,7 @@
 package com.thehub.hb.ui.profile
 
-import com.thehub.hb.ui.components.OfficialVerificationBadge
+import android.content.Intent
 import android.widget.Toast
-import com.thehub.hb.ui.theme.HubOutline
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,36 +24,31 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
-import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Surface
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.DynamicFeed
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -68,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -75,34 +70,44 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.outlined.BrokenImage
-import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import com.thehub.hb.ui.components.BlockUserConfirmationDialog
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
 import com.thehub.hb.ui.components.HubButton
 import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
+import com.thehub.hb.ui.components.OfficialVerificationBadge
 import com.thehub.hb.ui.components.ReportBottomSheet
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.components.rememberRemoteImageUnavailable
-import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubError
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassStrong
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextSecondary
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.HubBlue
+import com.thehub.hb.ui.theme.HubViolet
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** Onglets de présentation de la maquette : Publications / Médias / J'aime. */
+private enum class ProfileTab { POSTS, MEDIA, LIKES }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,14 +128,15 @@ fun ProfileScreen(
     isBottomTab: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
     var showMenu by remember { mutableStateOf(false) }
     var showReportSheet by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
     var postToShare by remember { mutableStateOf<Post?>(null) }
+    var activeTab by remember { mutableStateOf(ProfileTab.POSTS) }
 
     LaunchedEffect(Unit) {
         viewModel.loadProfile()
@@ -138,861 +144,1084 @@ fun ProfileScreen(
 
     LaunchedEffect(uiState.userMessage) {
         uiState.userMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
             viewModel.clearUserMessage()
         }
     }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
             viewModel.clearErrorMessage()
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.Transparent,
+    Box(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
             .testTag("profile_screen")
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Top Bar
-            ProfileTopBar(
-                isOwnProfile = uiState.isOwnProfile,
-                username = uiState.user?.username ?: "",
-                isBottomTab = isBottomTab,
-                onNavigateBack = onNavigateBack,
-                onNavigateToSettings = onNavigateToSettings,
-                onNavigateToBookmarks = onNavigateToBookmarks,
-                onMenuClick = { showMenu = true }
+    ) {
+        when {
+            uiState.isLoading -> ProfileSkeleton()
+
+            uiState.isBlocked -> BlockedProfileView(
+                isBlockedByMe = uiState.isBlockedByMe,
+                isActionLoading = uiState.isActionLoading,
+                onUnblock = { viewModel.unblockUser() }
             )
 
-            // Dropdown Menu for Other User
-            if (!uiState.isOwnProfile) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier
-                            .background(HubCard)
-                            .testTag("profile_overflow_menu")
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Flag,
-                                        contentDescription = null,
-                                        tint = HubWhite,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text("Signaler", color = HubWhite)
-                                }
-                            },
-                            onClick = {
-                                showMenu = false
-                                showReportSheet = true
-                            },
-                            modifier = Modifier.testTag("menu_report_user")
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Block,
-                                        contentDescription = null,
-                                        tint = HubError,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text("Bloquer cet utilisateur", color = HubError)
-                                }
-                            },
-                            onClick = {
-                                showMenu = false
-                                showBlockDialog = true
-                            },
-                            modifier = Modifier.testTag("menu_block_user")
-                        )
-                    }
-                }
+            uiState.user == null -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                HubEmptyState(
+                    title = strings.lot5.profileNotFound,
+                    description = strings.lot5.profileNotFound,
+                    icon = Icons.Outlined.CloudOff,
+                    actionLabel = strings.lot3.retryLabel,
+                    onAction = { viewModel.loadProfile() }
+                )
             }
 
-            when {
-                uiState.isLoading -> {
-                    Box(
+            else -> {
+                val user = uiState.user!!
+                val pullRefreshState = rememberPullToRefreshState()
+
+                PullToRefreshBox(
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.refresh() },
+                    state = pullRefreshState,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
                         modifier = Modifier
                             .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
+                            .testTag("profile_posts_grid"),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                }
-
-                uiState.isBlocked -> {
-                    BlockedContentUnavailableView(
-                        isBlockedByMe = uiState.isBlockedByMe,
-                        onUnblock = { viewModel.unblockUser() },
-                        isActionLoading = uiState.isActionLoading
-                    )
-                }
-
-                uiState.user == null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Profil introuvable",
-                            fontSize = 16.sp,
-                            color = HubSecondary
-                        )
-                    }
-                }
-
-                else -> {
-                    val user = uiState.user!!
-                    val pullRefreshState = rememberPullToRefreshState()
-
-                    PullToRefreshBox(
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() },
-                        state = pullRefreshState,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            // Header span all columns
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    ProfileHeader(
-                                        user = user,
-                                        isOwnProfile = uiState.isOwnProfile,
-                                        isFollowing = uiState.isFollowing,
-                                        isActionLoading = uiState.isActionLoading,
-                                        userMessagingAllowed = uiState.isMessagingAllowed,
-                                        onEditProfile = onNavigateToEditProfile,
-                                        onToggleFollow = { viewModel.toggleFollow() },
-                                        onSendMessage = {
-                                            viewModel.openChat { convId ->
-                                                onNavigateToChat(convId)
-                                            }
-                                        },
-                                        onFollowersClick = { onNavigateToFollowers(user.uid) },
-                                        onFollowingClick = { onNavigateToFollowing(user.uid) }
-                                    )
-
-                                    HorizontalDivider(
-                                        color = HubBorder,
-                                        thickness = 1.dp,
-                                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                                    )
-
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "Publications (${uiState.posts.size})",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = HubWhite
-                                        )
-
-                                        Row(
+                        // — En-tête complet (bannière, identité, stats, actions, onglets).
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                // .appbar — logo 30 + titre nom + engrenage / options.
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (!isBottomTab && onNavigateBack != null) {
+                                        Box(
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(HubSurfaceElevated)
-                                                .padding(2.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                                .size(40.dp)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(HubGlass)
+                                                .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+                                                .clickable(onClick = onNavigateBack)
+                                                .testTag("profile_back_button"),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            IconButton(
-                                                onClick = { viewModel.setViewMode(ProfileViewMode.GRID) },
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(if (uiState.viewMode == ProfileViewMode.GRID) HubBorder else Color.Transparent)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.GridOn,
-                                                    contentDescription = "Vue grille",
-                                                    tint = if (uiState.viewMode == ProfileViewMode.GRID) HubWhite else HubMuted,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-
-                                            IconButton(
-                                                onClick = { viewModel.setViewMode(ProfileViewMode.LIST) },
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(if (uiState.viewMode == ProfileViewMode.LIST) HubBorder else Color.Transparent)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Filled.List,
-                                                    contentDescription = "Vue liste",
-                                                    tint = if (uiState.viewMode == ProfileViewMode.LIST) HubWhite else HubMuted,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = strings.back,
+                                                tint = HubWhite,
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         }
+                                        Spacer(Modifier.width(12.dp))
                                     }
-                                }
-                            }
 
-                            // Empty state or Post Items
-                            if (uiState.posts.isEmpty()) {
-                                item(span = { GridItemSpan(maxLineSpan) }) {
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 48.dp),
+                                            .size(30.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(brush = hubPrimaryGradient()),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                text = if (uiState.isOwnProfile) "Tu n'as encore rien publié" else "Aucune publication pour le moment",
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = HubSecondary,
-                                                textAlign = TextAlign.Center
+                                        Text(
+                                            text = "H",
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(10.dp))
+
+                                    Text(
+                                        text = user.displayName?.takeIf { it.isNotBlank() }
+                                            ?: user.username,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = (-0.3).sp,
+                                        color = HubWhite,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (uiState.isOwnProfile) {
+                                        // Signets (fonction existante) + Paramètres.
+                                        ProfileIconAction(
+                                            onClick = onNavigateToBookmarks,
+                                            modifier = Modifier.testTag("profile_bookmarks_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.BookmarkBorder,
+                                                contentDescription = strings.lot5.bookmarksTitle,
+                                                tint = HubWhite,
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        ProfileIconAction(
+                                            onClick = onNavigateToSettings,
+                                            modifier = Modifier.testTag("profile_settings_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Settings,
+                                                contentDescription = strings.settingsTitle,
+                                                tint = HubWhite,
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                        }
+                                    } else {
+                                        ProfileIconAction(
+                                            onClick = { showMenu = true },
+                                            modifier = Modifier.testTag("profile_more_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.MoreVert,
+                                                contentDescription = strings.lot3.postOptionsDesc,
+                                                tint = HubWhite,
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
                                     }
                                 }
-                            } else if (uiState.viewMode == ProfileViewMode.GRID) {
-                                items(
-                                    items = uiState.posts,
-                                    key = { it.id }
-                                ) { post ->
-                                    PostGridThumbnail(
-                                        post = post,
-                                        onClick = { onPostClick(post.id) }
+
+                                // Bannière dégradée 108 / rayon 26 + halo clair.
+                                Box(
+                                    modifier = Modifier
+                                        .padding(start = 14.dp, end = 14.dp, top = 4.dp)
+                                        .fillMaxWidth()
+                                        .height(108.dp)
+                                        .clip(RoundedCornerShape(26.dp))
+                                        .background(
+                                            brush = Brush.linearGradient(
+                                                listOf(
+                                                    HubViolet,
+                                                    HubBlue,
+                                                    LocalHubColors.current.accent2
+                                                )
+                                            )
+                                        )
+                                        .testTag("profile_banner"),
+                                    contentAlignment = Alignment.TopEnd
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                brush = Brush.radialGradient(
+                                                    colors = listOf(
+                                                        Color.White.copy(alpha = 0.35f),
+                                                        Color.Transparent
+                                                    )
+                                                )
+                                            )
                                     )
                                 }
-                            } else {
-                                items(
-                                    items = uiState.posts,
-                                    key = { it.id },
-                                    span = { GridItemSpan(maxLineSpan) }
-                                ) { post ->
-                                    PostCard(
-                                        post = post,
-                                        onPostClick = onPostClick,
-                                        onImageClick = onImageClick,
-                                        onVideoClick = onVideoClick,
-                                        onToggleLike = { viewModel.toggleLike(it) },
-                                        onOpenComments = onOpenComments,
-                                        onOpenLikes = onOpenLikes,
-                                        onOpenShare = { postToShare = it },
-                                        onToggleBookmark = { viewModel.toggleBookmark(it) },
-                                        onAuthorClick = null,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+
+                                // Avatar 84 chevauchant la bannière de 30.
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .pullUp(30.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 18.dp),
+                                        verticalAlignment = Alignment.Bottom,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.testTag("profile_avatar")
+                                        ) {
+                                            UserAvatar(
+                                                name = user.displayName ?: user.username,
+                                                photoUrl = user.photoUrl,
+                                                size = 84.dp,
+                                                modifier = Modifier.border(
+                                                    3.dp,
+                                                    LocalHubColors.current.card,
+                                                    CircleShape
+                                                )
+                                            )
+                                        }
+
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (uiState.isOwnProfile) {
+                                                ProfileIconAction(
+                                                    onClick = onNavigateToBookmarks,
+                                                    small = true
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.BookmarkBorder,
+                                                        contentDescription = strings.lot5.bookmarksTitle,
+                                                        tint = HubWhite,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                                ProfileIconAction(
+                                                    small = true,
+                                                    onClick = {
+                                                        shareProfile(
+                                                            context,
+                                                            strings.lot5.profileShareText
+                                                                .format(viewModel.resolvedUserId)
+                                                        )
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Share,
+                                                        contentDescription = strings.share,
+                                                        tint = HubWhite,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                }
+                                            } else {
+                                                ProfileIconAction(
+                                                    small = true,
+                                                    onClick = { viewModel.toggleFollow() }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (uiState.isFollowing) {
+                                                            Icons.Filled.PersonRemove
+                                                        } else {
+                                                            Icons.Filled.PersonAdd
+                                                        },
+                                                        contentDescription = if (uiState.isFollowing) {
+                                                            strings.unfollow
+                                                        } else {
+                                                            strings.follow
+                                                        },
+                                                        tint = HubWhite,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                                if (uiState.isMessagingAllowed) {
+                                                    ProfileIconAction(
+                                                        small = true,
+                                                        onClick = {
+                                                            viewModel.openChat { convId ->
+                                                                onNavigateToChat(convId)
+                                                            }
+                                                        }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.ChatBubbleOutline,
+                                                            contentDescription = strings.lot5.profileMessageBtn,
+                                                            tint = HubWhite,
+                                                            modifier = Modifier.size(15.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Identité : nom 18 + badge vérifié, @pseudo, bio.
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 18.dp)
+                                            .padding(top = 10.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = user.displayName?.takeIf { it.isNotBlank() }
+                                                    ?: user.username,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = (-0.2).sp,
+                                                color = HubWhite,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (user.verificationType == "admin") {
+                                                Spacer(Modifier.width(6.dp))
+                                                OfficialVerificationBadge(size = 16.dp)
+                                            }
+                                        }
+
+                                        Text(
+                                            text = "@${user.username}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = HubTextTertiary,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+
+                                        if (!user.bio.isNullOrBlank()) {
+                                            Text(
+                                                text = user.bio,
+                                                fontSize = 12.5.sp,
+                                                lineHeight = 18.sp,
+                                                color = HubTextSecondary,
+                                                modifier = Modifier.padding(top = 8.dp)
+                                            )
+                                        }
+
+                                        // Pilule date : naissance (mois année) sinon ancienneté.
+                                        val pillDate = remember(user.birthdate, user.createdAt) {
+                                            profilePillDate(user)
+                                        }
+                                        if (pillDate != null) {
+                                            Row(
+                                                modifier = Modifier.padding(top = 9.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(9.dp)
+                                            ) {
+                                                ProfilePill(
+                                                    text = pillDate,
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.CalendarMonth,
+                                                            contentDescription = null,
+                                                            tint = HubSecondary,
+                                                            modifier = Modifier.size(11.dp)
+                                                        )
+                                                    },
+                                                    accent = false
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Stats verre doux : Publications / Abonnés / Abonnements.
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(horizontal = 18.dp, vertical = 14.dp)
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(LocalHubColors.current.glassSoft)
+                                            .border(
+                                                1.dp,
+                                                HubStrokeSoft,
+                                                RoundedCornerShape(20.dp)
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 13.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            ProfileStatItem(
+                                                count = user.postsCount,
+                                                label = strings.lot5.profileStatPosts,
+                                                onClick = null,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("profile_stat_posts")
+                                            )
+                                            StatDivider()
+                                            ProfileStatItem(
+                                                count = user.followersCount,
+                                                label = strings.lot5.profileStatFollowers,
+                                                onClick = { onNavigateToFollowers(user.uid) },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("profile_stat_followers")
+                                            )
+                                            StatDivider()
+                                            ProfileStatItem(
+                                                count = user.followingCount,
+                                                label = strings.lot5.profileStatFollowing,
+                                                onClick = { onNavigateToFollowing(user.uid) },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("profile_stat_following")
+                                            )
+                                        }
+                                    }
+
+                                    // Actions principales : Modifier / Partager · Suivre / Message.
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 18.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        if (uiState.isOwnProfile) {
+                                            ProfileActionButton(
+                                                text = strings.editProfile,
+                                                filled = true,
+                                                onClick = onNavigateToEditProfile,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("edit_profile_button")
+                                            )
+                                            ProfileActionButton(
+                                                text = strings.share,
+                                                filled = false,
+                                                onClick = {
+                                                    shareProfile(
+                                                        context,
+                                                        strings.lot5.profileShareText
+                                                            .format(viewModel.resolvedUserId)
+                                                    )
+                                                },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        } else {
+                                            ProfileActionButton(
+                                                text = if (uiState.isFollowing) {
+                                                    strings.unfollow
+                                                } else {
+                                                    strings.follow
+                                                },
+                                                filled = !uiState.isFollowing,
+                                                onClick = { viewModel.toggleFollow() },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("follow_unfollow_button")
+                                            )
+                                            if (uiState.isMessagingAllowed) {
+                                                ProfileActionButton(
+                                                    text = strings.lot5.profileMessageBtn,
+                                                    filled = false,
+                                                    onClick = {
+                                                        viewModel.openChat { convId ->
+                                                            onNavigateToChat(convId)
+                                                        }
+                                                    },
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .testTag("message_user_button")
+                                                )
+                                            } else {
+                                                ProfileActionButton(
+                                                    text = strings.lot5.profileOfficialBtn,
+                                                    filled = false,
+                                                    onClick = {},
+                                                    enabled = false,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Onglets soulignés : Publications / Médias / J'aime.
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 18.dp, top = 14.dp)
+                                            .background(Color.Transparent),
+                                        horizontalArrangement = Arrangement.spacedBy(26.dp)
+                                    ) {
+                                        ProfileTabLabel(
+                                            text = strings.lot5.profileTabPosts,
+                                            selected = activeTab == ProfileTab.POSTS,
+                                            onClick = { activeTab = ProfileTab.POSTS }
+                                        )
+                                        ProfileTabLabel(
+                                            text = strings.lot5.profileTabMedia,
+                                            selected = activeTab == ProfileTab.MEDIA,
+                                            onClick = { activeTab = ProfileTab.MEDIA }
+                                        )
+                                        ProfileTabLabel(
+                                            text = strings.lot5.profileTabLikes,
+                                            selected = activeTab == ProfileTab.LIKES,
+                                            onClick = { activeTab = ProfileTab.LIKES }
+                                        )
+                                        Spacer(Modifier.weight(1f))
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 18.dp, top = 2.dp)
+                                            .height(1.dp)
+                                            .background(HubStrokeSoft)
                                     )
                                 }
-                            }
+                                }
+
+                                // Contenu de l'onglet (grille 3 carrés, gap 5).
+                                val tabPosts = when (activeTab) {
+                                    ProfileTab.POSTS -> uiState.posts
+                                    ProfileTab.MEDIA -> uiState.posts.filter {
+                                        !it.imageUrl.isNullOrBlank() || !it.videoUrl.isNullOrBlank()
+                                    }
+
+                                    ProfileTab.LIKES -> uiState.posts.filter {
+                                        it.isLikedByCurrentUser
+                                    }
+                                }
+
+                                if (tabPosts.isEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 40.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            HubEmptyState(
+                                                title = when (activeTab) {
+                                                    ProfileTab.POSTS -> strings.noPostsYet
+                                                    ProfileTab.MEDIA -> strings.lot5.profileMediaEmpty
+                                                    ProfileTab.LIKES -> strings.lot5.profileLikesEmpty
+                                                },
+                                                description = when (activeTab) {
+                                                    ProfileTab.POSTS -> strings.noPostsDescription
+                                                    ProfileTab.MEDIA -> strings.lot5.profileMediaEmpty
+                                                    ProfileTab.LIKES -> strings.lot5.profileLikesEmpty
+                                                },
+                                                icon = when (activeTab) {
+                                                    ProfileTab.POSTS -> Icons.Outlined.DynamicFeed
+                                                    ProfileTab.MEDIA -> Icons.Outlined.Image
+                                                    ProfileTab.LIKES -> Icons.Outlined.FavoriteBorder
+                                                }
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    items(tabPosts, key = { it.id }) { post ->
+                                        ProfileGridTile(
+                                            post = post,
+                                            onClick = { onPostClick(post.id) },
+                                            onImageClick = {
+                                                post.imageUrl?.let(onImageClick)
+                                            }
+                                        )
+                                    }
+                                }
+                        }
+                    }
+                }
+
+                // Menu contextuel des autres profils.
+                if (!uiState.isOwnProfile) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier
+                                .background(LocalHubColors.current.card)
+                                .testTag("profile_overflow_menu")
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Flag,
+                                            contentDescription = null,
+                                            tint = HubWhite,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(strings.reportPost, color = HubWhite)
+                                    }
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showReportSheet = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Block,
+                                            contentDescription = null,
+                                            tint = HubWhite,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(strings.lot5.profileBlockAction, color = HubWhite)
+                                    }
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showBlockDialog = true
+                                }
+                            )
                         }
                     }
                 }
             }
         }
-    }
 
-    // Report Bottom Sheet
-    if (showReportSheet && uiState.user != null) {
-        ReportBottomSheet(
-            targetType = "user",
-            targetId = uiState.user!!.uid,
-            targetName = uiState.user!!.username,
-            onDismiss = { showReportSheet = false },
-            onSubmitReport = { reason, details ->
-                viewModel.reportUser(reason, details) {
-                    showReportSheet = false
-                }
-            },
-            isSubmitting = uiState.isActionLoading
-        )
-    }
+        postToShare?.let { post ->
+            SharePostBottomSheet(
+                post = post,
+                onDismiss = { postToShare = null },
+                onRepost = { viewModel.repost(it) }
+            )
+        }
 
-    // Block User Dialog
-    if (showBlockDialog && uiState.user != null) {
+        if (showReportSheet) {
+            ReportBottomSheet(
+                targetType = "user",
+                targetId = viewModel.resolvedUserId,
+                targetName = if (uiState.user?.username.isNullOrBlank()) {
+                    ""
+                } else {
+                    "@${uiState.user?.username}"
+                },
+                onDismiss = { showReportSheet = false },
+                onSubmitReport = { reason, details ->
+                    viewModel.reportUser(reason, details) { showReportSheet = false }
+                },
+                isSubmitting = uiState.isActionLoading
+            )
+        }
+
         BlockUserConfirmationDialog(
-            username = uiState.user!!.username,
+            username = uiState.user?.username ?: "",
             onConfirm = {
-                viewModel.blockUser {
-                    showBlockDialog = false
-                }
+                viewModel.blockUser { showBlockDialog = false }
             },
-            onDismiss = { showBlockDialog = false },
+            onDismiss = { if (!uiState.isActionLoading) showBlockDialog = false },
             isLoading = uiState.isActionLoading
         )
     }
+}
 
-    // Share Post Bottom Sheet
-    postToShare?.let { post ->
-        SharePostBottomSheet(
-            post = post,
-            onDismiss = { postToShare = null },
-            onRepost = { p -> viewModel.repost(p) }
-        )
+/** Remonte le contenu de `amount` sous l'élément précédent (marge négative). */
+private fun Modifier.pullUp(amount: Dp): Modifier = androidx.compose.ui.layout.layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val shift = amount.roundToPx()
+    layout(placeable.width, (placeable.height - shift).coerceAtLeast(0)) {
+        placeable.placeRelative(0, -shift)
     }
 }
 
-@Composable
-private fun ProfileTopBar(
-    isOwnProfile: Boolean,
-    username: String,
-    isBottomTab: Boolean,
-    onNavigateBack: (() -> Unit)?,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToBookmarks: () -> Unit,
-    onMenuClick: () -> Unit
+/** Partage le profil via une intent système (lien thehub://profile/<uid>). */
+private fun shareProfile(
+    context: android.content.Context,
+    shareText: String
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (!isBottomTab && onNavigateBack != null) {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier.testTag("profile_back_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Retour",
-                    tint = HubWhite
-                )
-            }
-        } else {
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-
-        Text(
-            text = if (username.isNotBlank()) "@$username" else "Profil",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = HubWhite,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-
-        if (isOwnProfile) {
-            IconButton(
-                onClick = onNavigateToBookmarks,
-                modifier = Modifier.testTag("profile_bookmarks_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.BookmarkBorder,
-                    contentDescription = "Signets",
-                    tint = HubWhite
-                )
-            }
-
-            IconButton(
-                onClick = onNavigateToSettings,
-                modifier = Modifier.testTag("profile_settings_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Paramètres",
-                    tint = HubWhite
-                )
-            }
-        } else {
-            IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.testTag("profile_more_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = HubWhite
-                )
-            }
-        }
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, shareText)
+    }
+    try {
+        context.startActivity(Intent.createChooser(shareIntent, shareText))
+    } catch (_: Exception) {
+        // Aucune application compatible : on ignore silencieusement.
     }
 }
 
-@Composable
-private fun ProfileHeader(
-    user: User,
-    isOwnProfile: Boolean,
-    isFollowing: Boolean,
-    isActionLoading: Boolean,
-    userMessagingAllowed: Boolean,
-    onEditProfile: () -> Unit,
-    onToggleFollow: () -> Unit,
-    onSendMessage: () -> Unit,
-    onFollowersClick: () -> Unit,
-    onFollowingClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        // User Info Top Row: Avatar and Stats
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            UserAvatar(
-                name = user.displayName ?: user.username,
-                photoUrl = user.photoUrl,
-                size = 80.dp
-            )
-
-            Spacer(modifier = Modifier.width(20.dp))
-
-            // Stats row
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StatItem(
-                    count = user.postsCount,
-                    label = "Publications",
-                    onClick = null,
-                    testTag = "profile_stat_posts"
-                )
-                StatItem(
-                    count = user.followersCount,
-                    label = "Abonnés",
-                    onClick = onFollowersClick,
-                    testTag = "profile_stat_followers"
-                )
-                StatItem(
-                    count = user.followingCount,
-                    label = "Abonnements",
-                    onClick = onFollowingClick,
-                    testTag = "profile_stat_following"
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Names and Bio
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = user.displayName?.takeIf { it.isNotBlank() } ?: "@${user.username}",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite
-            )
-            if (user.verificationType == "admin") {
-                Spacer(modifier = Modifier.width(6.dp))
-                OfficialVerificationBadge(
-                    size = 19.dp
-                )
-            }
-        }
-
-        if (!user.displayName.isNullOrBlank()) {
-            Text(
-                text = "@${user.username}",
-                fontSize = 13.sp,
-                color = HubSecondary
-            )
-        }
-
-        if (!user.bio.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = user.bio,
-                fontSize = 14.sp,
-                color = HubWhite,
-                lineHeight = 19.sp
-            )
-        }
-
-        // Join Date
-        val joinDateText = remember(user.createdAt) {
-            try {
-                val sdf = SimpleDateFormat("MMMM yyyy", Locale.FRENCH)
-                "Membre depuis " + sdf.format(Date(user.createdAt))
-            } catch (_: Exception) {
+/** Date de la pilule : « Mars 2001 » (naissance) sinon « Membre depuis Mars 2001 ». */
+private fun profilePillDate(user: User): String? {
+    return try {
+        val birth = user.birthdate?.takeIf { it.isNotBlank() }
+        if (birth != null) {
+            val parsed = SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH).parse(birth)
+            if (parsed != null) {
+                SimpleDateFormat("MMMM yyyy", Locale.FRENCH).format(parsed)
+            } else {
                 null
             }
-        }
-        if (joinDateText != null) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = joinDateText,
-                fontSize = 12.sp,
-                color = HubMuted
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Action Buttons
-        if (isOwnProfile) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(HubSurfaceElevated)
-                    .border(1.dp, HubBorder, RoundedCornerShape(14.dp))
-                    .clickable(onClick = onEditProfile)
-                    .padding(vertical = 13.dp)
-                    .testTag("edit_profile_button"),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = HubWhite,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Modifier le profil",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = HubWhite
-                )
-            }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Follow / Unfollow Button
-                Box(modifier = Modifier.weight(1f)) {
-                    HubButton(
-                        text = if (isFollowing) "Ne plus suivre" else "Suivre",
-                        onClick = onToggleFollow,
-                        isLoading = isActionLoading,
-                        enabled = !isActionLoading,
-                        variant = if (isFollowing) HubButtonVariant.Secondary else HubButtonVariant.Primary,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("follow_unfollow_button")
-                    )
-                }
-
-                // Send Message Button
-                if (userMessagingAllowed) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(HubSurfaceElevated)
-                            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-                            .clickable(onClick = onSendMessage)
-                            .padding(horizontal = 12.dp)
-                            .testTag("message_user_button"),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChatBubbleOutline,
-                            contentDescription = null,
-                            tint = HubWhite,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Message",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = HubWhite
-                        )
-                    }
-                } else {
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = HubError.copy(alpha = 0.08f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, HubError.copy(alpha = 0.45f))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = HubError,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
-                            Text(
-                                "Compte officiel",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = HubError
-                            )
-                        }
-                    }
-                }
-            }
+            "Membre depuis " + SimpleDateFormat("MMMM yyyy", Locale.FRENCH)
+                .format(Date(user.createdAt))
         }
+    } catch (_: Exception) {
+        null
     }
 }
 
+/** Iconbtn verre de la maquette : 40/14 (ou 34/12 en petit). */
 @Composable
-private fun StatItem(
+private fun ProfileIconAction(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    small: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val sizeValue = if (small) 34.dp else 40.dp
+    val shape = if (small) RoundedCornerShape(12.dp) else RoundedCornerShape(14.dp)
+    Box(
+        modifier = modifier
+            .size(sizeValue)
+            .clip(shape)
+            .background(HubGlass)
+            .border(1.dp, HubStroke, shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+/** Stat .stat-num / .stat-lbl — nombre 18 800, libellé 10.5 700 uppercase. */
+@Composable
+private fun ProfileStatItem(
     count: Int,
     label: String,
     onClick: (() -> Unit)?,
-    testTag: String
+    modifier: Modifier = Modifier
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(HubSurfaceElevated.copy(alpha = 0.5f))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
-            .testTag(testTag)
+            .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Text(
-            text = count.toString(),
+            text = formatHubCount(count),
             fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = (-0.5).sp,
             color = HubWhite
         )
         Text(
-            text = label,
-            fontSize = 12.sp,
-            color = HubSecondary
+            text = label.uppercase(Locale.FRENCH),
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp,
+            color = HubTextTertiary,
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }
 
+/** Séparateur vertical des stats. */
 @Composable
-private fun PostGridThumbnail(
-    post: Post,
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
+private fun StatDivider() {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .background(HubCard)
-            .clickable(onClick = onClick)
-            .testTag("profile_post_thumb_${post.id}")
-    ) {
-        if (!post.imageUrl.isNullOrBlank()) {
-            val imageUrl = post.imageUrl!!
-            val remoteImageUnavailable = rememberRemoteImageUnavailable(imageUrl)
+            .width(1.dp)
+            .height(30.dp)
+            .background(HubStrokeSoft)
+    )
+}
 
-            if (!remoteImageUnavailable) {
+/** Pilule .pill / .pill.ok — 10.5 800, icône 11. */
+@Composable
+private fun ProfilePill(
+    text: String,
+    icon: @Composable () -> Unit,
+    accent: Boolean
+) {
+    val palette = LocalHubColors.current
+    val bg = if (accent) palette.glassStrong else palette.success.copy(alpha = 0.15f)
+    val border = if (accent) {
+        palette.accent.copy(alpha = 0.35f)
+    } else {
+        palette.success.copy(alpha = 0.35f)
+    }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(percent = 50))
+            .padding(horizontal = 11.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        icon()
+        Text(
+            text = text,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.3.sp,
+            color = if (accent) palette.accent else palette.success
+        )
+    }
+}
+
+/** Bouton sm de la maquette : .btn-primary (dégradé) ou .btn-glass (verre). */
+@Composable
+private fun ProfileActionButton(
+    text: String,
+    filled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .height(40.dp)
+            .clip(shape)
+            .then(
+                if (filled && enabled) {
+                    Modifier.background(brush = hubPrimaryGradient(), shape = shape)
+                } else {
+                    Modifier
+                        .background(HubGlass, shape)
+                        .border(1.dp, HubStroke, shape)
+                }
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (enabled) HubWhite else HubMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** Onglet souligné .tabs — actif : texte plein + barre dégradée 3 dp. */
+@Composable
+private fun ProfileTabLabel(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = text,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) HubWhite else HubTextTertiary
+        )
+        Spacer(Modifier.height(11.dp))
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .width(44.dp)
+                    .height(3.dp)
+                    .clip(CircleShape)
+                    .background(brush = hubPrimaryGradient())
+            )
+        } else {
+            Spacer(Modifier.height(3.dp))
+        }
+    }
+}
+
+/** Cellule de grille carrée : média réel, ou tuile nébuleuse avec extrait de texte. */
+@Composable
+private fun ProfileGridTile(
+    post: Post,
+    onClick: () -> Unit,
+    onImageClick: () -> Unit
+) {
+    val palette = LocalHubColors.current
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(6.dp))
+            .background(palette.card)
+            .clickable(onClick = onClick)
+    ) {
+        when {
+            !post.imageUrl.isNullOrBlank() -> {
+                val strings = LocalHubStrings.current
                 SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageUrl)
+                    model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        .data(post.imageUrl)
                         .crossfade(true)
                         .build(),
-                contentDescription = "Publication",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                error = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(HubSurfaceElevated)
-                            .padding(4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    contentDescription = strings.lot3.postImageDesc,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(HubGlassStrong)
+                        )
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Outlined.BrokenImage,
-                                contentDescription = "Photo non disponible",
-                                tint = HubSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Indisponible",
-                                fontSize = 10.sp,
-                                color = HubSecondary
+                                contentDescription = null,
+                                tint = HubTextTertiary,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
-                }
-            )
-            } else {
+                )
+            }
+
+            else -> {
+                // Tuile nébuleuse (media-art de la maquette) + extrait du texte.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(HubSurfaceElevated),
-                    contentAlignment = Alignment.Center
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(palette.bg1, palette.glow2.copy(alpha = 0.45f), palette.bg0)
+                            )
+                        )
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.BrokenImage,
-                            contentDescription = "Photo non disponible",
-                            tint = HubSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Indisponible",
-                            fontSize = 10.sp,
-                            color = HubSecondary
-                        )
-                    }
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 12.dp, y = (-8).dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    listOf(palette.glow1.copy(alpha = 0.6f), Color.Transparent)
+                                )
+                            )
+                    )
+                    Text(
+                        text = post.text.ifBlank { " " },
+                        color = HubWhite,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 14.sp,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(7.dp)
+                    )
                 }
             }
-        } else {
-            // Text Preview thumbnail
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = post.text,
-                    fontSize = 11.sp,
-                    color = HubSecondary,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
         }
 
-        // Repost badge overlay
-        if (post.isRepost) {
+        if (!post.videoUrl.isNullOrBlank()) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(20.dp)
+                    .align(Alignment.Center)
+                    .size(34.dp)
                     .clip(CircleShape)
-                    .background(HubBlack.copy(alpha = 0.7f)),
+                    .background(Color.Black.copy(alpha = 0.45f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Repeat,
-                    contentDescription = "Repost",
-                    tint = HubWhite,
-                    modifier = Modifier.size(12.dp)
-                )
-            }
-        }
-
-        // Bookmark indicator badge
-        if (post.isBookmarkedByCurrentUser) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(HubBlack.copy(alpha = 0.7f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Bookmark,
-                    contentDescription = "Enregistré",
-                    tint = HubWhite,
-                    modifier = Modifier.size(12.dp)
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
     }
 }
 
+/** État « chargement » du profil : squelette verre (bannière, avatar, textes). */
 @Composable
-private fun BlockedContentUnavailableView(
-    isBlockedByMe: Boolean,
-    onUnblock: () -> Unit,
-    isActionLoading: Boolean
-) {
-    Box(
+private fun ProfileSkeleton() {
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 18.dp, vertical = 10.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(108.dp)
+                .clip(RoundedCornerShape(26.dp))
+                .background(HubGlass)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(84.dp)
                     .clip(CircleShape)
-                    .background(HubSurfaceElevated),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = HubSecondary,
-                    modifier = Modifier.size(36.dp)
+                    .background(HubGlass)
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                HubSkeletonLine(height = 15.dp, widthFraction = 0.5f)
+                Spacer(Modifier.height(8.dp))
+                HubSkeletonLine(height = 12.dp, widthFraction = 0.3f)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        HubSkeletonLine(height = 60.dp, widthFraction = 1f)
+        Spacer(Modifier.height(16.dp))
+        HubSkeletonLine(height = 40.dp, widthFraction = 1f)
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(HubGlass)
                 )
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = "Contenu indisponible",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+/** Vue « bloqué » : verrou en verre + message + Débloquer. */
+@Composable
+private fun BlockedProfileView(
+    isBlockedByMe: Boolean,
+    isActionLoading: Boolean,
+    onUnblock: () -> Unit
+) {
+    val strings = LocalHubStrings.current
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 28.dp)
+        ) {
+            GlassSurface(
+                modifier = Modifier.size(76.dp),
+                shape = RoundedCornerShape(26.dp),
+                variant = GlassVariant.Card
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = HubSecondary,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(18.dp))
             Text(
                 text = if (isBlockedByMe) {
-                    "Vous avez bloqué cet utilisateur. Vous ne pouvez plus voir son profil ni ses publications."
+                    strings.lot5.profileBlockedByMe
                 } else {
-                    "Ce profil n'est pas disponible pour le moment."
+                    strings.lot5.profileBlockedYou
                 },
-                fontSize = 14.sp,
-                color = HubSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = HubWhite,
+                textAlign = TextAlign.Center
             )
-
             if (isBlockedByMe) {
-                Spacer(modifier = Modifier.height(20.dp))
-                HubButton(
-                    text = "Débloquer",
-                    onClick = onUnblock,
-                    isLoading = isActionLoading,
-                    enabled = !isActionLoading,
-                    variant = HubButtonVariant.Secondary,
-                    modifier = Modifier.testTag("unblock_from_profile_button")
-                )
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier.testTag("profile_unblock_button")
+                ) {
+                    HubButton(
+                        text = strings.lot5.profileUnblockBtn,
+                        onClick = onUnblock,
+                        isLoading = isActionLoading,
+                        enabled = !isActionLoading,
+                        variant = HubButtonVariant.Secondary,
+                        modifier = Modifier.width(180.dp)
+                    )
+                }
             }
         }
     }

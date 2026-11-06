@@ -1,12 +1,6 @@
 package com.thehub.hb.ui.search
 
 import androidx.activity.compose.BackHandler
-import com.thehub.hb.ui.theme.HubOutline
-import com.thehub.hb.ui.theme.HubSurface
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,32 +19,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,6 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -73,23 +57,33 @@ import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.model.User
 import com.thehub.hb.data.repository.rememberLiveUser
+import com.thehub.hb.ui.components.AppLogo
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubDimens
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
 import com.thehub.hb.ui.feed.components.PostCard
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.theme.HubGlassStrong
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceDark
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextSecondary
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
-import androidx.compose.ui.graphics.Color
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
+import com.thehub.hb.ui.theme.hubPrimaryGradient
 
-enum class BlankSearchTab(val title: String) {
-    TRENDING("Tendances"),
-    HISTORY("Historique")
+/** Filtre de présentation de la maquette (✦ Tout / Personnes / Publications / Hashtags). */
+private enum class SearchFilter(val title: String) {
+    ALL("all"),
+    PEOPLE("people"),
+    POSTS("posts"),
+    HASHTAGS("hashtags")
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -105,12 +99,14 @@ fun SearchScreen(
     onUserClick: ((User) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
     val uiState by viewModel.uiState.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val focusManager = LocalFocusManager.current
-    var blankTab by remember { mutableStateOf(BlankSearchTab.TRENDING) }
+    var filter by remember { mutableStateOf(SearchFilter.ALL) }
+    var inputFocused by remember { mutableStateOf(false) }
 
-    // Intercept back press when search query is active to clear search before exiting tab
+    // Retour : efface d'abord la requête avant de quitter l'onglet.
     BackHandler(enabled = uiState.query.isNotBlank()) {
         viewModel.onQueryChanged("")
         focusManager.clearFocus()
@@ -119,174 +115,205 @@ fun SearchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("search_screen")
     ) {
-        // Search Input Bar
-        SearchBarHeader(
+        // .appbar — logo 32 + titre « Recherche ».
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppLogo(size = 32.dp, animated = false)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = strings.lot5.searchTitle,
+                fontSize = 16.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.3).sp,
+                color = HubWhite
+            )
+        }
+
+        // .input — champ de recherche, halo accent au focus.
+        SearchInputField(
             query = uiState.query,
+            focused = inputFocused,
             onQueryChanged = { viewModel.onQueryChanged(it) },
             onClearQuery = {
                 viewModel.onQueryChanged("")
                 focusManager.clearFocus()
             },
-            onSearchSubmit = {
-                focusManager.clearFocus()
-                viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = true)
-            }
+            onSearch = {
+                if (uiState.query.isNotBlank()) {
+                    focusManager.clearFocus()
+                    viewModel.performSearch(uiState.query, uiState.searchMode)
+                }
+            },
+            onFocusChanged = { inputFocused = it },
+            modifier = Modifier
+                .padding(horizontal = 18.dp)
+                .padding(bottom = 10.dp)
+                .testTag("search_input_field")
         )
 
-        // Mode Selector Tabs:
-        // When query is empty -> show Tendances / Historique
-        // When query has text -> show Utilisateurs / Publications
-        if (uiState.query.isBlank()) {
-            BlankSearchTabs(
-                selectedTab = blankTab,
-                onTabSelected = { blankTab = it }
+        // .chips — Tout / Personnes / Publications / Hashtags.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SearchFilterChip(
+                text = strings.lot5.searchChipAll,
+                selected = filter == SearchFilter.ALL,
+                onClick = {
+                    filter = SearchFilter.ALL
+                    if (uiState.searchMode != SearchMode.USERS) {
+                        viewModel.onSearchModeSelected(SearchMode.USERS)
+                    }
+                },
+                modifier = Modifier.testTag("search_tab_all")
             )
-        } else {
-            SearchModeTabs(
-                selectedMode = uiState.searchMode,
-                onModeSelected = { viewModel.onSearchModeSelected(it) }
+            SearchFilterChip(
+                text = strings.lot5.searchChipPeople,
+                selected = filter == SearchFilter.PEOPLE,
+                onClick = {
+                    filter = SearchFilter.PEOPLE
+                    viewModel.onSearchModeSelected(SearchMode.USERS)
+                },
+                modifier = Modifier.testTag("search_tab_users")
+            )
+            SearchFilterChip(
+                text = strings.lot5.searchChipPosts,
+                selected = filter == SearchFilter.POSTS,
+                onClick = {
+                    filter = SearchFilter.POSTS
+                    viewModel.onSearchModeSelected(SearchMode.POSTS)
+                },
+                modifier = Modifier.testTag("search_tab_posts")
+            )
+            SearchFilterChip(
+                text = strings.lot5.searchChipHashtags,
+                selected = filter == SearchFilter.HASHTAGS,
+                onClick = {
+                    filter = SearchFilter.HASHTAGS
+                    viewModel.onSearchModeSelected(SearchMode.POSTS)
+                },
+                modifier = Modifier.testTag("search_tab_hashtags")
             )
         }
 
-        HorizontalDivider(color = HubBorder, thickness = 1.dp)
+        when {
+            // Requête vide → découverte (tendances, historique, suggestions).
+            uiState.query.isBlank() -> BlankSearchContent(
+                viewModel = viewModel,
+                uiState = uiState,
+                searchHistory = searchHistory,
+                onUserClick = onUserClick,
+                onPostClick = onPostClick
+            )
 
-        // Content Body
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(1f)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    Box(
+            uiState.isLoading -> SearchLoadingState()
+
+            uiState.errorMessage != null -> SearchErrorState(
+                message = uiState.errorMessage.orEmpty(),
+                onRetry = {
+                    viewModel.performSearch(
+                        uiState.query,
+                        uiState.searchMode,
+                        saveToHistory = false
+                    )
+                }
+            )
+
+            filter == SearchFilter.POSTS || filter == SearchFilter.HASHTAGS -> {
+                if (uiState.posts.isEmpty()) {
+                    SearchNoResultState()
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            .testTag("search_loading_indicator"),
-                        contentAlignment = Alignment.Center
+                            .testTag("search_posts_list")
                     ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                }
-
-                uiState.query.isBlank() -> {
-                    when (blankTab) {
-                        BlankSearchTab.TRENDING -> {
-                            TrendingSection(
-                                uiState = uiState,
-                                onHashtagClick = { tag ->
-                                    viewModel.onHashtagClicked(tag)
-                                    focusManager.clearFocus()
-                                },
+                        items(uiState.posts, key = { it.id }) { post ->
+                            PostCard(
+                                post = post,
                                 onPostClick = onPostClick,
                                 onImageClick = onImageClick,
+                                onVideoClick = onVideoClick,
                                 onToggleLike = { viewModel.toggleLike(it) },
                                 onOpenComments = onOpenComments,
                                 onOpenLikes = onOpenLikes,
                                 onOpenShare = onOpenShare,
                                 onToggleBookmark = { viewModel.toggleBookmark(it) },
-                                onRefresh = { viewModel.loadTrending() },
-                                onUserClick = onUserClick,
-                                onToggleFollow = { viewModel.toggleFollow(it) },
-                                onRefreshSuggestions = { viewModel.loadSuggestions() }
-                            )
-                        }
-
-                        BlankSearchTab.HISTORY -> {
-                            SearchHistorySection(
-                                history = searchHistory,
-                                onHistoryItemClick = { item ->
-                                    viewModel.onHistoryItemClicked(item)
-                                    focusManager.clearFocus()
-                                },
-                                onRemoveItem = { viewModel.onRemoveHistoryItem(it) },
-                                onClearAll = { viewModel.onClearAllHistory() }
+                                onAuthorClick = onUserClick?.let { click -> { user -> click(user) } }
                             )
                         }
                     }
                 }
+            }
 
-                uiState.searchMode == SearchMode.USERS -> {
-                    val searchError = uiState.errorMessage
-                    if (searchError != null) {
-                        SearchErrorState(
-                            message = searchError,
-                            onRetry = { viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = false) }
-                        )
-                    } else if (uiState.users.isEmpty() && uiState.hasSearched) {
-                        EmptySearchResults(
-                            query = uiState.query,
-                            message = "Aucun utilisateur trouvé pour \"${uiState.query}\""
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .testTag("search_users_list"),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(
-                                items = uiState.users,
-                                key = { it.uid }
-                            ) { user ->
-                                val isFollowing = uiState.followingIds.contains(user.uid)
-                                val isSelf = user.uid == viewModel.currentUserId
-
-                                UserSearchResultRow(
-                                    user = user,
-                                    isFollowing = isFollowing,
-                                    isSelf = isSelf,
-                                    onToggleFollow = { viewModel.toggleFollow(user.uid) },
-                                    onClick = { onUserClick?.invoke(user) }
+            else -> {
+                // Tout / Personnes : tendances filtrées + personnes trouvées.
+                if (uiState.users.isEmpty()) {
+                    SearchNoResultState()
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(
+                            start = 14.dp,
+                            end = 14.dp,
+                            top = 2.dp,
+                            bottom = 20.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("search_users_list")
+                    ) {
+                        val matchedTrends = uiState.trendingHashtags.filter { hashtag ->
+                            hashtag.tag.contains(uiState.query.trim(), ignoreCase = true)
+                        }
+                        if (filter == SearchFilter.ALL && matchedTrends.isNotEmpty()) {
+                            item {
+                                TrendingHashtagsCard(
+                                    hashtags = matchedTrends,
+                                    onHashtagClick = { viewModel.onHashtagClicked(it) },
+                                    modifier = Modifier.testTag("trending_hashtags_container")
                                 )
                             }
                         }
-                    }
-                }
-
-                uiState.searchMode == SearchMode.POSTS -> {
-                    val searchError = uiState.errorMessage
-                    if (searchError != null) {
-                        SearchErrorState(
-                            message = searchError,
-                            onRetry = { viewModel.performSearch(uiState.query, uiState.searchMode, saveToHistory = false) }
-                        )
-                    } else if (uiState.posts.isEmpty() && uiState.hasSearched) {
-                        EmptySearchResults(
-                            query = uiState.query,
-                            message = "Aucune publication trouvée pour \"${uiState.query}\""
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .testTag("search_posts_list"),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(
-                                items = uiState.posts,
-                                key = { it.id }
-                            ) { post ->
-                                PostCard(
-                                    post = post,
-                                    onPostClick = onPostClick,
-                                    onImageClick = onImageClick,
-                                    onVideoClick = onVideoClick,
-                                    onToggleLike = { viewModel.toggleLike(post.id) },
-                                    onOpenComments = onOpenComments,
-                                    onOpenLikes = onOpenLikes,
-                                    onOpenShare = onOpenShare,
-                                    onToggleBookmark = { viewModel.toggleBookmark(post.id) }
-                                )
+                        item {
+                            SectionHeader(
+                                title = strings.lot5.searchPeopleSectionFormat
+                                    .format(uiState.users.size),
+                                modifier = Modifier.padding(horizontal = 6.dp)
+                            )
+                        }
+                        item {
+                            GlassSurface(
+                                shape = RoundedCornerShape(22.dp),
+                                variant = GlassVariant.Card,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column {
+                                    uiState.users.forEachIndexed { index, user ->
+                                        SuggestedUserRow(
+                                            user = user,
+                                            isFollowing =
+                                                uiState.followingIds.contains(user.uid) ||
+                                                    uiState.suggestedFollowingIds.contains(user.uid),
+                                            isSelf = user.uid == viewModel.currentUserId,
+                                            onUserClick = { onUserClick?.invoke(user) },
+                                            onToggleFollow = { viewModel.toggleFollow(user.uid) },
+                                            showTopDivider = index > 0
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -296,340 +323,464 @@ fun SearchScreen(
     }
 }
 
+/** Champ de recherche .input — icône accent, halo accent au focus, effacement. */
 @Composable
-private fun SearchErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .testTag("search_error_state"),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Refresh,
-            contentDescription = null,
-            tint = HubSecondary,
-            modifier = Modifier.size(36.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Impossible de charger les résultats",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = HubWhite
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = message,
-            fontSize = 13.sp,
-            color = HubSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        TextButton(onClick = onRetry) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = "Réessayer",
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Réessayer")
-        }
-    }
-}
-
-@Composable
-private fun SearchBarHeader(
+private fun SearchInputField(
     query: String,
+    focused: Boolean,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
-    onSearchSubmit: () -> Unit
+    onSearch: () -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    var focused by remember { mutableStateOf(false) }
-    Box(
-        modifier = Modifier
+    val palette = LocalHubColors.current
+    val strings = LocalHubStrings.current
+    val focusManager = LocalFocusManager.current
+    val shape = RoundedCornerShape(18.dp)
+
+    Row(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(HubSurfaceElevated)
-                .border(1.dp, if (focused) HubWhite.copy(alpha = 0.45f) else HubBorder, RoundedCornerShape(18.dp))
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Recherche",
-                tint = HubSecondary,
-                modifier = Modifier.size(20.dp)
+            .clip(shape)
+            .background(palette.field, shape)
+            .border(
+                width = 1.dp,
+                brush = if (focused || query.isNotBlank()) {
+                    SolidColor(palette.accent.copy(alpha = 0.55f))
+                } else {
+                    SolidColor(palette.strokeSoft)
+                },
+                shape = shape
             )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Search,
+            contentDescription = null,
+            tint = palette.accent,
+            modifier = Modifier.size(17.dp)
+        )
 
-            Spacer(modifier = Modifier.width(10.dp))
-
+        Box(modifier = Modifier.weight(1f)) {
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChanged,
-                modifier = Modifier
-                    .weight(1f)
-                    .onFocusChanged { focused = it.isFocused }
-                    .testTag("search_input_field"),
-                textStyle = TextStyle(
-                    color = HubWhite,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Normal
-                ),
                 singleLine = true,
-                cursorBrush = SolidColor(HubWhite),
+                textStyle = TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HubWhite
+                ),
+                cursorBrush = SolidColor(palette.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearchSubmit() }),
-                decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(
-                            text = "Rechercher sur The Hub...",
-                            color = HubSecondary,
-                            fontSize = 15.sp
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        focusManager.clearFocus()
+                        onSearch()
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { onFocusChanged(it.isFocused) }
+            )
+            if (query.isEmpty()) {
+                Text(
+                    text = strings.searchPlaceholder,
+                    fontSize = 14.sp,
+                    color = HubTextTertiary,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+            }
+        }
+
+        if (query.isNotEmpty()) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = strings.lot4.searchClearDesc,
+                tint = HubTextTertiary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onClearQuery)
+                    .testTag("clear_search_button")
+            )
+        }
+    }
+}
+
+/** Chip .chip de la maquette — pilule, sélection = dégradé de marque. */
+@Composable
+private fun SearchFilterChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(percent = 50)
+    Text(
+        text = text,
+        fontSize = 12.5.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = if (selected) HubWhite else HubTextSecondary,
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (selected) {
+                    Modifier.background(brush = hubPrimaryGradient(), shape = shape)
+                } else {
+                    Modifier
+                        .background(HubGlassStrong.copy(alpha = 0.55f), shape)
+                        .border(1.dp, HubStrokeSoft, shape)
+                }
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
+}
+
+/** Contenu « découverte » : tendances, historique, personnes suggérées, publications. */
+@Composable
+private fun BlankSearchContent(
+    viewModel: SearchViewModel,
+    uiState: SearchUiState,
+    searchHistory: List<String>,
+    onUserClick: ((User) -> Unit)?,
+    onPostClick: (String) -> Unit
+) {
+    val strings = LocalHubStrings.current
+    LazyColumn(
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // — Carte tendances (verre, flamme warning).
+        item {
+            if (uiState.trendingError != null && uiState.trendingHashtags.isEmpty()) {
+                GlassSurface(
+                    shape = RoundedCornerShape(22.dp),
+                    variant = GlassVariant.Card,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    HubEmptyState(
+                        title = strings.lot5.searchNoResultTitle,
+                        description = uiState.trendingError.orEmpty(),
+                        icon = Icons.Outlined.Whatshot,
+                        actionLabel = strings.lot3.retryLabel,
+                        onAction = { viewModel.loadTrending() },
+                        modifier = Modifier.testTag("search_error_state")
+                    )
+                }
+            } else if (uiState.isTrendingLoading && uiState.trendingHashtags.isEmpty()) {
+                GlassSurface(
+                    shape = RoundedCornerShape(22.dp),
+                    variant = GlassVariant.Card,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        repeat(4) {
+                            HubSkeletonLine(height = 13.dp, widthFraction = 0.75f)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+                }
+            } else if (uiState.trendingHashtags.isNotEmpty()) {
+                TrendingHashtagsCard(
+                    hashtags = uiState.trendingHashtags,
+                    onHashtagClick = { viewModel.onHashtagClicked(it) },
+                    modifier = Modifier.testTag("trending_section")
+                )
+            }
+        }
+
+        // — Historique de recherche (verre, rangées icône horloge).
+        if (searchHistory.isNotEmpty()) {
+            item {
+                GlassSurface(
+                    shape = RoundedCornerShape(22.dp),
+                    variant = GlassVariant.Card,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("search_history_section")
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.lot5.searchHistoryTitle,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.2.sp,
+                                color = HubTextTertiary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = strings.lot5.searchHistoryClearDesc,
+                                tint = HubTextTertiary,
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .clickable { viewModel.onClearAllHistory() }
+                                    .padding(6.dp)
+                                    .testTag("clear_all_history_button")
+                            )
+                        }
+                        searchHistory.forEach { historyItem ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.onHistoryItemClicked(historyItem) }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = null,
+                                    tint = HubTextTertiary,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = historyItem,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = HubWhite,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = strings.lot5.searchHistoryRemoveDesc,
+                                    tint = HubTextTertiary,
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.onRemoveHistoryItem(historyItem) }
+                                        .padding(6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // — Personnes suggérées (verre, rangées avatar + Suivre).
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SectionHeader(
+                    title = strings.lot5.searchPeopleSectionFormat
+                        .format(uiState.suggestedUsers.size),
+                    modifier = Modifier.padding(horizontal = 6.dp)
+                )
+                Spacer(Modifier.height(6.dp))
+                when {
+                    uiState.isSuggestionsLoading && uiState.suggestedUsers.isEmpty() -> {
+                        GlassSurface(
+                            shape = RoundedCornerShape(22.dp),
+                            variant = GlassVariant.Card,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                repeat(3) {
+                                    HubSkeletonLine(height = 13.dp, widthFraction = 0.6f)
+                                    Spacer(Modifier.height(14.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    uiState.suggestionsError != null && uiState.suggestedUsers.isEmpty() -> {
+                        GlassSurface(
+                            shape = RoundedCornerShape(22.dp),
+                            variant = GlassVariant.Card,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("refresh_suggestions_button")
+                        ) {
+                            HubEmptyState(
+                                title = strings.lot5.searchNoResultTitle,
+                                description = uiState.suggestionsError.orEmpty(),
+                                actionLabel = strings.lot3.retryLabel,
+                                onAction = { viewModel.loadSuggestions() }
+                            )
+                        }
+                    }
+
+                    uiState.suggestedUsers.isNotEmpty() -> {
+                        GlassSurface(
+                            shape = RoundedCornerShape(22.dp),
+                            variant = GlassVariant.Card,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("suggested_users_container")
+                        ) {
+                            Column {
+                                uiState.suggestedUsers.forEachIndexed { index, user ->
+                                    SuggestedUserRow(
+                                        user = user,
+                                        isFollowing = uiState.suggestedFollowingIds
+                                            .contains(user.uid),
+                                        isSelf = user.uid == viewModel.currentUserId,
+                                        onUserClick = { onUserClick?.invoke(user) },
+                                        onToggleFollow = { viewModel.toggleFollow(user.uid) },
+                                        showTopDivider = index > 0
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // — Publications tendance (cartes compactes verre doux).
+        if (uiState.trendingPosts.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = strings.lot5.searchPostsSectionFormat
+                        .format(uiState.trendingPosts.size),
+                    modifier = Modifier.padding(horizontal = 6.dp)
+                )
+            }
+            items(
+                uiState.trendingPosts,
+                key = { "trend_${it.id}" }
+            ) { post ->
+                TrendingPostMiniCard(
+                    post = post,
+                    onClick = { onPostClick(post.id) },
+                    modifier = Modifier.testTag("empty_trending_posts")
+                )
+            }
+        }
+
+        // Fond de liste : laisse respirer la nébuleuse.
+        item {
+            Spacer(Modifier.height(4.dp))
+        }
+    }
+}
+
+/** Carte .glass des tendances : flamme warning + rangées hashtag avec compteur. */
+@Composable
+private fun TrendingHashtagsCard(
+    hashtags: List<com.thehub.hb.data.model.TrendingHashtag>,
+    onHashtagClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
+    GlassSurface(
+        shape = RoundedCornerShape(22.dp),
+        variant = GlassVariant.Card,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 14.dp, top = 13.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Whatshot,
+                    contentDescription = strings.lot5.searchTrendingIconDesc,
+                    tint = palette.warning,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = strings.lot5.searchTrendingTitle,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.2.sp,
+                    color = HubTextTertiary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            hashtags.forEach { hashtag ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onHashtagClick(hashtag.tag) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .testTag("trending_hashtag_${hashtag.tag}"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(palette.warning.copy(alpha = 0.12f))
+                            .border(
+                                1.dp,
+                                palette.warning.copy(alpha = 0.28f),
+                                RoundedCornerShape(13.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Whatshot,
+                            contentDescription = null,
+                            tint = palette.warning,
+                            modifier = Modifier.size(17.dp)
                         )
                     }
-                    innerTextField()
-                }
-            )
-
-            AnimatedVisibility(
-                visible = query.isNotEmpty(),
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                IconButton(
-                    onClick = onClearQuery,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .testTag("clear_search_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = "Effacer la recherche",
-                        tint = HubSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (hashtag.tag.startsWith("#")) hashtag.tag else "#${hashtag.tag}",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = HubWhite
+                        )
+                        Text(
+                            text = strings.lot5.searchTrendingCountFormat
+                                .format(hashtag.count),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HubTextTertiary
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/** Titre de section .section-title — 12 / 800 / interlettre 1.2 / uppercase. */
 @Composable
-private fun SearchModeTabs(
-    selectedMode: SearchMode,
-    onModeSelected: (SearchMode) -> Unit
-) {
-    val modes = SearchMode.entries
-    val selectedIndex = modes.indexOf(selectedMode)
-
-    TabRow(
-        selectedTabIndex = selectedIndex,
-        containerColor = Color.Transparent,
-        contentColor = HubWhite,
-        indicator = { tabPositions ->
-            TabRowDefaults.SecondaryIndicator(
-                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                color = HubWhite,
-                height = 2.dp
-            )
-        },
-        divider = {}
-    ) {
-        modes.forEach { mode ->
-            val isSelected = mode == selectedMode
-            Tab(
-                selected = isSelected,
-                onClick = { onModeSelected(mode) },
-                text = {
-                    Text(
-                        text = mode.title,
-                        fontSize = 14.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) HubWhite else HubSecondary
-                    )
-                },
-                modifier = Modifier.testTag("search_tab_${mode.name.lowercase()}")
-            )
-        }
-    }
+private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 1.2.sp,
+        color = HubTextTertiary,
+        modifier = modifier
+    )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Rangée personne de la maquette : avatar 42, nom vérifié, bouton verre xs. */
 @Composable
-private fun SearchHistorySection(
-    history: List<String>,
-    onHistoryItemClick: (String) -> Unit,
-    onRemoveItem: (String) -> Unit,
-    onClearAll: () -> Unit
-) {
-    if (history.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(HubSurfaceElevated),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = null,
-                        tint = HubSecondary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Explorer The Hub",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Recherchez des créateurs par nom ou pseudo, ou trouvez des publications par mot-clé.",
-                    fontSize = 13.sp,
-                    color = HubSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    lineHeight = 18.sp
-                )
-            }
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .testTag("search_history_section")
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = null,
-                        tint = HubSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Recherches récentes",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = HubWhite
-                    )
-                }
-
-                TextButton(
-                    onClick = onClearAll,
-                    modifier = Modifier.testTag("clear_all_history_button")
-                ) {
-                    Text(
-                        text = "Tout effacer",
-                        fontSize = 12.sp,
-                        color = HubSecondary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                history.forEach { queryItem ->
-                    SearchHistoryChip(
-                        text = queryItem,
-                        onClick = { onHistoryItemClick(queryItem) },
-                        onDelete = { onRemoveItem(queryItem) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchHistoryChip(
-    text: String,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(HubSurfaceDark)
-            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 6.dp)
-            .testTag("history_chip_$text"),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = text,
-            fontSize = 13.sp,
-            color = HubWhite,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onDelete),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Clear,
-                contentDescription = "Supprimer $text",
-                tint = HubSecondary,
-                modifier = Modifier.size(12.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun UserSearchResultRow(
+private fun SuggestedUserRow(
     user: User,
     isFollowing: Boolean,
     isSelf: Boolean,
+    onUserClick: () -> Unit,
     onToggleFollow: () -> Unit,
-    onClick: () -> Unit
+    showTopDivider: Boolean
 ) {
+    val strings = LocalHubStrings.current
     val liveUser = rememberLiveUser(
         userId = user.uid,
         fallbackUsername = user.username,
@@ -637,516 +788,236 @@ private fun UserSearchResultRow(
         fallbackPhotoUrl = user.photoUrl
     )
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(HubSurface)
-            .border(1.dp, HubOutline, MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
-            .padding(14.dp)
-            .testTag("search_user_item_${user.uid}"),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        UserAvatar(
-            name = liveUser.effectiveName,
-            photoUrl = liveUser.photoUrl,
-            size = 46.dp
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            HubVerifiedUserName(
-                name = liveUser.effectiveName,
-                isVerified = liveUser.isVerified,
-                verificationType = liveUser.verificationType,
-                fontSize = 15.sp,
-                color = HubWhite,
-                badgeSize = 16.dp
-            )
-
-            if (liveUser.username.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "@${liveUser.username}",
-                    fontSize = 13.sp,
-                    color = HubSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (!user.bio.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = user.bio,
-                    fontSize = 12.sp,
-                    color = HubMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        if (!isSelf) {
-            Spacer(modifier = Modifier.width(8.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (showTopDivider) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (isFollowing) HubSurfaceElevated else HubWhite)
-                    .border(1.dp, if (isFollowing) HubBorder else HubWhite, RoundedCornerShape(20.dp))
-                    .clickable(onClick = onToggleFollow)
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                    .testTag("follow_button_${user.uid}")
-            ) {
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .height(1.dp)
+                    .background(HubStrokeSoft)
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onUserClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .testTag("search_user_item_${user.uid}"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            UserAvatar(
+                name = liveUser.effectiveName,
+                photoUrl = liveUser.photoUrl,
+                size = 42.dp
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                HubVerifiedUserName(
+                    name = liveUser.effectiveName,
+                    isVerified = liveUser.isVerified,
+                    verificationType = liveUser.verificationType,
+                    fontSize = 13.5.sp,
+                    color = HubWhite,
+                    badgeSize = 14.dp
+                )
                 Text(
-                    text = if (isFollowing) "Abonné" else "Suivre",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isFollowing) HubWhite else HubBlack
+                    text = strings.lot5.followListSubFollowersFormat
+                        .format(liveUser.followersCount),
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = HubTextTertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (!isSelf) {
+                SearchFollowButton(
+                    text = if (isFollowing) {
+                        strings.lot5.searchFollowedBtn
+                    } else {
+                        strings.follow
+                    },
+                    isFollowing = isFollowing,
+                    onClick = onToggleFollow,
+                    modifier = Modifier.testTag("follow_button_${user.uid}")
                 )
             }
         }
     }
 }
 
+/** Bouton xs de la maquette : verre (« Abonné ») ou dégradé (« Suivre »). */
 @Composable
-private fun EmptySearchResults(
-    query: String,
-    message: String
+private fun SearchFollowButton(
+    text: String,
+    isFollowing: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val shape = RoundedCornerShape(10.dp)
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp)
-            .testTag("empty_search_results"),
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (isFollowing) {
+                    Modifier
+                        .background(HubGlassStrong, shape)
+                        .border(1.dp, HubStroke, shape)
+                } else {
+                    Modifier.background(brush = hubPrimaryGradient(), shape = shape)
+                }
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(HubSurfaceElevated),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = HubSecondary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = message,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = HubSecondary,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-private fun BlankSearchTabs(
-    selectedTab: BlankSearchTab,
-    onTabSelected: (BlankSearchTab) -> Unit
-) {
-    val tabs = BlankSearchTab.entries
-    val selectedIndex = tabs.indexOf(selectedTab)
-
-    TabRow(
-        selectedTabIndex = selectedIndex,
-        containerColor = Color.Transparent,
-        contentColor = HubWhite,
-        indicator = { tabPositions ->
-            TabRowDefaults.SecondaryIndicator(
-                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                color = HubWhite,
-                height = 2.dp
-            )
-        },
-        divider = {}
-    ) {
-        tabs.forEach { tab ->
-            val isSelected = tab == selectedTab
-            Tab(
-                selected = isSelected,
-                onClick = { onTabSelected(tab) },
-                text = {
-                    Text(
-                        text = tab.title,
-                        fontSize = 14.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) HubWhite else HubSecondary
-                    )
-                },
-                modifier = Modifier.testTag("blank_tab_${tab.name.lowercase()}")
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun TrendingSection(
-    uiState: SearchUiState,
-    onHashtagClick: (String) -> Unit,
-    onPostClick: (String) -> Unit,
-    onImageClick: (String) -> Unit,
-    onToggleLike: (String) -> Unit,
-    onOpenComments: (String) -> Unit,
-    onOpenLikes: (String) -> Unit,
-    onOpenShare: (Post) -> Unit,
-    onToggleBookmark: (String) -> Unit,
-    onRefresh: () -> Unit,
-    onUserClick: ((User) -> Unit)?,
-    onToggleFollow: (String) -> Unit,
-    onRefreshSuggestions: () -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("trending_section"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Section 1: Hashtags Populaires (Top 10)
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(HubSurface)
-                    .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
-                    .padding(16.dp)
-                    .testTag("trending_hashtags_container")
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                contentDescription = null,
-                                tint = HubWhite,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Hashtags populaires",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = HubWhite
-                            )
-                        }
-                        Text(
-                            text = "Les 10 plus fréquents ces 7 derniers jours",
-                            fontSize = 12.sp,
-                            color = HubSecondary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onRefresh,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .testTag("refresh_trending_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Actualiser les tendances",
-                            tint = HubSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                if (uiState.trendingError != null && uiState.trendingHashtags.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Impossible de charger les tendances.",
-                            fontSize = 13.sp,
-                            color = HubSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        TextButton(onClick = onRefresh) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Réessayer",
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Réessayer")
-                        }
-                    }
-                } else if (uiState.isTrendingLoading && uiState.trendingHashtags.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = HubWhite,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                } else if (uiState.trendingHashtags.isEmpty()) {
-                    Text(
-                        text = "Aucun hashtag récent pour le moment.",
-                        fontSize = 13.sp,
-                        color = HubMuted,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                } else {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        uiState.trendingHashtags.forEach { item ->
-                            HashtagChip(
-                                hashtag = item,
-                                onClick = { onHashtagClick(item.tag) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section 2: Créateurs à découvrir
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(HubSurface)
-                    .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
-                    .padding(16.dp)
-                    .testTag("suggested_users_container")
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Créateurs à découvrir",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = HubWhite
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Des profils actifs que vous ne suivez pas encore",
-                            fontSize = 12.sp,
-                            color = HubSecondary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onRefreshSuggestions,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .testTag("refresh_suggestions_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Actualiser les suggestions",
-                            tint = HubSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                when {
-                    uiState.isSuggestionsLoading && uiState.suggestedUsers.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(72.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = HubWhite,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    uiState.suggestionsError != null && uiState.suggestedUsers.isEmpty() -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Impossible de charger les suggestions.",
-                                fontSize = 13.sp,
-                                color = HubSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                            TextButton(onClick = onRefreshSuggestions) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Réessayer",
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Réessayer")
-                            }
-                        }
-                    }
-
-                    uiState.suggestedUsers.isEmpty() -> {
-                        Text(
-                            text = "Aucun nouveau créateur à découvrir pour le moment.",
-                            fontSize = 13.sp,
-                            color = HubMuted,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-
-                    else -> {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            uiState.suggestedUsers.take(6).forEach { user ->
-                                UserSearchResultRow(
-                                    user = user,
-                                    isFollowing = uiState.suggestedFollowingIds.contains(user.uid),
-                                    isSelf = false,
-                                    onToggleFollow = { onToggleFollow(user.uid) },
-                                    onClick = { onUserClick?.invoke(user) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section 3: Header for Publications Tendance
-        item {
-            Column(modifier = Modifier.padding(top = 8.dp)) {
-                Text(
-                    text = "Publications tendance",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HubWhite
-                )
-                Text(
-                    text = "Les publications les plus populaires des 7 derniers jours",
-                    fontSize = 12.sp,
-                    color = HubSecondary
-                )
-            }
-        }
-
-        // Section 4: Trending Posts List
-        if (uiState.isTrendingLoading && uiState.trendingPosts.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = HubWhite,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-        } else if (uiState.trendingPosts.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(HubSurfaceDark)
-                        .padding(24.dp)
-                        .testTag("empty_trending_posts"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Aucune publication populaire ces 7 derniers jours.",
-                        fontSize = 14.sp,
-                        color = HubSecondary,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            }
-        } else {
-            items(
-                items = uiState.trendingPosts,
-                key = { "trending_${it.id}" }
-            ) { post ->
-                PostCard(
-                    post = post,
-                    onPostClick = onPostClick,
-                    onImageClick = onImageClick,
-                    onToggleLike = { onToggleLike(post.id) },
-                    onOpenComments = onOpenComments,
-                    onOpenLikes = onOpenLikes,
-                    onOpenShare = onOpenShare,
-                    onToggleBookmark = { onToggleBookmark(post.id) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HashtagChip(
-    hashtag: com.thehub.hb.data.model.TrendingHashtag,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(HubCard)
-            .border(1.dp, HubBorder, RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp)
-            .testTag("trending_hashtag_${hashtag.tag}"),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
         Text(
-            text = "#${hashtag.tag}",
-            fontSize = 13.sp,
+            text = text,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
             color = HubWhite
         )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "${hashtag.count}",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = HubSecondary
+    }
+}
+
+/** Mini-carte publication .glass-soft — avatar 30, texte 12/1.5. */
+@Composable
+private fun TrendingPostMiniCard(
+    post: Post,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalHubStrings.current
+    val author = rememberLiveUser(userId = post.authorId)
+    val timeLabel = remember(post.createdAt) {
+        val format = java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault())
+        format.format(post.createdAt.toDate())
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(palette.glassSoft)
+            .border(1.dp, HubStrokeSoft, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 15.dp, vertical = 13.dp)
+    ) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                UserAvatar(
+                    name = author.effectiveName,
+                    photoUrl = author.photoUrl,
+                    size = 30.dp
+                )
+                Text(
+                    text = author.effectiveName,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = timeLabel,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HubTextTertiary
+                )
+            }
+            Spacer(Modifier.height(7.dp))
+            Text(
+                text = post.text,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = HubTextSecondary,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (post.imageUrl != null) {
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    text = strings.lot3.postImageDesc,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = palette.accent
+                )
+            }
+        }
+    }
+}
+
+/** État « chargement » : squelettes verre. */
+@Composable
+private fun SearchLoadingState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        repeat(3) {
+            GlassSurface(
+                shape = RoundedCornerShape(22.dp),
+                variant = GlassVariant.Card,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("search_loading_indicator")
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    HubSkeletonLine(height = 13.dp, widthFraction = 0.55f)
+                    Spacer(Modifier.height(10.dp))
+                    HubSkeletonLine(height = 13.dp, widthFraction = 0.8f)
+                    Spacer(Modifier.height(10.dp))
+                    HubSkeletonLine(height = 13.dp, widthFraction = 0.4f)
+                }
+            }
+        }
+    }
+}
+
+/** État « erreur » : HubEmptyState + Réessayer. */
+@Composable
+private fun SearchErrorState(
+    message: String,
+    onRetry: () -> Unit
+) {
+    val strings = LocalHubStrings.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .testTag("search_error_state"),
+        contentAlignment = Alignment.Center
+    ) {
+        HubEmptyState(
+            title = strings.lot3.oopsLabel,
+            description = message,
+            icon = Icons.Outlined.Search,
+            actionLabel = strings.lot3.retryLabel,
+            onAction = onRetry
+        )
+    }
+}
+
+/** État « aucun résultat » : HubEmptyState + description maquette. */
+@Composable
+private fun SearchNoResultState() {
+    val strings = LocalHubStrings.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .testTag("empty_search_results"),
+        contentAlignment = Alignment.Center
+    ) {
+        HubEmptyState(
+            title = strings.lot5.searchNoResultTitle,
+            description = strings.lot5.searchNoResultDesc,
+            icon = Icons.Outlined.Search
         )
     }
 }

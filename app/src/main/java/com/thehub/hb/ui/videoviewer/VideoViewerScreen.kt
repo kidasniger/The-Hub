@@ -17,6 +17,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,14 +31,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,9 +48,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -58,18 +61,31 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.Abs
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.utils.loadOrCueVideo
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubButton
+import com.thehub.hb.ui.components.HubButtonVariant
 import com.thehub.hb.ui.theme.HubSecondary
+import com.thehub.hb.ui.theme.HubStroke
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.utils.VideoLinkDetector
 import com.thehub.hb.utils.VideoSourceType
 import kotlinx.coroutines.delay
 import java.util.Locale
 
+/**
+ * Lecteur vidéo plein écran — fond noir scénique, bouton fermer en verre,
+ * YouTube natif ou WebView intégrée, erreurs de lecture en carte verre.
+ */
 @Composable
 fun VideoViewerScreen(
     videoUrl: String,
     onClose: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val context = LocalContext.current
     val cleanedUrl = remember(videoUrl) { videoUrl.trim() }
 
@@ -81,7 +97,7 @@ fun VideoViewerScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Lien vidéo invalide.",
+                text = strings.lot5.videoInvalidLink,
                 color = HubWhite
             )
         }
@@ -156,6 +172,8 @@ private fun YouTubePlayerContent(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycle = lifecycleOwner.lifecycle
@@ -328,18 +346,22 @@ private fun YouTubePlayerContent(
             )
         }
 
-        IconButton(
-            onClick = onClose,
+        // Fermer — pastille verre (haut gauche).
+        Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
                 .padding(12.dp)
-                .size(46.dp)
-                .background(Color.Black.copy(alpha = 0.66f), CircleShape)
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(palette.scrim)
+                .border(1.dp, HubStroke, CircleShape)
+                .clickable(onClick = onClose),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Fermer",
+                contentDescription = strings.dialogClose,
                 tint = HubWhite,
                 modifier = Modifier.size(22.dp)
             )
@@ -347,93 +369,109 @@ private fun YouTubePlayerContent(
     }
 }
 
+/** Erreur de lecture YouTube — carte verre + Réessayer / Ouvrir YouTube. */
 @Composable
 private fun YouTubePlaybackError(
     errorName: String?,
     onRetry: () -> Unit,
     onOpenExternally: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xED000000)),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        GlassSurface(
+            shape = RoundedCornerShape(24.dp),
+            variant = GlassVariant.Card,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(28.dp)
         ) {
-            Text(
-                text = youtubePlaybackErrorTitle(errorName),
-                color = HubWhite
-            )
-
-            Text(
-                text = youtubePlaybackErrorDescription(errorName),
-                color = HubSecondary
-            )
-
-            Button(onClick = onRetry) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = youtubePlaybackErrorTitle(errorName, strings),
+                    color = HubWhite,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp
                 )
-                Text(" Réessayer")
-            }
 
-            Button(onClick = onOpenExternally) {
-                Icon(
-                    imageVector = Icons.Default.OpenInBrowser,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = youtubePlaybackErrorDescription(errorName, strings),
+                    color = HubSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
                 )
-                Text(" Ouvrir YouTube")
+
+                HubButton(
+                    text = strings.lot3.retryLabel,
+                    onClick = onRetry,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
+
+                HubButton(
+                    text = strings.lot5.videoOpenYoutube,
+                    onClick = onOpenExternally,
+                    variant = HubButtonVariant.Secondary,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.OpenInBrowser,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
             }
         }
     }
 }
 
-private fun youtubePlaybackErrorTitle(errorName: String?): String =
-    when (errorName) {
-        "VIDEO_NOT_FOUND" ->
-            "Cette vidéo YouTube est introuvable ou n’est plus disponible."
-        "VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER",
-        "VIDEO_NOT_ALLOWED_IN_EMBEDDED_PLAYER" ->
-            "Cette vidéo ne peut pas être lue dans un lecteur intégré."
-        "HTML_5_PLAYER_ERROR" ->
-            "Le moteur vidéo YouTube n’a pas pu lire cette vidéo."
-        "INVALID_PARAMETER_IN_REQUEST" ->
-            "Le lien YouTube n’est pas valide."
-        "PLAYER_TIMEOUT" ->
-            "YouTube met trop de temps à charger cette vidéo."
-        "PLAYER_INITIALIZATION" ->
-            "Le lecteur vidéo n’a pas pu démarrer sur cet appareil."
-        else ->
-            "Impossible de lire cette vidéo YouTube."
-    }
+private fun youtubePlaybackErrorTitle(
+    errorName: String?,
+    strings: com.thehub.hb.ui.theme.HubStrings
+): String = when (errorName) {
+    "VIDEO_NOT_FOUND" -> strings.lot5.videoErrNotFound
+    "VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER",
+    "VIDEO_NOT_ALLOWED_IN_EMBEDDED_PLAYER" -> strings.lot5.videoErrNotEmbeddable
+    "HTML_5_PLAYER_ERROR" -> strings.lot5.videoErrEngine
+    "INVALID_PARAMETER_IN_REQUEST" -> strings.lot5.videoErrInvalidLink
+    "PLAYER_TIMEOUT" -> strings.lot5.videoErrTimeout
+    "PLAYER_INITIALIZATION" -> strings.lot5.videoErrInit
+    else -> strings.lot5.videoErrGeneric
+}
 
-private fun youtubePlaybackErrorDescription(errorName: String?): String =
-    when (errorName) {
-        "VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER",
-        "VIDEO_NOT_ALLOWED_IN_EMBEDDED_PLAYER" ->
-            "Le propriétaire de la vidéo ou YouTube limite peut-être la lecture intégrée. Tu peux l’ouvrir directement dans YouTube."
-        "PLAYER_TIMEOUT" ->
-            "Vérifie la connexion internet puis réessaie."
-        "PLAYER_INITIALIZATION" ->
-            "Le composant vidéo n’a pas pu être initialisé. Réessaie ou ouvre la vidéo dans YouTube."
-        else ->
-            "Réessaie ou ouvre la vidéo directement dans YouTube."
-    }
+private fun youtubePlaybackErrorDescription(
+    errorName: String?,
+    strings: com.thehub.hb.ui.theme.HubStrings
+): String = when (errorName) {
+    "VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER",
+    "VIDEO_NOT_ALLOWED_IN_EMBEDDED_PLAYER" -> strings.lot5.videoErrNotEmbeddableDesc
+    "PLAYER_TIMEOUT" -> strings.lot5.videoErrTimeoutDesc
+    "PLAYER_INITIALIZATION" -> strings.lot5.videoErrInitDesc
+    else -> strings.lot5.videoErrGenericDesc
+}
 
 @Composable
 private fun GenericVideoViewer(
     videoUrl: String,
     onClose: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val context = LocalContext.current
     val cleanedUrl = remember(videoUrl) { videoUrl.trim() }
     val prepared = remember(cleanedUrl) {
@@ -565,20 +603,24 @@ private fun GenericVideoViewer(
             )
         }
 
-        IconButton(
-            onClick = onClose,
+        // Fermer — pastille verre (haut gauche).
+        Box(
             modifier = Modifier
                 .statusBarsPadding()
                 .padding(16.dp)
                 .align(Alignment.TopStart)
                 .size(44.dp)
-                .background(Color(0x99000000), CircleShape)
+                .clip(CircleShape)
+                .background(palette.scrim)
+                .border(1.dp, HubStroke, CircleShape)
+                .clickable(onClick = onClose),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Fermer",
+                contentDescription = strings.dialogClose,
                 tint = HubWhite,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
@@ -780,6 +822,7 @@ private fun WebView.loadPreparedVideo(prepared: PreparedVideo) {
     }
 }
 
+/** Erreur de lecture générique — carte verre + Réessayer / Ouvrir le lien. */
 @Composable
 private fun VideoPlaybackError(
     sourceType: VideoSourceType,
@@ -787,51 +830,71 @@ private fun VideoPlaybackError(
     onOpenExternally: () -> Unit,
     showRetry: Boolean = true
 ) {
+    val strings = LocalHubStrings.current
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xE6000000)),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        GlassSurface(
+            shape = RoundedCornerShape(24.dp),
+            variant = GlassVariant.Card,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(28.dp)
         ) {
-            Text(
-                text = when (sourceType) {
-                    VideoSourceType.YOUTUBE -> "Impossible de lire cette vidéo YouTube ici."
-                    VideoSourceType.DIRECT_MEDIA -> "Ce fichier vidéo ne peut pas être lu ici."
-                    else -> "Cette plateforme ne permet pas la lecture intégrée."
-                },
-                color = HubWhite
-            )
-
-            Text(
-                text = "Tu peux réessayer ou ouvrir le lien dans l'application / le navigateur compatible.",
-                color = HubSecondary
-            )
-
-            if (showRetry) {
-                Button(onClick = onRetry) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(" Réessayer")
-                }
-            }
-
-            Button(onClick = onOpenExternally) {
-                Icon(
-                    imageVector = Icons.Default.OpenInBrowser,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = when (sourceType) {
+                        VideoSourceType.YOUTUBE -> strings.lot5.videoErrYoutubeTitle
+                        VideoSourceType.DIRECT_MEDIA -> strings.lot5.videoErrDirectTitle
+                        else -> strings.lot5.videoErrPlatformTitle
+                    },
+                    color = HubWhite,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp
                 )
-                Text(" Ouvrir le lien")
+
+                Text(
+                    text = strings.lot5.videoErrActionDesc,
+                    color = HubSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+
+                if (showRetry) {
+                    HubButton(
+                        text = strings.lot3.retryLabel,
+                        onClick = onRetry,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+
+                HubButton(
+                    text = strings.lot5.videoOpenLink,
+                    onClick = onOpenExternally,
+                    variant = HubButtonVariant.Secondary,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.OpenInBrowser,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
             }
         }
     }

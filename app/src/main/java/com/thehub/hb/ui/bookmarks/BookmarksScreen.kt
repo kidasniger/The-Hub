@@ -1,10 +1,8 @@
 package com.thehub.hb.ui.bookmarks
 
 import androidx.compose.foundation.background
-import com.thehub.hb.ui.theme.HubOutline
-import com.thehub.hb.ui.theme.HubSurface
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,12 +22,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -44,24 +41,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thehub.hb.data.model.Post
-import com.thehub.hb.ui.components.HubButton
-import com.thehub.hb.ui.components.HubButtonVariant
+import com.thehub.hb.ui.components.GlassSurface
+import com.thehub.hb.ui.components.GlassVariant
+import com.thehub.hb.ui.components.HubEmptyState
+import com.thehub.hb.ui.components.HubSkeletonLine
 import com.thehub.hb.ui.feed.components.PostCard
 import com.thehub.hb.ui.feed.components.SharePostBottomSheet
-import com.thehub.hb.ui.theme.HubBlack
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
-import com.thehub.hb.ui.theme.HubError
-import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubGlass
+import com.thehub.hb.ui.theme.HubGlassStrong
+import com.thehub.hb.ui.theme.HubStroke
 import com.thehub.hb.ui.theme.HubWhite
-import androidx.compose.ui.graphics.Color
+import com.thehub.hb.ui.theme.LocalHubStrings
 
+/**
+ * Écran 21 — Favoris : appbar (retour + titre + compteur + actualiser),
+ * cartes publication verre (PostCard), états chargement / vide / erreur.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookmarksScreen(
@@ -75,6 +73,7 @@ fun BookmarksScreen(
     onAuthorClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalHubStrings.current
     val uiState by viewModel.uiState.collectAsState()
     var postToShare by remember { mutableStateOf<Post?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
@@ -83,74 +82,81 @@ fun BookmarksScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
             .statusBarsPadding()
             .testTag("bookmarks_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Top Bar
+            // .appbar — retour verre + titre + compteur + actualiser verre.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(HubSurfaceElevated)
-                            .testTag("bookmarks_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Retour",
-                            tint = HubWhite,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(HubGlass)
+                        .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+                        .clickable(onClick = onNavigateBack)
+                        .testTag("bookmarks_back_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = strings.back,
+                        tint = HubWhite,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                Spacer(Modifier.width(12.dp))
 
-                    Column {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = strings.lot5.bookmarksTitle,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.3).sp,
+                        color = HubWhite
+                    )
+                    if (uiState is BookmarksUiState.Success) {
+                        val count = (uiState as BookmarksUiState.Success).posts.size
                         Text(
-                            text = "Signets",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = HubWhite
+                            text = if (count == 1) {
+                                strings.lot5.bookmarksCountOne
+                            } else {
+                                strings.lot5.bookmarksCountFormat.format(count)
+                            },
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = com.thehub.hb.ui.theme.HubTextTertiary,
+                            modifier = Modifier.padding(top = 1.dp)
                         )
-                        if (uiState is BookmarksUiState.Success) {
-                            val count = (uiState as BookmarksUiState.Success).posts.size
-                            Text(
-                                text = "$count publication${if (count > 1) "s" else ""} enregistrée${if (count > 1) "s" else ""}",
-                                fontSize = 12.sp,
-                                color = HubSecondary
-                            )
-                        }
                     }
                 }
 
-                IconButton(
-                    onClick = { viewModel.refresh() },
+                Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(HubSurfaceElevated)
-                        .testTag("bookmarks_refresh_button")
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(HubGlass)
+                        .border(1.dp, HubStroke, RoundedCornerShape(14.dp))
+                        .clickable(onClick = { viewModel.refresh() })
+                        .testTag("bookmarks_refresh_button"),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Actualiser",
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = strings.lot5.bookmarksRefreshDesc,
                         tint = HubWhite,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
 
-            // Main content
+            // Contenu : chargement / vide / erreur / liste de publications.
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = { viewModel.refresh() },
@@ -160,25 +166,45 @@ fun BookmarksScreen(
                     .weight(1f)
             ) {
                 when (val state = uiState) {
-                    is BookmarksUiState.Loading -> {
-                        BookmarksSkeletonList()
+                    is BookmarksUiState.Loading -> BookmarksSkeletonList()
+
+                    is BookmarksUiState.Empty -> Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        HubEmptyState(
+                            title = strings.lot5.bookmarksEmptyTitle,
+                            description = strings.lot5.bookmarksEmptyDesc,
+                            icon = Icons.Outlined.BookmarkBorder
+                        )
                     }
 
-                    is BookmarksUiState.Empty -> {
-                        BookmarksEmptyState()
-                    }
-
-                    is BookmarksUiState.Error -> {
-                        BookmarksErrorState(
-                            message = state.message,
-                            onRetry = { viewModel.loadBookmarks(isRefresh = false) }
+                    is BookmarksUiState.Error -> Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        HubEmptyState(
+                            title = strings.lot3.oopsLabel,
+                            description = state.message,
+                            icon = Icons.Outlined.CloudOff,
+                            actionLabel = strings.lot3.retryLabel,
+                            onAction = { viewModel.loadBookmarks(isRefresh = false) }
                         )
                     }
 
                     is BookmarksUiState.Success -> {
                         LazyColumn(
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(
+                                start = 14.dp,
+                                end = 14.dp,
+                                top = 2.dp,
+                                bottom = 20.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(13.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(
@@ -198,17 +224,13 @@ fun BookmarksScreen(
                                     onAuthorClick = onAuthorClick
                                 )
                             }
-
-                            item {
-                                Spacer(modifier = Modifier.height(32.dp))
-                            }
                         }
                     }
                 }
             }
         }
 
-        // Share Bottom Sheet
+        // Feuille de partage (corrigée : flux conversations protégé).
         postToShare?.let { post ->
             SharePostBottomSheet(
                 post = post,
@@ -221,148 +243,40 @@ fun BookmarksScreen(
     }
 }
 
-@Composable
-private fun BookmarksEmptyState() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(HubSurfaceElevated),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.BookmarkBorder,
-                    contentDescription = null,
-                    tint = HubSecondary,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "Aucune publication enregistrée pour l'instant",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Enregistrez des publications avec l'icône marque-page pour les retrouver facilement ici à tout moment.",
-                fontSize = 14.sp,
-                color = HubSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun BookmarksErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Oups !",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubError
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                fontSize = 14.sp,
-                color = HubSecondary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            HubButton(
-                text = "Réessayer",
-                onClick = onRetry,
-                variant = HubButtonVariant.Secondary,
-                modifier = Modifier.width(180.dp)
-            )
-        }
-    }
-}
-
+/** État « chargement » : cartes de publication squelettes verre. */
 @Composable
 private fun BookmarksSkeletonList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         repeat(3) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(HubCard)
-                    .border(1.dp, HubBorder, RoundedCornerShape(16.dp))
-                    .padding(16.dp)
+            GlassSurface(
+                shape = RoundedCornerShape(com.thehub.hb.ui.components.HubDimens.CardRadius),
+                variant = GlassVariant.Card,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier
-                                .size(40.dp)
+                            Modifier
+                                .size(42.dp)
                                 .clip(CircleShape)
-                                .background(HubDarkGray)
+                                .background(HubGlassStrong)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Box(
-                                modifier = Modifier
-                                    .width(100.dp)
-                                    .height(14.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(HubDarkGray)
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .width(60.dp)
-                                    .height(10.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(HubBorder)
-                            )
+                        Spacer(Modifier.width(11.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            HubSkeletonLine(height = 13.dp, widthFraction = 0.35f)
+                            Spacer(Modifier.height(6.dp))
+                            HubSkeletonLine(height = 11.dp, widthFraction = 0.25f)
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.85f)
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(HubDarkGray)
-                    )
+                    Spacer(Modifier.height(14.dp))
+                    HubSkeletonLine(height = 14.dp, widthFraction = 0.9f)
+                    Spacer(Modifier.height(8.dp))
+                    HubSkeletonLine(height = 14.dp, widthFraction = 0.6f)
                 }
             }
         }
