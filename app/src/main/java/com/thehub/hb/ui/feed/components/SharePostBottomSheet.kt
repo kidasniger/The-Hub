@@ -1,23 +1,24 @@
 package com.thehub.hb.ui.feed.components
 
 import android.content.ClipData
-import androidx.compose.material3.MaterialTheme
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -56,17 +57,27 @@ import com.thehub.hb.data.model.Post
 import com.thehub.hb.data.repository.MessageRepository
 import com.thehub.hb.ui.components.HubVerifiedUserName
 import com.thehub.hb.ui.components.UserAvatar
-import com.thehub.hb.ui.theme.HubBorder
-import com.thehub.hb.ui.theme.HubCard
-import com.thehub.hb.ui.theme.HubDarkGray
+import com.thehub.hb.ui.theme.HubGlassStrong
 import com.thehub.hb.ui.theme.HubMuted
 import com.thehub.hb.ui.theme.HubSecondary
-import com.thehub.hb.ui.theme.HubSurfaceElevated
+import com.thehub.hb.ui.theme.HubStroke
+import com.thehub.hb.ui.theme.HubStrokeSoft
+import com.thehub.hb.ui.theme.HubTextTertiary
 import com.thehub.hb.ui.theme.HubWhite
+import com.thehub.hb.ui.theme.LocalHubColors
+import com.thehub.hb.ui.theme.LocalHubStrings
 import com.thehub.hb.utils.buildHubPostShareLink
 import com.thehub.hb.utils.buildHubPostShareMessage
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
+/**
+ * Feuille de partage de la maquette (écran 06 — actions de publication).
+ *
+ * Robustesse : le flux Firestore `getConversations()` peut se terminer avec une
+ * erreur (réseau indisponible, permissions) ; il est collecté ici avec `.catch`
+ * afin qu'aucune exception ne remonte dans la composition (crash corrigé).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SharePostBottomSheet(
@@ -77,8 +88,13 @@ fun SharePostBottomSheet(
     messageRepository: MessageRepository? = null
 ) {
     val context = LocalContext.current
+    val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val repository = remember { messageRepository ?: MessageRepository() }
-    val conversations by repository.getConversations().collectAsState(initial = emptyList())
+    // FIX CRASH : catch → la liste reste vide si le listener Firestore échoue.
+    val conversations by remember(repository) {
+        repository.getConversations().catch { emit(emptyList()) }
+    }.collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
     var showConversationPicker by remember { mutableStateOf(false) }
     var sendingConversationId by remember { mutableStateOf<String?>(null) }
@@ -87,7 +103,7 @@ fun SharePostBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = palette.card,
         contentColor = HubWhite,
         dragHandle = {
             Box(
@@ -96,7 +112,7 @@ fun SharePostBottomSheet(
                     .width(40.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(HubDarkGray)
+                    .background(HubStroke)
             )
         }
     ) {
@@ -108,48 +124,48 @@ fun SharePostBottomSheet(
         ) {
             if (!showConversationPicker) {
                 Text(
-                    text = "Partager la publication",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = HubWhite,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+                    text = strings.lot5.shareSheetTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HubWhite,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
 
-                // Option 1: Reposter sur mon profil
+                // Option 1 : reposter sur mon profil.
                 ShareOptionItem(
-                icon = Icons.Default.Repeat,
-                title = "Reposter sur mon profil",
-                subtitle = "Partage cette publication avec vos abonnés",
-                enabled = true,
-                onClick = {
-                    onRepost(post)
-                    onDismiss()
-                },
+                    icon = Icons.Default.Repeat,
+                    title = strings.lot5.shareOptionRepost,
+                    subtitle = strings.lot5.shareOptionRepostSub,
+                    enabled = true,
+                    onClick = {
+                        onRepost(post)
+                        onDismiss()
+                    },
                     testTag = "share_option_repost"
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Option 2: Envoyer dans The Hub
-                ShareOptionItem(
-                icon = Icons.AutoMirrored.Outlined.Send,
-                title = "Envoyer dans The Hub",
-                subtitle = "Choisir une conversation",
-                enabled = true,
-                onClick = {
-                    shareError = null
-                    showConversationPicker = true
-                },
-                testTag = "share_option_message"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-                // Option 3: Share through another installed app
+                // Option 2 : envoyer dans The Hub.
                 ShareOptionItem(
                     icon = Icons.AutoMirrored.Outlined.Send,
-                    title = "Partager via une autre application",
-                    subtitle = "Messages, WhatsApp, etc.",
+                    title = strings.lot5.shareOptionMessage,
+                    subtitle = strings.lot5.shareOptionMessageSub,
+                    enabled = true,
+                    onClick = {
+                        shareError = null
+                        showConversationPicker = true
+                    },
+                    testTag = "share_option_message"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Option 3 : partager via une application installée.
+                ShareOptionItem(
+                    icon = Icons.AutoMirrored.Outlined.Send,
+                    title = strings.lot5.shareOptionExternal,
+                    subtitle = strings.lot5.shareOptionExternalSub,
                     enabled = true,
                     onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -157,10 +173,16 @@ fun SharePostBottomSheet(
                             putExtra(Intent.EXTRA_TEXT, buildHubPostShareLink(post.id))
                         }
                         try {
-                            context.startActivity(Intent.createChooser(shareIntent, "Partager la publication"))
+                            context.startActivity(
+                                Intent.createChooser(shareIntent, strings.lot5.shareSheetTitle)
+                            )
                             onDismiss()
                         } catch (_: Exception) {
-                            Toast.makeText(context, "Aucune application compatible pour le partage.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                strings.lot5.shareNoAppToast,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     },
                     testTag = "share_option_external"
@@ -168,38 +190,45 @@ fun SharePostBottomSheet(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-            // Option 4: Copier le lien
-            ShareOptionItem(
-                icon = Icons.Outlined.ContentCopy,
-                title = "Copier le lien",
-                subtitle = buildHubPostShareLink(post.id),
-                enabled = true,
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val link = buildHubPostShareLink(post.id)
-                    val clip = ClipData.newPlainText("Lien The Hub", link)
-                    clipboard.setPrimaryClip(clip)
-                    Toast.makeText(context, "Lien copié dans le presse-papier !", Toast.LENGTH_SHORT).show()
-                    onDismiss()
-                },
-                testTag = "share_option_copy_link"
+                // Option 4 : copier le lien.
+                ShareOptionItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    title = strings.lot5.shareOptionCopyLink,
+                    subtitle = buildHubPostShareLink(post.id),
+                    enabled = true,
+                    onClick = {
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val link = buildHubPostShareLink(post.id)
+                        val clip = ClipData.newPlainText(strings.lot5.shareClipLabel, link)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(
+                            context,
+                            strings.lot5.shareCopiedToast,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        onDismiss()
+                    },
+                    testTag = "share_option_copy_link"
                 )
 
                 Spacer(modifier = Modifier.height(28.dp))
             } else {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { showConversationPicker = false }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = strings.lot5.sharePickerBackDesc,
                             tint = HubWhite
                         )
                     }
                     Text(
-                        text = "Choisir une conversation",
+                        text = strings.lot5.sharePickerTitle,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = HubWhite
@@ -217,15 +246,17 @@ fun SharePostBottomSheet(
 
                 if (conversations.isEmpty()) {
                     Text(
-                        text = "Aucune conversation disponible.",
+                        text = strings.lot5.shareNoConversations,
                         color = HubMuted,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(vertical = 24.dp)
                     )
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.55f),
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.55f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(conversations, key = { it.id }) { conversation ->
                             ConversationShareRow(
@@ -234,33 +265,47 @@ fun SharePostBottomSheet(
                                 isSending = sendingConversationId == conversation.id,
                                 onClick = {
                                     if (sendingConversationId == null) {
-                                        val recipientId = conversation.getOtherParticipantId(repository.currentUserId)
+                                        val recipientId = conversation.getOtherParticipantId(
+                                            repository.currentUserId
+                                        )
                                         if (recipientId.isBlank()) {
-                                            shareError = "Conversation invalide."
+                                            shareError = strings.lot5.shareInvalidConversation
                                         } else {
                                             sendingConversationId = conversation.id
                                             shareError = null
                                             coroutineScope.launch {
-                                                val permission = repository.checkCanSendMessage(recipientId)
-                                                if (permission.isFailure) {
-                                                    shareError = permission.exceptionOrNull()?.message
-                                                        ?: "Envoi impossible."
+                                                runCatching {
+                                                    val permission =
+                                                        repository.checkCanSendMessage(recipientId)
+                                                    if (permission.isFailure) {
+                                                        shareError = permission.exceptionOrNull()
+                                                            ?.message
+                                                            ?: strings.lot5.shareSendImpossible
+                                                        sendingConversationId = null
+                                                    } else {
+                                                        repository.sendMessage(
+                                                            conversationId = conversation.id,
+                                                            text = buildHubPostShareMessage(post.id),
+                                                            imageUrl = null
+                                                        ).fold(
+                                                            onSuccess = {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    strings.lot5.shareSentToast,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                                onDismiss()
+                                                            },
+                                                            onFailure = {
+                                                                shareError = it.message
+                                                                    ?: strings.lot5.shareSendFailed
+                                                                sendingConversationId = null
+                                                            }
+                                                        )
+                                                    }
+                                                }.onFailure {
+                                                    shareError = strings.lot5.shareSendFailed
                                                     sendingConversationId = null
-                                                } else {
-                                                    repository.sendMessage(
-                                                        conversationId = conversation.id,
-                                                        text = buildHubPostShareMessage(post.id),
-                                                        imageUrl = null
-                                                    ).fold(
-                                                        onSuccess = {
-                                                            Toast.makeText(context, "Publication envoyée.", Toast.LENGTH_SHORT).show()
-                                                            onDismiss()
-                                                        },
-                                                        onFailure = {
-                                                            shareError = it.message ?: "Impossible d'envoyer la publication."
-                                                            sendingConversationId = null
-                                                        }
-                                                    )
                                                 }
                                             }
                                         }
@@ -277,6 +322,7 @@ fun SharePostBottomSheet(
     }
 }
 
+/** Option de la feuille : rangée verre, icône en pastille, titre + sous-titre. */
 @Composable
 private fun ShareOptionItem(
     icon: ImageVector,
@@ -290,7 +336,8 @@ private fun ShareOptionItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(HubSurfaceElevated)
+            .background(HubGlassStrong)
+            .border(1.dp, HubStrokeSoft, RoundedCornerShape(14.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(16.dp)
             .testTag(testTag),
@@ -300,13 +347,13 @@ private fun ShareOptionItem(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(if (enabled) HubDarkGray else HubBorder),
+                .background(HubStrokeSoft.copy(alpha = 0.35f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (enabled) HubWhite else HubMuted,
+                tint = HubWhite,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -318,18 +365,18 @@ private fun ShareOptionItem(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (enabled) HubWhite else HubMuted
+                color = HubWhite
             )
             Text(
                 text = subtitle,
                 fontSize = 13.sp,
-                color = if (enabled) HubSecondary else HubMuted
+                color = HubSecondary
             )
         }
     }
 }
 
-
+/** Rangée de conversation du sélecteur : avatar 44 + nom vérifié + aperçu. */
 @Composable
 private fun ConversationShareRow(
     conversation: Conversation,
@@ -337,12 +384,14 @@ private fun ConversationShareRow(
     isSending: Boolean,
     onClick: () -> Unit
 ) {
+    val strings = LocalHubStrings.current
     val otherInfo = conversation.getOtherParticipantInfo(currentUserId)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(HubSurfaceElevated)
+            .background(HubGlassStrong)
+            .border(1.dp, HubStrokeSoft, RoundedCornerShape(14.dp))
             .clickable(enabled = !isSending, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -355,7 +404,8 @@ private fun ConversationShareRow(
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             HubVerifiedUserName(
-                name = otherInfo.displayName ?: otherInfo.username.ifBlank { "Conversation" },
+                name = otherInfo.displayName
+                    ?: otherInfo.username.ifBlank { strings.lot5.shareRowFallbackName },
                 isVerified = otherInfo.isVerified,
                 verificationType = otherInfo.verificationType,
                 fontSize = 15.sp,
@@ -364,8 +414,12 @@ private fun ConversationShareRow(
                 badgeSize = 15.dp
             )
             Text(
-                text = if (conversation.lastMessageText.isBlank()) "Aucun message" else conversation.lastMessageText,
-                color = HubMuted,
+                text = if (conversation.lastMessageText.isBlank()) {
+                    strings.lot5.shareRowNoMessage
+                } else {
+                    conversation.lastMessageText
+                },
+                color = HubTextTertiary,
                 fontSize = 12.sp,
                 maxLines = 1
             )
@@ -379,7 +433,7 @@ private fun ConversationShareRow(
         } else {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.Send,
-                contentDescription = "Envoyer",
+                contentDescription = strings.lot5.shareRowSendDesc,
                 tint = HubSecondary,
                 modifier = Modifier.size(18.dp)
             )
