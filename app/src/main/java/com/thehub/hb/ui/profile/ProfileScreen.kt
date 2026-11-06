@@ -796,7 +796,7 @@ fun ProfileScreen(
 
 /** Remonte le contenu de `amount` sous l'élément précédent (marge négative). */
 private fun Modifier.pullUp(amount: Dp): Modifier = this.then(
-    Modifier.layout { measurable ->
+    Modifier.layout { measurable, constraints ->
         val placeable = measurable.measure(constraints)
         val shift = amount.roundToPx()
         layout(placeable.width, (placeable.height - shift).coerceAtLeast(0)) {
