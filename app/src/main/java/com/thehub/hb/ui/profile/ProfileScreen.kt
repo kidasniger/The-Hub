@@ -73,6 +73,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.layout
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.thehub.hb.data.model.Post
@@ -650,6 +651,7 @@ fun ProfileScreen(
                                     )
                                 }
                                 }
+                                }
 
                                 // Contenu de l'onglet (grille 3 carrés, gap 5).
                                 val tabPosts = when (activeTab) {
@@ -703,7 +705,6 @@ fun ProfileScreen(
                                 }
                         }
                     }
-                }
 
                 // Menu contextuel des autres profils.
                 if (!uiState.isOwnProfile) {
@@ -794,13 +795,19 @@ fun ProfileScreen(
 }
 
 /** Remonte le contenu de `amount` sous l'élément précédent (marge négative). */
-private fun Modifier.pullUp(amount: Dp): Modifier = androidx.compose.ui.layout.layout { measurable, constraints ->
-    val placeable = measurable.measure(constraints)
-    val shift = amount.roundToPx()
-    layout(placeable.width, (placeable.height - shift).coerceAtLeast(0)) {
-        placeable.placeRelative(0, -shift)
+private fun Modifier.pullUp(amount: Dp): Modifier = this.then(
+    Modifier.layout { measurable ->
+        val placeable = measurable.measure(constraints)
+        val shift = amount.roundToPx()
+        layout(placeable.width, (placeable.height - shift).coerceAtLeast(0)) {
+            placeable.placeRelative(0, -shift)
+        }
     }
-}
+)
+
+/** Compteur FR « 1 284 » — groupement par milliers via la locale. */
+private fun formatHubCount(count: Int): String =
+    String.format(Locale.FRENCH, "%,d", count)
 
 /** Partage le profil via une intent système (lien thehub://profile/<uid>). */
 private fun shareProfile(

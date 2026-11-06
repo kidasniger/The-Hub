@@ -251,7 +251,10 @@ fun SearchScreen(
                                 onOpenLikes = onOpenLikes,
                                 onOpenShare = onOpenShare,
                                 onToggleBookmark = { viewModel.toggleBookmark(it) },
-                                onAuthorClick = onUserClick?.let { click -> { user -> click(user) } }
+                                onAuthorClick = { authorId ->
+                                    uiState.users.firstOrNull { it.uid == authorId }
+                                        ?.let { onUserClick?.invoke(it) }
+                                }
                             )
                         }
                     }
@@ -823,7 +826,7 @@ private fun SuggestedUserRow(
                 )
                 Text(
                     text = strings.lot5.followListSubFollowersFormat
-                        .format(liveUser.followersCount),
+                        .format(user.followersCount),
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = HubTextTertiary,
@@ -889,6 +892,7 @@ private fun TrendingPostMiniCard(
     modifier: Modifier = Modifier
 ) {
     val strings = LocalHubStrings.current
+    val palette = LocalHubColors.current
     val author = rememberLiveUser(userId = post.authorId)
     val timeLabel = remember(post.createdAt) {
         val format = java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault())
